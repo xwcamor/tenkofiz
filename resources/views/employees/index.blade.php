@@ -97,11 +97,40 @@ async function linkUser(id, name) {
 
 @section('content')
 <div class="card card-primary card-outline">
+    <div class="card-header">
+        <form class="form-inline">
+            <div class="input-group input-group-sm mr-3" style="width:280px">
+                <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="{{ __('Search by name or document…') }}">
+                <div class="input-group-append"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+            </div>
+            <select name="area_id" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('All areas') }}</option>
+                @foreach($areas as $area)
+                    <option value="{{ $area->id }}" @selected(request('area_id') == $area->id)>{{ $area->name }}</option>
+                @endforeach
+            </select>
+            <select name="face" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('Face: all') }}</option>
+                <option value="enrolled" @selected(request('face') === 'enrolled')>{{ __('Enrolled') }}</option>
+                <option value="pending" @selected(request('face') === 'pending')>{{ __('Pending') }}</option>
+            </select>
+            <select name="status" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('All statuses') }}</option>
+                <option value="active" @selected(request('status') === 'active')>{{ __('Active') }}</option>
+                <option value="inactive" @selected(request('status') === 'inactive')>{{ __('Inactive') }}</option>
+            </select>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            @if(request()->hasAny(['q', 'area_id', 'face', 'status']))
+                <a href="{{ route('employees.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+            @endif
+            <span class="ml-auto text-muted small">{{ __(':total employee(s)', ['total' => $employees->total()]) }}</span>
+        </form>
+    </div>
     <div class="card-body">
-        <table class="table table-bordered table-hover data-table">
+        <table class="table table-bordered table-hover">
             <thead><tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('User') }}</th><th>{{ __('Face') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
-            @foreach($employees as $employee)
+            @forelse($employees as $employee)
                 <tr>
                     <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
                     <td>{{ $employee->full_name }}</td>
@@ -139,9 +168,19 @@ async function linkUser(id, name) {
                         </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="7" class="text-center text-muted py-4">{{ __('No employees match the current filters.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="text-muted small">
+                @if($employees->total())
+                    {{ __('Showing :from–:to of :total', ['from' => $employees->firstItem(), 'to' => $employees->lastItem(), 'total' => $employees->total()]) }}
+                @endif
+            </span>
+            {{ $employees->links() }}
+        </div>
     </div>
 </div>
 

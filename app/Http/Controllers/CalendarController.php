@@ -24,7 +24,10 @@ class CalendarController extends Controller
         $events = [];
 
         if ($employee) {
-            foreach ($employee->attendances()->get() as $attendance) {
+            // Bounded window: loading every attendance ever would grow without limit
+            $calendarStart = company_now()->subMonths(12)->startOfMonth()->toDateString();
+
+            foreach ($employee->attendances()->where('date', '>=', $calendarStart)->orderBy('date')->get() as $attendance) {
                 $color = match ($attendance->status) {
                     'ON_TIME' => '#28a745',
                     'LATE' => '#ffc107',

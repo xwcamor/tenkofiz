@@ -10,10 +10,24 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // 'employee' tells apart people who mark attendance from admin-only accounts
-        $users = User::with(['profile', 'employee'])->orderBy('name')->get();
+        // Server-side pagination + search so the list stays fast with thousands of accounts.
+        // 'employee' tells apart people who mark attendance from admin-only accounts.
+        $search = trim((string) $request->input('q'));
+
+        $users = User::with(['profile', 'employee'])
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+                $query->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like));
+            })
+            ->when($request->filled('profile_id'), fn ($q) => $q->where('profile_id', $request->integer('profile_id')))
+            ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false))
+            ->orderBy('name')
+            ->paginate(25)
+            ->withQueryString();
+
         $profiles = Profile::where('is_active', true)->orderBy('name')->get();
         return view('users.index', compact('users', 'profiles'));
     }

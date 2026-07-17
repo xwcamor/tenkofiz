@@ -5,13 +5,37 @@
 @endsection
 @section('content')
 <div class="card card-primary card-outline">
+    <div class="card-header">
+        <form class="form-inline">
+            <div class="input-group input-group-sm mr-3" style="width:280px">
+                <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="{{ __('Search by name or email…') }}">
+                <div class="input-group-append"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+            </div>
+            <select name="profile_id" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('All profiles') }}</option>
+                @foreach($profiles as $profile)
+                    <option value="{{ $profile->id }}" @selected(request('profile_id') == $profile->id)>{{ $profile->name }}</option>
+                @endforeach
+            </select>
+            <select name="status" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('All statuses') }}</option>
+                <option value="active" @selected(request('status') === 'active')>{{ __('Active') }}</option>
+                <option value="inactive" @selected(request('status') === 'inactive')>{{ __('Inactive') }}</option>
+            </select>
+            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            @if(request()->hasAny(['q', 'profile_id', 'status']))
+                <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+            @endif
+            <span class="ml-auto text-muted small">{{ __(':total user(s)', ['total' => $users->total()]) }}</span>
+        </form>
+    </div>
     <div class="card-body">
-        <table class="table table-bordered table-hover data-table">
+        <table class="table table-bordered table-hover">
             <thead>
                 <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
             </thead>
             <tbody>
-            @foreach($users as $user)
+            @forelse($users as $user)
                 <tr>
                     <td>
                         @if($user->photo)
@@ -53,9 +77,19 @@
                         @endif
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="6" class="text-center text-muted py-4">{{ __('No users match the current filters.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="text-muted small">
+                @if($users->total())
+                    {{ __('Showing :from–:to of :total', ['from' => $users->firstItem(), 'to' => $users->lastItem(), 'total' => $users->total()]) }}
+                @endif
+            </span>
+            {{ $users->links() }}
+        </div>
     </div>
 </div>
 

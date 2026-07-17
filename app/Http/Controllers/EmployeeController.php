@@ -16,12 +16,30 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
+        // Server-side pagination + search: this list must stay fast with thousands of employees
+        $search = trim((string) $request->input('q'));
+
         $employees = Employee::with(['schedule', 'user', 'area', 'position'])
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+                $query->where(fn ($q) => $q
+                    ->where('document_number', 'like', $like)
+                    ->orWhere('first_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like));
+            })
+            ->when($request->filled('area_id'), fn ($q) => $q->where('area_id', $request->integer('area_id')))
+            ->when($request->input('face') === 'enrolled', fn ($q) => $q->whereNotNull('face_descriptor'))
+            ->when($request->input('face') === 'pending', fn ($q) => $q->whereNull('face_descriptor'))
+            ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy('last_name')
-            ->get();
+            ->orderBy('first_name')
+            ->paginate(25)
+            ->withQueryString();
 
         return view('employees.index', [
             'employees' => $employees,
+            'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
