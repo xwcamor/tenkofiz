@@ -53,7 +53,16 @@
                     <td>{{ $attendance->check_in ?? '—' }}</td>
                     <td>{{ $attendance->check_out ?? '—' }}</td>
                     <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
-                    <td><i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}</td>
+                    <td>
+                        @if($attendance->method === 'DNI')
+                            <span class="badge badge-warning" title="{{ __('Marked by typing the document number: verify with the evidence photo') }}"><i class="fas fa-keyboard"></i> DNI</span>
+                        @else
+                            <i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}
+                        @endif
+                        @if($attendance->evidence_photo)
+                            <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
+                        @endif
+                    </td>
                     <td class="text-muted">{{ $attendance->note }}</td>
                     <td class="text-center">
                         @php

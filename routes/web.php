@@ -38,7 +38,12 @@ Route::middleware('guest')->group(function () {
 Route::middleware('kiosk.token')->group(function () {
     Route::get('/kiosk', [KioskController::class, 'index'])->name('kiosk');
     Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
+    Route::get('/kiosk/version', [KioskController::class, 'version'])->name('kiosk.version');
     Route::post('/kiosk/mark', [KioskController::class, 'mark'])->name('kiosk.mark');
+    Route::post('/kiosk/mark-dni', [KioskController::class, 'markByDni'])->name('kiosk.markDni');
+    Route::post('/kiosk/enroll/unlock', [KioskController::class, 'enrollUnlock'])->name('kiosk.enroll.unlock');
+    Route::post('/kiosk/enroll/lookup', [KioskController::class, 'enrollLookup'])->name('kiosk.enroll.lookup');
+    Route::post('/kiosk/enroll/descriptor', [KioskController::class, 'enrollDescriptor'])->name('kiosk.enroll.descriptor');
 });
 
 // ---------- Internal modules ----------
@@ -75,6 +80,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('module:employees')->group(function () {
+        Route::get('dni-lookup/{dni}', [\App\Http\Controllers\DniLookupController::class, 'show'])->name('dni.lookup');
         Route::get('employees-import/template', [\App\Http\Controllers\EmployeeImportController::class, 'template'])->name('employees.import.template');
         Route::post('employees-import', [\App\Http\Controllers\EmployeeImportController::class, 'store'])->name('employees.import');
         Route::resource('employees', EmployeeController::class)->except(['show']);

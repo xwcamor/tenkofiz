@@ -12,16 +12,21 @@
                     <div class="row">
                         <div class="col-md-4 form-group">
                             <label>{{ __('Document number') }}</label>
-                            <input name="document_number" value="{{ old('document_number', $employee->document_number) }}" class="form-control @error('document_number') is-invalid @enderror" required maxlength="12" pattern="[0-9]{8,12}" title="{{ __('Digits only (8 to 12)') }}">
-                            @error('document_number')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                            <div class="input-group">
+                                <input name="document_number" id="documentInput" value="{{ old('document_number', $employee->document_number) }}" class="form-control @error('document_number') is-invalid @enderror" required maxlength="12" pattern="[0-9]{8,12}" title="{{ __('Digits only (8 to 12)') }}">
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-outline-primary" id="dniLookupBtn" onclick="lookupDni()" title="{{ __('Look the DNI up in RENIEC and autofill the names') }}"><i class="fas fa-search"></i> RENIEC</button>
+                                </div>
+                            </div>
+                            @error('document_number')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                         </div>
                         <div class="col-md-4 form-group">
                             <label>{{ __('First names') }}</label>
-                            <input name="first_name" value="{{ old('first_name', $employee->first_name) }}" class="form-control" required>
+                            <input name="first_name" id="firstNameInput" value="{{ old('first_name', $employee->first_name) }}" class="form-control" required>
                         </div>
                         <div class="col-md-4 form-group">
                             <label>{{ __('Last names') }}</label>
-                            <input name="last_name" value="{{ old('last_name', $employee->last_name) }}" class="form-control" required>
+                            <input name="last_name" id="lastNameInput" value="{{ old('last_name', $employee->last_name) }}" class="form-control" required>
                         </div>
                         <div class="col-md-4 form-group">
                             <label>{{ __('Area') }}</label>
@@ -107,6 +112,37 @@
 
 @push('scripts')
 <script>
+/** RENIEC lookup (Decolecta API): autofills first and last names from the DNI */
+async function lookupDni() {
+    const dni = document.getElementById('documentInput').value.trim();
+    if (!/^\d{8}$/.test(dni)) {
+        Swal.fire(@json(__('Attention')), @json(__('The DNI must have exactly 8 digits.')), 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('dniLookupBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        const res = await fetch(`{{ url('dni-lookup') }}/${dni}`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+
+        if (res.ok && data.ok) {
+            document.getElementById('firstNameInput').value = data.first_name;
+            document.getElementById('lastNameInput').value = data.last_name;
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.last_name + ', ' + data.first_name, showConfirmButton: false, timer: 2500 });
+        } else {
+            Swal.fire(@json(__('Attention')), data.message || @json(__('DNI not found in RENIEC.')), 'warning');
+        }
+    } catch (e) {
+        Swal.fire(@json(__('Attention')), @json(__('Could not reach the RENIEC service. Try again in a moment.')), 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> RENIEC';
+    }
+}
+
 /** Quick creation of areas and positions without leaving the form (SweetAlert2 + AJAX) */
 async function addCatalogItem(url, selectId, label) {
     const { value: name } = await Swal.fire({

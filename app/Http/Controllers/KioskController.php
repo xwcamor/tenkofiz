@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Holiday;
 use Illuminate\Http\Request;
@@ -14,6 +15,9 @@ class KioskController extends Controller
 
     /** Minimum minutes that must pass between check-in and check-out (avoids double marking) */
     public const MIN_MINUTES_BEFORE_CHECKOUT = 30;
+
+    /** How long the enrollment mode stays unlocked after entering the PIN */
+    public const ENROLL_SESSION_MINUTES = 15;
 
     public function index()
     {
@@ -27,20 +31,39 @@ class KioskController extends Controller
             ->whereNotNull('face_descriptor')
             ->get(['id', 'first_name', 'last_name', 'face_descriptor']);
 
-        return response()->json($employees->map(function ($employee) {
-            $data = json_decode($employee->face_descriptor, true);
-            // Compatibility: old format = one flat vector; new = list of vectors
-            $descriptors = is_array($data) && isset($data[0]) && is_array($data[0]) ? $data : [$data];
+        return response()->json([
+            'version' => $this->descriptorsVersion(),
+            'employees' => $employees->map(function ($employee) {
+                $data = json_decode($employee->face_descriptor, true);
+                // Compatibility: old format = one flat vector; new = list of vectors
+                $descriptors = is_array($data) && isset($data[0]) && is_array($data[0]) ? $data : [$data];
 
-            return [
-                'id' => $employee->id,
-                'name' => $employee->full_name,
-                'descriptors' => $descriptors,
-            ];
-        }));
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->full_name,
+                    'descriptors' => $descriptors,
+                ];
+            }),
+        ]);
     }
 
-    /** Records a check-in or check-out as appropriate */
+    /**
+     * Tiny endpoint (~60 bytes) the kiosk polls every few minutes: the full
+     * descriptor list is only re-downloaded when this fingerprint changes.
+     */
+    public function version()
+    {
+        return response()->json(['version' => $this->descriptorsVersion()]);
+    }
+
+    private function descriptorsVersion(): string
+    {
+        $enrolled = Employee::where('is_active', true)->whereNotNull('face_descriptor');
+
+        return md5($enrolled->count().'|'.($enrolled->max('updated_at') ?? ''));
+    }
+
+    /** Records a check-in or check-out after a facial match */
     public function mark(Request $request)
     {
         $data = $request->validate([
@@ -54,6 +77,37 @@ class KioskController extends Controller
 
         $employee = Employee::with('schedule')->findOrFail($data['employee_id']);
 
+        return $this->performMark($request, $employee, 'FACIAL', ['similarity' => $data['distance']]);
+    }
+
+    /**
+     * Fallback when the face is not detected: the employee types their document
+     * number and an evidence snapshot is stored for supervisor verification.
+     */
+    public function markByDni(Request $request)
+    {
+        $data = $request->validate([
+            'document_number' => ['required', 'digits_between:8,12'],
+            'photo' => ['nullable', 'string', 'max:1500000'], // base64 JPEG snapshot
+        ]);
+
+        $employee = Employee::with('schedule')
+            ->where('is_active', true)
+            ->where('document_number', $data['document_number'])
+            ->first();
+
+        if (!$employee) {
+            return response()->json(['ok' => false, 'message' => __('No active employee found with that document number.')], 422);
+        }
+
+        $evidencePath = $this->storeEvidencePhoto($data['photo'] ?? null);
+
+        return $this->performMark($request, $employee, 'DNI', ['evidence_photo' => $evidencePath]);
+    }
+
+    /** Shared business rules for facial and DNI marking */
+    private function performMark(Request $request, Employee $employee, string $method, array $extra = [])
+    {
         // All business rules run on company local time; the server stores UTC timestamps
         $now = company_now();
         $today = $now->toDateString();
@@ -93,9 +147,8 @@ class KioskController extends Controller
             $attendance->fill([
                 'check_in' => $currentTime,
                 'status' => $status,
-                'method' => 'FACIAL',
-                'similarity' => $data['distance'],
-            ] + $device)->save();
+                'method' => $method,
+            ] + $extra + $device)->save();
 
             return response()->json([
                 'ok' => true,
@@ -123,8 +176,8 @@ class KioskController extends Controller
                 ], 422);
             }
 
-            // Second mark = CHECK-OUT
-            $attendance->update(['check_out' => $currentTime] + $device);
+            // Second mark = CHECK-OUT (keep the check-in evidence if it exists)
+            $attendance->update(['check_out' => $currentTime] + array_filter($extra) + $device);
 
             return response()->json([
                 'ok' => true,
@@ -140,5 +193,113 @@ class KioskController extends Controller
             'ok' => false,
             'message' => __(':name already checked in and out today.', ['name' => $employee->full_name]),
         ], 422);
+    }
+
+    /** Persists the base64 snapshot sent with DNI marks (evidence for supervisors) */
+    private function storeEvidencePhoto(?string $base64): ?string
+    {
+        if (!$base64) {
+            return null;
+        }
+
+        $data = preg_replace('/^data:image\/\w+;base64,/', '', $base64);
+        $binary = base64_decode($data, true);
+        if ($binary === false || strlen($binary) < 100) {
+            return null;
+        }
+
+        $dir = public_path('uploads/kiosk_evidence');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $name = uniqid('mark_').'.jpg';
+        file_put_contents($dir.'/'.$name, $binary);
+
+        return 'uploads/kiosk_evidence/'.$name;
+    }
+
+    // ---------- Self-enrollment mode (unlocked with the supervisor PIN) ----------
+
+    /** Unlocks the enrollment mode for a few minutes */
+    public function enrollUnlock(Request $request)
+    {
+        $data = $request->validate(['pin' => ['required', 'digits_between:4,8']]);
+
+        $pin = app_setting()->kiosk_enroll_pin;
+
+        if (!$pin) {
+            return response()->json(['ok' => false, 'message' => __('Enrollment mode is disabled: set a PIN in Settings first.')], 422);
+        }
+
+        if (!hash_equals($pin, $data['pin'])) {
+            return response()->json(['ok' => false, 'message' => __('Incorrect PIN.')], 422);
+        }
+
+        $request->session()->put('kiosk_enroll_until', now()->addMinutes(self::ENROLL_SESSION_MINUTES)->timestamp);
+
+        return response()->json(['ok' => true, 'minutes' => self::ENROLL_SESSION_MINUTES]);
+    }
+
+    private function enrollUnlocked(Request $request): bool
+    {
+        return $request->session()->get('kiosk_enroll_until', 0) >= now()->timestamp;
+    }
+
+    /** Finds the employee to enroll by document number (must already exist) */
+    public function enrollLookup(Request $request)
+    {
+        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
+
+        $data = $request->validate(['document_number' => ['required', 'digits_between:8,12']]);
+
+        $employee = Employee::where('is_active', true)
+            ->where('document_number', $data['document_number'])
+            ->first();
+
+        if (!$employee) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('No active employee found with that document number. Register them first (e.g. via the Excel import).'),
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'employee_id' => $employee->id,
+            'name' => $employee->full_name,
+            'has_face' => $employee->hasFace(),
+        ]);
+    }
+
+    /** Stores the face samples captured on the kiosk (requires on-screen consent) */
+    public function enrollDescriptor(Request $request)
+    {
+        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
+
+        $data = $request->validate([
+            'employee_id' => ['required', 'exists:employees,id'],
+            'consent' => ['accepted'],
+            'descriptors' => ['required', 'array', 'min:1', 'max:5'],
+            'descriptors.*' => ['required', 'array', 'size:128'],
+            'descriptors.*.*' => ['numeric'],
+        ]);
+
+        $employee = Employee::findOrFail($data['employee_id']);
+
+        $employee->update([
+            'face_descriptor' => json_encode($data['descriptors']),
+            'biometric_consent_at' => $employee->biometric_consent_at ?? now(),
+        ]);
+
+        AuditLog::record('UPDATE', 'Employees',
+            __('Face enrolled for :name (:count samples, consent recorded)', [
+                'name' => $employee->full_name,
+                'count' => count($data['descriptors']),
+            ]).' — '.__('kiosk enrollment mode'));
+
+        return response()->json([
+            'ok' => true,
+            'message' => __('Face enrolled with :count samples (verified in the database).', ['count' => count($data['descriptors'])]),
+        ]);
     }
 }

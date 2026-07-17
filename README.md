@@ -10,6 +10,14 @@ workflows, reports and a full audit log.
   (only a 128-value mathematical descriptor is stored, never the photograph).
 - **Kiosk device restriction**: an access token can be generated in Settings so only the
   authorized tablet can open the kiosk; every mark also records the device IP and user agent.
+- **DNI fallback marking**: when the face is not detected, the employee types their document
+  number on a keypad; an evidence snapshot is stored and the mark is flagged for review.
+- **Kiosk self-enrollment mode**: a supervisor unlocks it with a PIN (Settings); the employee
+  types their document, accepts the biometric consent on screen and captures 3 samples.
+- **Smart face-list refresh**: the kiosk polls a tiny version endpoint and only re-downloads
+  descriptors when they changed in the database — new enrollments appear without reloading.
+- **RENIEC autofill**: the employee form can look a DNI up through the Decolecta API
+  (set `DECOLECTA_API_TOKEN` in `.env`) and prefill first/last names.
 - **Data protection**: face enrollment requires recording the employee's biometric data consent.
 - **Profiles with module permissions**: each profile selects (with checkboxes) which modules
   it can see — employees, attendance, reports, approvals, users, profiles, schedules,

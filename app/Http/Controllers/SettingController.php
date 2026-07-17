@@ -26,8 +26,11 @@ class SettingController extends Controller
             'address' => ['nullable', 'string', 'max:200'],
             'phone' => ['nullable', 'string', 'max:20'],
             'timezone' => ['required', 'timezone:all'],
+            'kiosk_enroll_pin' => ['nullable', 'digits_between:4,8'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
         ]);
+
+        $data['kiosk_enroll_pin'] = $data['kiosk_enroll_pin'] ?? null;
 
         if ($request->hasFile('logo')) {
             $dir = public_path('uploads');

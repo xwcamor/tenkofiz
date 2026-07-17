@@ -10,7 +10,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id', 'date', 'check_in', 'check_out',
-        'status', 'method', 'similarity', 'note', 'ip', 'user_agent',
+        'status', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo',
     ];
 
     protected $casts = ['date' => 'date'];
