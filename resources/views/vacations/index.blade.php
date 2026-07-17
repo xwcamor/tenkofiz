@@ -27,7 +27,7 @@
     </div>
     <div class="card-body">
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Start') }}</th><th>{{ __('End') }}</th><th>{{ __('Days') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Status') }}</th>@if($canApprove)<th style="width:110px">{{ __('Actions') }}</th>@endif</tr></thead>
+            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Start') }}</th><th>{{ __('End') }}</th><th>{{ __('Days') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canApprove ? 150 : 60 }}px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
             @forelse($vacations as $vacation)
                 <tr>
@@ -40,9 +40,9 @@
                         <span class="badge badge-{{ $statusBadge($vacation->status) }}">{{ __($vacation->status) }}</span>
                         @if($vacation->approver)<div class="text-muted small">{{ __('by') }} {{ $vacation->approver->name }}</div>@endif
                     </td>
-                    @if($canApprove)
                     <td>
-                        @if($vacation->status === 'PENDING')
+                        <a href="{{ route('vacations.print', $vacation) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
+                        @if($canApprove && $vacation->status === 'PENDING')
                             <form method="POST" action="{{ route('vacations.status', $vacation) }}" class="d-inline">
                                 @csrf @method('PATCH')
                                 <input type="hidden" name="status" value="APPROVED">
@@ -53,14 +53,11 @@
                                 <input type="hidden" name="status" value="REJECTED">
                                 <button class="btn btn-sm btn-danger" title="{{ __('Reject') }}"><i class="fas fa-times"></i></button>
                             </form>
-                        @else
-                            —
                         @endif
                     </td>
-                    @endif
                 </tr>
             @empty
-                <tr><td colspan="{{ $canApprove ? 7 : 6 }}" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
             @endforelse
             </tbody>
         </table>

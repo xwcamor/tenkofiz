@@ -49,6 +49,39 @@ if (!function_exists('to_user_tz')) {
     }
 }
 
+if (!function_exists('current_period')) {
+    /**
+     * Current payroll period [start, end] according to the cut-off day in Settings.
+     * Cut-off 19 means: from the 20th of one month to the 19th of the next.
+     * Without a cut-off day the period is the calendar month.
+     */
+    function current_period(?\Carbon\CarbonInterface $reference = null): array
+    {
+        $today = ($reference ?? company_now())->copy()->startOfDay();
+        $cutoff = null;
+
+        try {
+            $cutoff = app_setting()->cutoff_day;
+        } catch (\Throwable) {
+            // DB not migrated yet
+        }
+
+        if (!$cutoff) {
+            return [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()->startOfDay()];
+        }
+
+        if ($today->day <= $cutoff) {
+            $end = $today->copy()->day($cutoff);
+            $start = $today->copy()->subMonthNoOverflow()->day($cutoff)->addDay();
+        } else {
+            $start = $today->copy()->day($cutoff)->addDay();
+            $end = $today->copy()->addMonthNoOverflow()->day($cutoff);
+        }
+
+        return [$start, $end];
+    }
+}
+
 if (!function_exists('safe_mail')) {
     /** Sends an email without breaking the request if SMTP fails */
     function safe_mail(?string $to, string $subject, string $body): void

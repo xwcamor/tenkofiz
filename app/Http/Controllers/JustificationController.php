@@ -77,6 +77,22 @@ class JustificationController extends Controller
         return redirect()->route('justifications.index')->with('ok', __('Justification submitted. It is pending review.'));
     }
 
+    /** Printable business form (PDF via browser): managers see any, employees only their own */
+    public function print(Request $request, Justification $justification)
+    {
+        $user = $request->user();
+        if (!$user->isManager() && $justification->employee->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $justification->load(['employee.area', 'employee.position', 'reviewer']);
+
+        return view('justifications.print', [
+            'justification' => $justification,
+            'setting' => app_setting(),
+        ]);
+    }
+
     /** A reviewer accepts or rejects; accepting marks the day as EXCUSED in attendances */
     public function changeStatus(Request $request, Justification $justification)
     {

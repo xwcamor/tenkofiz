@@ -40,6 +40,12 @@
                 @endforeach
             </select>
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            @if(app_setting()->cutoff_day)
+                @php [$periodStart, $periodEnd] = current_period(); @endphp
+                <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">
+                    <i class="fas fa-cut"></i> {{ __('Current period') }}: {{ $periodStart->format('d/m') }} – {{ $periodEnd->format('d/m') }}
+                </span>
+            @endif
         </form>
     </div>
     <div class="card-body">

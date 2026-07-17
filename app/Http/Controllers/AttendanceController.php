@@ -11,8 +11,10 @@ class AttendanceController extends Controller
 {
     public function index(Request $request)
     {
-        $from = $request->date('from') ?? company_now()->startOfMonth();
-        $to = $request->date('to') ?? company_now();
+        // Default range = current payroll cut-off period (configured in Settings)
+        [$periodStart, $periodEnd] = current_period();
+        $from = $request->date('from') ?? $periodStart;
+        $to = $request->date('to') ?? $periodEnd->min(company_now());
 
         // Server-side pagination: this table grows without bounds
         $attendances = Attendance::with('employee')

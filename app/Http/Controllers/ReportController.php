@@ -10,8 +10,10 @@ class ReportController extends Controller
     /** Report of worked hours and days per employee within a date range */
     public function index(Request $request)
     {
-        $from = $request->date('from') ?? company_now()->startOfMonth();
-        $to = $request->date('to') ?? company_now();
+        // Default range = current payroll cut-off period (configured in Settings)
+        [$periodStart, $periodEnd] = current_period();
+        $from = $request->date('from') ?? $periodStart;
+        $to = $request->date('to') ?? $periodEnd->min(company_now());
 
         $employees = Employee::with([
             'area', 'position', 'schedule',
@@ -70,8 +72,10 @@ class ReportController extends Controller
             abort(403, __('You can only view your own sheet.'));
         }
 
-        $from = $request->date('from') ?? company_now()->startOfMonth();
-        $to = $request->date('to') ?? company_now();
+        // Default range = current payroll cut-off period (configured in Settings)
+        [$periodStart, $periodEnd] = current_period();
+        $from = $request->date('from') ?? $periodStart;
+        $to = $request->date('to') ?? $periodEnd->min(company_now());
 
         $setting = app_setting();
 

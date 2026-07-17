@@ -39,6 +39,21 @@
                         <small class="text-muted">{{ __('The server runs in UTC. Kiosk marks, tardiness rules and absence generation use this timezone. Each user can pick their own display timezone in My account.') }}</small>
                     </div>
                     <div class="form-group">
+                        <label>{{ __('Payroll cut-off day') }}</label>
+                        <select name="cutoff_day" class="form-control @error('cutoff_day') is-invalid @enderror">
+                            <option value="">{{ __('Calendar month (1st to last day)') }}</option>
+                            @for($day = 1; $day <= 28; $day++)
+                                <option value="{{ $day }}" @selected(old('cutoff_day', $setting->cutoff_day) == $day)>{{ $day }}</option>
+                            @endfor
+                        </select>
+                        @error('cutoff_day')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        <small class="text-muted">
+                            {{ __('E.g. 19: worked days are counted from the 20th of one month to the 19th of the next. Attendance and Reports open on the current cut-off period by default.') }}
+                            @php [$periodStart, $periodEnd] = current_period(); @endphp
+                            <br><strong>{{ __('Current period') }}:</strong> {{ $periodStart->format('d/m/Y') }} – {{ $periodEnd->format('d/m/Y') }}
+                        </small>
+                    </div>
+                    <div class="form-group">
                         <label>{{ __('Kiosk enrollment PIN') }} <small class="text-muted">({{ __('4-8 digits; empty = enrollment mode disabled') }})</small></label>
                         <input name="kiosk_enroll_pin" value="{{ old('kiosk_enroll_pin', $setting->kiosk_enroll_pin) }}" class="form-control @error('kiosk_enroll_pin') is-invalid @enderror" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off">
                         @error('kiosk_enroll_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror

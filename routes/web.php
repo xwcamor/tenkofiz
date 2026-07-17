@@ -114,6 +114,8 @@ Route::middleware('auth')->group(function () {
     // All authenticated users
     Route::get('vacations', [VacationController::class, 'index'])->name('vacations.index');
     Route::post('vacations', [VacationController::class, 'store'])->name('vacations.store');
+    Route::get('vacations/{vacation}/print', [VacationController::class, 'print'])->name('vacations.print');
+    Route::get('justifications/{justification}/print', [JustificationController::class, 'print'])->name('justifications.print');
     Route::get('my-attendances', [AttendanceController::class, 'mine'])->name('attendances.mine');
     Route::get('justifications', [JustificationController::class, 'index'])->name('justifications.index');
     Route::post('justifications', [JustificationController::class, 'store'])->name('justifications.store');

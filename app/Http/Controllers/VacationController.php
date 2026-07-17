@@ -68,6 +68,22 @@ class VacationController extends Controller
         return redirect()->route('vacations.index')->with('ok', __('Vacation request submitted.'));
     }
 
+    /** Printable business form (PDF via browser): managers see any, employees only their own */
+    public function print(Request $request, Vacation $vacation)
+    {
+        $user = $request->user();
+        if (!$user->isManager() && $vacation->employee->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $vacation->load(['employee.area', 'employee.position', 'approver']);
+
+        return view('vacations.print', [
+            'vacation' => $vacation,
+            'setting' => app_setting(),
+        ]);
+    }
+
     public function changeStatus(Request $request, Vacation $vacation)
     {
         $data = $request->validate(['status' => ['required', 'in:APPROVED,REJECTED,PENDING']]);

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Setting extends Model
 {
     protected $fillable = [
-        'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'kiosk_token', 'kiosk_enroll_pin',
+        'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'cutoff_day', 'kiosk_token', 'kiosk_enroll_pin',
     ];
 
     /** Returns the single settings row (creates it if missing) */

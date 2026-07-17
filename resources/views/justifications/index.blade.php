@@ -27,7 +27,7 @@
     </div>
     <div class="card-body">
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Document') }}</th><th>{{ __('Status') }}</th>@if($canReview)<th style="width:140px">{{ __('Actions') }}</th>@endif</tr></thead>
+            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Document') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canReview ? 180 : 60 }}px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
             @forelse($justifications as $justification)
                 <tr>
@@ -45,8 +45,9 @@
                         <span class="badge badge-{{ $statusBadge($justification->status) }}">{{ __($justification->status) }}</span>
                         @if($justification->reviewer)<div class="text-muted small">{{ __('by') }} {{ $justification->reviewer->name }}</div>@endif
                     </td>
-                    @if($canReview)
                     <td>
+                        <a href="{{ route('justifications.print', $justification) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
+                        @if($canReview)
                         @if($justification->status === 'PENDING')
                             <form method="POST" action="{{ route('justifications.status', $justification) }}" class="d-inline">
                                 @csrf @method('PATCH')
@@ -63,11 +64,11 @@
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
                         </form>
+                        @endif
                     </td>
-                    @endif
                 </tr>
             @empty
-                <tr><td colspan="{{ $canReview ? 6 : 5 }}" class="text-center text-muted py-4">{{ __('No justifications') }}</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">{{ __('No justifications') }}</td></tr>
             @endforelse
             </tbody>
         </table>
