@@ -30,18 +30,33 @@ workflows, reports and a full audit log.
 - **Audit log**: sensitive actions (deletions, manual attendance edits, user creation) with
   user, IP and before/after data, with server-side pagination.
 
-## Setup
+## Documentation (docs/, in Spanish)
+
+Full step-by-step guides live in the [`docs/`](docs/) folder — start there if you just
+cloned the repository or are setting up a new server:
+
+| Guide | Answers |
+|---|---|
+| [docs/INSTALACION.md](docs/INSTALACION.md) | "I downloaded the repo, now what?" — required stack, step-by-step install, default credentials, common errors |
+| [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | **Post-install checklist**: every `.env` variable (incl. `DECOLECTA_API_TOKEN`), in-app Settings, face models, cron, kiosk hardening, file permissions |
+| [docs/CORREO.md](docs/CORREO.md) | SMTP setup (Gmail app passwords, Mailtrap, log driver), which emails the system sends, how to test |
+| [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md) | Switching between SQLite and MySQL/MariaDB, `DB_*` parameters, backups, useful artisan commands |
+
+## Quick setup (short version)
 
 ```bash
-composer run setup      # install, .env, key, migrate, npm build
-php artisan db:seed     # base data (profiles, admin user, schedules, holidays)
+git clone <repo> && cd tenkofiz
+composer install
+cp .env.example .env && php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed
 php artisan db:seed --class=DemoSeeder   # optional demo data
+bash download_models.sh                  # face models → public/models (required by the kiosk)
 php artisan serve
 ```
 
 Default admin: `admin@sistema.test` / `admin123` (change it immediately).
-
-Face models must be present in `public/models` (see `download_models.sh`).
+Then walk through [docs/CONFIGURACION.md](docs/CONFIGURACION.md) so nothing is left unconfigured.
 
 ## Scheduled tasks
 

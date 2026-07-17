@@ -36,7 +36,7 @@
                     <td>{{ $justification->reason }}</td>
                     <td>
                         @if($justification->document)
-                            <a href="{{ asset($justification->document) }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-alt"></i> {{ __('View') }}</a>
+                            <a href="{{ asset($justification->document) }}" target="_blank" class="btn btn-sm btn-outline-primary file-preview"><i class="fas fa-file-alt"></i> {{ __('View') }}</a>
                         @else
                             <span class="text-muted">—</span>
                         @endif

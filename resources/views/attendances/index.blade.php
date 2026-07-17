@@ -66,7 +66,7 @@
                             <i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}
                         @endif
                         @if($attendance->evidence_photo)
-                            <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
+                            <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1 file-preview" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
                         @endif
                     </td>
                     <td class="text-muted">{{ $attendance->note }}</td>

@@ -19,6 +19,15 @@
         /* Top loading bar while navigating */
         #loading-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: #007bff; z-index: 99999; transition: width .4s ease; }
         a.nav-locked { pointer-events: none; opacity: .65; }
+        /* Hover preview for attachments (images and PDFs) */
+        #file-preview-pop {
+            position: fixed; z-index: 10500; display: none;
+            background: #fff; border: 1px solid #e6eaf2; border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(16, 24, 40, .22);
+            padding: 6px; pointer-events: none;
+        }
+        #file-preview-pop img { max-width: 300px; max-height: 300px; display: block; border-radius: 6px; }
+        #file-preview-pop embed { width: 330px; height: 400px; border: 0; display: block; }
     </style>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
@@ -323,6 +332,57 @@
         window.addEventListener('pageshow', () => {
             bar.style.width = '0';
             document.querySelectorAll('a.nav-locked').forEach(link => { delete link.dataset.navigating; link.classList.remove('nav-locked'); });
+        });
+    })();
+
+    // Hover preview for attachments: any <a class="file-preview"> shows its image/PDF on mouseover
+    (function () {
+        const pop = document.createElement('div');
+        pop.id = 'file-preview-pop';
+        document.body.appendChild(pop);
+        let current = null;
+
+        function position(e) {
+            const pad = 16;
+            const rect = pop.getBoundingClientRect();
+            let x = e.clientX + pad;
+            let y = e.clientY + pad;
+            if (x + rect.width > window.innerWidth - 8) x = e.clientX - rect.width - pad;
+            if (y + rect.height > window.innerHeight - 8) y = Math.max(8, e.clientY - rect.height - pad);
+            pop.style.left = x + 'px';
+            pop.style.top = y + 'px';
+        }
+
+        document.addEventListener('mouseover', function (e) {
+            const link = e.target.closest('a.file-preview');
+            if (!link || link === current) return;
+
+            const url = link.href;
+            const ext = url.split('?')[0].split('.').pop().toLowerCase();
+
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                pop.innerHTML = `<img src="${url}" alt="">`;
+            } else if (ext === 'pdf') {
+                pop.innerHTML = `<embed src="${url}#toolbar=0&navpanes=0" type="application/pdf">`;
+            } else {
+                return; // unknown type: no preview, the click still opens it
+            }
+
+            current = link;
+            pop.style.display = 'block';
+            position(e);
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (current) position(e);
+        });
+
+        document.addEventListener('mouseout', function (e) {
+            if (current && e.target.closest('a.file-preview') === current && !current.contains(e.relatedTarget)) {
+                current = null;
+                pop.style.display = 'none';
+                pop.innerHTML = '';
+            }
         });
     })();
 
