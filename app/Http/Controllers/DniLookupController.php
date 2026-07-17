@@ -31,7 +31,15 @@ class DniLookupController extends Controller
                     ->timeout(8)
                     ->get(rtrim(config('services.decolecta.url'), '/').'/v1/reniec/dni', ['numero' => $dni]);
             } catch (\Throwable $e) {
-                return ['ok' => false, 'status' => 503, 'message' => __('Could not reach the RENIEC service. Try again in a moment.')];
+                // Surface the real cause: the classic one on Windows (Laragon/XAMPP)
+                // is cURL error 60 — PHP has no CA bundle configured in php.ini.
+                \Illuminate\Support\Facades\Log::warning('DNI lookup failed: '.$e->getMessage());
+
+                $message = str_contains($e->getMessage(), 'cURL error 60') || stripos($e->getMessage(), 'SSL certificate') !== false
+                    ? __('SSL error in PHP: set curl.cainfo and openssl.cafile in php.ini to a cacert.pem file (see docs/CONFIGURACION.md) and restart the server.')
+                    : __('Could not reach the RENIEC service. Try again in a moment.').' ('.\Illuminate\Support\Str::limit($e->getMessage(), 90).')';
+
+                return ['ok' => false, 'status' => 503, 'message' => $message];
             }
 
             if ($response->status() === 404) {

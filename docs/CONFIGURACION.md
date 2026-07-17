@@ -16,6 +16,26 @@ Marca cada punto al montar una instalación nueva. Los detalles de cada tema est
 
 Tras cualquier cambio en `.env`: `php artisan config:clear`.
 
+### ⚠️ Windows (Laragon/XAMPP): certificados SSL de PHP
+
+Si el `curl` de la terminal SÍ llega a la API de Decolecta pero el sistema muestra
+*"No se pudo conectar con el servicio RENIEC"* o un error SSL, es que **PHP no tiene
+configurado su paquete de certificados** (cURL error 60). Solución:
+
+1. Descarga <https://curl.se/ca/cacert.pem> y guárdalo, por ejemplo, en `C:\laragon\etc\ssl\cacert.pem`
+   (en Laragon ese archivo suele existir ya).
+2. Edita tu `php.ini` (Laragon: clic derecho → PHP → php.ini) y configura ambas líneas:
+
+   ```ini
+   curl.cainfo="C:\laragon\etc\ssl\cacert.pem"
+   openssl.cafile="C:\laragon\etc\ssl\cacert.pem"
+   ```
+
+3. Reinicia Apache/Laragon.
+
+Esto también arregla el envío de correos por SMTP con TLS. **Nunca** desactives la
+verificación SSL en el código como "solución".
+
 ## 2. Dentro de la app (menú Ajustes, perfil Administrator)
 
 - [ ] **Razón social, RUC, dirección, teléfono, logo** — salen en los PDF (fichas, vacaciones, justificaciones).

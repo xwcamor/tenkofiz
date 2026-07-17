@@ -545,6 +545,7 @@
     "Found in RENIEC:": "Encontrado en RENIEC:",
     "Not found in RENIEC: type the names manually.": "No se encontró en RENIEC: digite los nombres manualmente.",
     "RENIEC unavailable: type the names manually.": "RENIEC no disponible: digite los nombres manualmente.",
+    "SSL error in PHP: set curl.cainfo and openssl.cafile in php.ini to a cacert.pem file (see docs/CONFIGURACION.md) and restart the server.": "Error SSL en PHP: configure curl.cainfo y openssl.cafile en php.ini apuntando a un cacert.pem (vea docs/CONFIGURACION.md) y reinicie el servidor.",
     "Your request is not authorized.": "Su solicitud no está autorizada.",
     "You do not have permission to access this module.": "No tiene permisos para acceder a este módulo."
 }
