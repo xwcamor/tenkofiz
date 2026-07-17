@@ -6,8 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Employee extends Model
 {
+    /** Supported identity documents (key => translatable label) */
+    public const DOCUMENT_TYPES = [
+        'DNI' => 'DNI (Peru)',
+        'CE' => 'Foreigner ID card (CE)',
+        'PASSPORT' => 'Passport',
+    ];
+
     protected $fillable = [
-        'user_id', 'schedule_id', 'area_id', 'position_id', 'document_number',
+        'user_id', 'schedule_id', 'area_id', 'position_id', 'document_type', 'document_number',
         'first_name', 'last_name', 'hire_date', 'face_descriptor',
         'biometric_consent_at', 'is_active',
     ];

@@ -11,14 +11,20 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 form-group">
-                            <label>{{ __('Document number') }}</label>
+                            <label>{{ __('Document') }}</label>
                             <div class="input-group">
-                                <input name="document_number" id="documentInput" value="{{ old('document_number', $employee->document_number) }}" class="form-control @error('document_number') is-invalid @enderror" required maxlength="12" pattern="[0-9]{8,12}" title="{{ __('Digits only (8 to 12)') }}">
-                                <div class="input-group-append">
-                                    <button type="button" class="btn btn-outline-primary" id="dniLookupBtn" onclick="lookupDni()" title="{{ __('Look the DNI up in RENIEC and autofill the names') }}"><i class="fas fa-search"></i> RENIEC</button>
+                                <div class="input-group-prepend">
+                                    <select name="document_type" id="documentType" class="form-control @error('document_type') is-invalid @enderror" style="max-width:110px">
+                                        @foreach(\App\Models\Employee::DOCUMENT_TYPES as $key => $label)
+                                            <option value="{{ $key }}" title="{{ __($label) }}" @selected(old('document_type', $employee->document_type ?? 'DNI') === $key)>{{ $key }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
+                                <input name="document_number" id="documentInput" value="{{ old('document_number', $employee->document_number) }}" class="form-control @error('document_number') is-invalid @enderror" required maxlength="12" autocomplete="off">
                             </div>
+                            @error('document_type')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                             @error('document_number')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                            <small class="text-muted d-block" id="dniLookupStatus">{{ __('DNI: names autofill from RENIEC when you finish the 8 digits.') }}</small>
                         </div>
                         <div class="col-md-4 form-group">
                             <label>{{ __('First names') }}</label>
@@ -112,36 +118,73 @@
 
 @push('scripts')
 <script>
-/** RENIEC lookup (Decolecta API): autofills first and last names from the DNI */
-async function lookupDni() {
-    const dni = document.getElementById('documentInput').value.trim();
-    if (!/^\d{8}$/.test(dni)) {
-        Swal.fire(@json(__('Attention')), @json(__('The DNI must have exactly 8 digits.')), 'warning');
-        return;
+/**
+ * Optional RENIEC autofill (Decolecta API), no button needed:
+ * - Fires automatically ONCE when the type is DNI and the 8th digit is typed.
+ * - Never repeats a lookup for the same number (plus the server caches 1 day).
+ * - Silent on failure: a small hint invites typing the names manually.
+ * - Never overwrites names the user already typed.
+ */
+(function () {
+    const typeSelect = document.getElementById('documentType');
+    const documentInput = document.getElementById('documentInput');
+    const firstName = document.getElementById('firstNameInput');
+    const lastName = document.getElementById('lastNameInput');
+    const status = document.getElementById('dniLookupStatus');
+
+    const HINTS = {
+        DNI: { pattern: '[0-9]{8}', hint: @json(__('DNI: names autofill from RENIEC when you finish the 8 digits.')) },
+        CE: { pattern: '[0-9A-Za-z]{9,12}', hint: @json(__('Foreigner ID card: 9 to 12 characters, no RENIEC lookup.')) },
+        PASSPORT: { pattern: '[0-9A-Za-z]{6,12}', hint: @json(__('Passport: 6 to 12 characters, no RENIEC lookup.')) },
+    };
+
+    let lastLookedUp = null;
+    let debounceTimer = null;
+
+    function applyType() {
+        const config = HINTS[typeSelect.value] || HINTS.DNI;
+        documentInput.pattern = config.pattern;
+        setStatus('muted', config.hint);
     }
 
-    const btn = document.getElementById('dniLookupBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    function setStatus(kind, text) {
+        status.className = 'd-block ' + (kind === 'ok' ? 'text-success' : kind === 'warn' ? 'text-warning' : 'text-muted');
+        status.innerHTML = text;
+    }
 
-    try {
-        const res = await fetch(`{{ url('dni-lookup') }}/${dni}`, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
+    async function maybeLookup() {
+        const dni = documentInput.value.trim();
 
-        if (res.ok && data.ok) {
-            document.getElementById('firstNameInput').value = data.first_name;
-            document.getElementById('lastNameInput').value = data.last_name;
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.last_name + ', ' + data.first_name, showConfirmButton: false, timer: 2500 });
-        } else {
-            Swal.fire(@json(__('Attention')), data.message || @json(__('DNI not found in RENIEC.')), 'warning');
+        if (typeSelect.value !== 'DNI' || !/^\d{8}$/.test(dni) || dni === lastLookedUp) return;
+        lastLookedUp = dni; // one lookup per number, even if the request fails
+
+        setStatus('muted', '<span class="spinner-border spinner-border-sm mr-1"></span> ' + @json(__('Searching RENIEC...')));
+
+        try {
+            const res = await fetch(`{{ url('dni-lookup') }}/${dni}`, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+
+            if (res.ok && data.ok) {
+                // Only fill fields the user has not typed in
+                if (!firstName.value.trim()) firstName.value = data.first_name;
+                if (!lastName.value.trim()) lastName.value = data.last_name;
+                setStatus('ok', '<i class="fas fa-check-circle"></i> ' + @json(__('Found in RENIEC:')) + ' ' + data.last_name + ', ' + data.first_name);
+            } else {
+                setStatus('warn', '<i class="fas fa-info-circle"></i> ' + (data.message || @json(__('Not found in RENIEC: type the names manually.'))));
+            }
+        } catch (e) {
+            setStatus('warn', '<i class="fas fa-info-circle"></i> ' + @json(__('RENIEC unavailable: type the names manually.')));
         }
-    } catch (e) {
-        Swal.fire(@json(__('Attention')), @json(__('Could not reach the RENIEC service. Try again in a moment.')), 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-search"></i> RENIEC';
     }
-}
+
+    documentInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(maybeLookup, 500); // waits half a second after the last keystroke
+    });
+    documentInput.addEventListener('blur', maybeLookup);
+    typeSelect.addEventListener('change', applyType);
+    applyType();
+})();
 
 /** Quick creation of areas and positions without leaving the form (SweetAlert2 + AJAX) */
 async function addCatalogItem(url, selectId, label) {

@@ -46,7 +46,7 @@
 <table>
     <tr>
         <th style="width:35%">{{ __('Last and first names') }}</th><td>{{ $employee->full_name }}</td>
-        <th style="width:12%">{{ __('Document') }}</th><td>{{ $employee->document_number }}</td>
+        <th style="width:12%">{{ __('Document') }}</th><td>{{ $employee->document_type }} {{ $employee->document_number }}</td>
     </tr>
     <tr>
         <th>{{ __('Area / Position') }}</th><td>{{ $employee->area?->name ?? '—' }} / {{ $employee->position?->name ?? '—' }}</td>

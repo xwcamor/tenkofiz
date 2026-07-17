@@ -535,6 +535,16 @@
     "Attached": "Adjunto",
     "Not attached": "No adjunto",
     "When a justification is accepted, that day is recorded as EXCUSED in the employee's attendance.": "Al aceptar una justificación, ese día queda registrado como JUSTIFICADO en las asistencias del empleado.",
+    "DNI (Peru)": "DNI (Perú)",
+    "Foreigner ID card (CE)": "Carné de Extranjería (CE)",
+    "Passport": "Pasaporte",
+    "DNI: names autofill from RENIEC when you finish the 8 digits.": "DNI: los nombres se autocompletan desde RENIEC al terminar los 8 dígitos.",
+    "Foreigner ID card: 9 to 12 characters, no RENIEC lookup.": "Carné de extranjería: de 9 a 12 caracteres, sin búsqueda RENIEC.",
+    "Passport: 6 to 12 characters, no RENIEC lookup.": "Pasaporte: de 6 a 12 caracteres, sin búsqueda RENIEC.",
+    "Searching RENIEC...": "Buscando en RENIEC...",
+    "Found in RENIEC:": "Encontrado en RENIEC:",
+    "Not found in RENIEC: type the names manually.": "No se encontró en RENIEC: digite los nombres manualmente.",
+    "RENIEC unavailable: type the names manually.": "RENIEC no disponible: digite los nombres manualmente.",
     "Your request is not authorized.": "Su solicitud no está autorizada.",
     "You do not have permission to access this module.": "No tiene permisos para acceder a este módulo."
 }

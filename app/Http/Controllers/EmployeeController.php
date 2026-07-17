@@ -171,8 +171,19 @@ class EmployeeController extends Controller
 
     private function validated(Request $request, ?Employee $employee = null): array
     {
+        // Normalize before validating: uppercase, no spaces (passports/CE may mix letters and digits)
+        $request->merge(['document_number' => strtoupper(trim((string) $request->input('document_number')))]);
+
+        // Format depends on the document type
+        $documentRule = match ($request->input('document_type', 'DNI')) {
+            'CE' => ['required', 'regex:/^[0-9A-Z]{9,12}$/'],
+            'PASSPORT' => ['required', 'regex:/^[0-9A-Z]{6,12}$/'],
+            default => ['required', 'digits:8'], // DNI (Peru) is exactly 8 digits
+        };
+
         return $request->validate([
-            'document_number' => ['required', 'digits_between:8,12', Rule::unique('employees')->ignore($employee)],
+            'document_type' => ['required', Rule::in(array_keys(Employee::DOCUMENT_TYPES))],
+            'document_number' => [...$documentRule, Rule::unique('employees')->ignore($employee)],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'area_id' => ['nullable', 'exists:areas,id'],

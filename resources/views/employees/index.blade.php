@@ -56,7 +56,7 @@ async function createUser(id, name) {
             <tbody>
             @foreach($employees as $employee)
                 <tr>
-                    <td>{{ $employee->document_number }}</td>
+                    <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
                     <td>{{ $employee->full_name }}</td>
                     <td>{{ $employee->area?->name ?? '—' }}{{ $employee->position ? ' / '.$employee->position->name : '' }}</td>
                     <td>{{ $employee->schedule?->name ?? '—' }}</td>

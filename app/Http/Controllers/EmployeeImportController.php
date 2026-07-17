@@ -260,6 +260,8 @@ class EmployeeImportController extends Controller
                 }
 
                 Employee::create([
+                    // 8 digits = Peruvian DNI; longer numeric documents are treated as CE
+                    'document_type' => strlen($data['document_number']) === 8 ? 'DNI' : 'CE',
                     'document_number' => $data['document_number'],
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
