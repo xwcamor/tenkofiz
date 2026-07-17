@@ -76,17 +76,10 @@
                             </select>
                             @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('System user') }} <small class="text-muted">({{ __('so they can view their attendance') }})</small></label>
-                            <select name="user_id" class="form-control @error('user_id') is-invalid @enderror">
-                                <option value="">— {{ __('No user') }} —</option>
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}" @selected(old('user_id', $employee->user_id) == $user->id)>{{ $user->name }} ({{ $user->email }})</option>
-                                @endforeach
-                            </select>
-                            @error('user_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                        </div>
                     </div>
+                    @if($employee->exists && $employee->user)
+                        <p class="text-muted mb-2"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
+                    @endif
                     <div class="custom-control custom-switch">
                         <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active ?? true))>
                         <label class="custom-control-label" for="employeeActive">{{ __('Active') }}</label>

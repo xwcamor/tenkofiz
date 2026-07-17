@@ -8,15 +8,29 @@
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
             <thead>
-                <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Timezone') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+                <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
             </thead>
             <tbody>
             @foreach($users as $user)
                 <tr>
-                    <td>{{ $user->name }} @if($user->id === auth()->id())<span class="badge badge-secondary">{{ __('you') }}</span>@endif</td>
+                    <td>
+                        @if($user->photo)
+                            <img src="{{ asset($user->photo) }}" alt="" class="img-circle elevation-1 mr-1" style="width:28px;height:28px;object-fit:cover">
+                        @else
+                            <span class="d-inline-flex align-items-center justify-content-center img-circle mr-1"
+                                  style="width:28px;height:28px;background:#e8f1fc;color:#2a78d6;font-size:.7rem;font-weight:700">{{ strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+                        @endif
+                        {{ $user->name }} @if($user->id === auth()->id())<span class="badge badge-secondary">{{ __('you') }}</span>@endif
+                    </td>
                     <td>{{ $user->email }}</td>
                     <td><span class="badge badge-primary">{{ $user->profile?->name ?? '—' }}</span></td>
-                    <td class="text-muted">{{ $user->timezone ?? __('Company default') }}</td>
+                    <td>
+                        @if($user->employee)
+                            <span class="badge badge-success" title="{{ $user->employee->document_type }} {{ $user->employee->document_number }}"><i class="fas fa-id-badge"></i> {{ $user->employee->full_name }}</span>
+                        @else
+                            <span class="text-muted small">{{ __('Does not mark (admin account)') }}</span>
+                        @endif
+                    </td>
                     <td><span class="badge badge-{{ $user->is_active ? 'success' : 'secondary' }}">{{ $user->is_active ? __('Active') : __('Inactive') }}</span></td>
                     <td>
                         @php
@@ -48,7 +62,7 @@
 {{-- Create / edit modal --}}
 <div class="modal fade" id="userModal" tabindex="-1">
     <div class="modal-dialog">
-        <form method="POST" action="{{ old('_form_action', route('users.store')) }}" class="modal-content" id="userForm">
+        <form method="POST" action="{{ old('_form_action', route('users.store')) }}" enctype="multipart/form-data" class="modal-content" id="userForm">
             @csrf
             <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="userMethod">
             <input type="hidden" name="_form_action" value="{{ old('_form_action', route('users.store')) }}" id="userFormAction">
@@ -83,6 +97,12 @@
                     @error('profile_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     <small class="text-muted">{{ __('The profile defines which modules the user can see (configure it in Profiles).') }}</small>
                 </div>
+                <div class="form-group">
+                    <label>{{ __('Photo') }} <small class="text-muted">({{ __('optional; PNG/JPG, max. 2MB') }})</small></label>
+                    <input type="file" name="photo" class="form-control-file @error('photo') is-invalid @enderror" accept="image/png,image/jpeg,image/webp">
+                    @error('photo')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                    <small class="text-muted" id="userPhotoHint" style="display:none">{{ __('Uploading a new photo replaces the current one.') }}</small>
+                </div>
                 <div class="custom-control custom-switch">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="userActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="userActive">{{ __('Active') }}</label>
@@ -114,6 +134,7 @@ function openUserModal(data = null) {
     password.value = '';
     password.required = !data;
     document.getElementById('userPasswordHint').style.display = data ? '' : 'none';
+    document.getElementById('userPhotoHint').style.display = data ? '' : 'none';
     $('#userModal').modal('show');
 }
 

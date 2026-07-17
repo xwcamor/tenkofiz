@@ -9,28 +9,46 @@
 
 @push('scripts')
 <script>
-/** Creates the employee's user with one click: asks for the email, initial password is their document number */
+const PROFILE_OPTIONS = @json($profiles->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values());
+const AVAILABLE_USERS = @json($availableUsers->map(fn ($u) => ['id' => $u->id, 'label' => $u->name.' ('.$u->email.')'])->values());
+const EMPLOYEE_PROFILE_NAME = 'Employee';
+
+/** Creates the employee's access user: asks email + profile; initial password is their document number */
 async function createUser(id, name) {
-    const { value: email } = await Swal.fire({
+    const profileOptions = PROFILE_OPTIONS.map(profile =>
+        `<option value="${profile.id}" ${profile.name === EMPLOYEE_PROFILE_NAME ? 'selected' : ''}>${profile.name}</option>`
+    ).join('');
+
+    const { value: form } = await Swal.fire({
         title: @json(__('Create user for')) + ' ' + name,
-        input: 'email',
-        inputPlaceholder: 'email@company.com',
-        text: @json(__('It will be created with the Employee profile. The initial password will be their document number.')),
+        html: `
+            <input id="swalEmail" type="email" class="swal2-input" placeholder="email@company.com" style="width:85%">
+            <select id="swalProfile" class="swal2-select" style="width:85%">${profileOptions}</select>
+            <p class="text-muted" style="font-size:.8rem;margin:0">${@json(__('The initial password will be their document number.'))}</p>
+        `,
+        focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: @json(__('Create user')),
         cancelButtonText: @json(__('Cancel')),
-        validationMessage: @json(__('Enter a valid email'))
+        preConfirm: () => {
+            const email = document.getElementById('swalEmail').value.trim();
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                Swal.showValidationMessage(@json(__('Enter a valid email')));
+                return false;
+            }
+            return { email, profile_id: document.getElementById('swalProfile').value };
+        }
     });
-    if (!email) return;
+    if (!form) return;
 
-    const res = await fetch(`/employees/${id}/create-user`, {
+    const res = await fetch(`{{ url('employees') }}/${id}/create-user`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify(form)
     });
     const data = await res.json();
 
@@ -44,6 +62,35 @@ async function createUser(id, name) {
     } else {
         Swal.fire(@json(__('Attention')), data.message || @json(__('The user could not be created.')), 'warning');
     }
+}
+
+/** Links an already-existing user account (e.g. a supervisor created in Users first) */
+async function linkUser(id, name) {
+    if (!AVAILABLE_USERS.length) {
+        Swal.fire(@json(__('Attention')), @json(__('There are no unlinked users available.')), 'info');
+        return;
+    }
+
+    const options = {};
+    AVAILABLE_USERS.forEach(user => options[user.id] = user.label);
+
+    const { value: userId } = await Swal.fire({
+        title: @json(__('Link user to')) + ' ' + name,
+        input: 'select',
+        inputOptions: options,
+        showCancelButton: true,
+        confirmButtonText: @json(__('Link')),
+        cancelButtonText: @json(__('Cancel'))
+    });
+    if (!userId) return;
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `{{ url('employees') }}/${id}/link-user`;
+    form.innerHTML = `<input type="hidden" name="_token" value="${document.querySelector('meta[name="csrf-token"]').content}">` +
+                     `<input type="hidden" name="user_id" value="${userId}">`;
+    document.body.appendChild(form);
+    form.submit();
 }
 </script>
 @endpush
@@ -63,8 +110,17 @@ async function createUser(id, name) {
                     <td>
                         @if($employee->user)
                             <span class="badge badge-primary" title="{{ $employee->user->email }}"><i class="fas fa-link"></i> {{ $employee->user->name }}</span>
+                            <form method="POST" action="{{ route('employees.unlinkUser', $employee) }}" class="d-inline delete-form">
+                                @csrf
+                                <button class="btn btn-xs btn-outline-secondary" title="{{ __('Unlink user (the account is kept)') }}"><i class="fas fa-unlink"></i></button>
+                            </form>
                         @else
-                            <button type="button" class="btn btn-xs btn-outline-success" onclick="createUser({{ $employee->id }}, @json($employee->first_name.' '.$employee->last_name))" title="{{ __('Create an access user for this employee') }}"><i class="fas fa-user-plus"></i> {{ __('Create user') }}</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
+                                    onclick="createUser({{ $employee->id }}, this.dataset.name)"
+                                    title="{{ __('Create an access user for this employee') }}"><i class="fas fa-user-plus"></i> {{ __('Create user') }}</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
+                                    onclick="linkUser({{ $employee->id }}, this.dataset.name)"
+                                    title="{{ __('Link an existing user account') }}"><i class="fas fa-link"></i></button>
                         @endif
                     </td>
                     <td>

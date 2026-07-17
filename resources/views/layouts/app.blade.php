@@ -92,7 +92,12 @@
                 </div>
             </li>
             <li class="nav-item d-flex align-items-center mr-3 text-muted">
-                <i class="fas fa-user-circle mr-1"></i> {{ $currentUser->name }}
+                @if($currentUser->photo)
+                    <img src="{{ asset($currentUser->photo) }}" alt="" class="img-circle elevation-1 mr-2" style="width:28px;height:28px;object-fit:cover">
+                @else
+                    <i class="fas fa-user-circle mr-1"></i>
+                @endif
+                {{ $currentUser->name }}
                 <span class="badge badge-primary ml-2">{{ $currentUser->profile?->name }}</span>
             </li>
             <li class="nav-item">

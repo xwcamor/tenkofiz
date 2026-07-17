@@ -87,6 +87,8 @@ Route::middleware('auth')->group(function () {
         Route::get('employees/{employee}/enroll', [EmployeeController::class, 'enroll'])->name('employees.enroll');
         Route::post('employees/{employee}/descriptor', [EmployeeController::class, 'storeDescriptor'])->name('employees.descriptor');
         Route::post('employees/{employee}/create-user', [EmployeeController::class, 'createUser'])->name('employees.createUser');
+        Route::post('employees/{employee}/link-user', [EmployeeController::class, 'linkUser'])->name('employees.linkUser');
+        Route::post('employees/{employee}/unlink-user', [EmployeeController::class, 'unlinkUser'])->name('employees.unlinkUser');
         Route::post('areas', [AreaController::class, 'store'])->name('areas.store');
         Route::post('positions', [PositionController::class, 'store'])->name('positions.store');
     });

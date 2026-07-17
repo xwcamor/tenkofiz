@@ -20,7 +20,11 @@ class EmployeeController extends Controller
             ->orderBy('last_name')
             ->get();
 
-        return view('employees.index', compact('employees'));
+        return view('employees.index', [
+            'employees' => $employees,
+            'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
+            'availableUsers' => User::whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
+        ]);
     }
 
     public function create()
@@ -30,7 +34,6 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
-            'users' => User::whereDoesntHave('employee')->orderBy('name')->get(),
         ]);
     }
 
@@ -47,7 +50,6 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
-            'users' => User::whereDoesntHave('employee')->orWhere('id', $employee->user_id)->orderBy('name')->get(),
         ]);
     }
 
@@ -57,7 +59,7 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('ok', __('Employee updated.'));
     }
 
-    /** Creates a linked user with the Employee profile (initial password: their document number) */
+    /** Creates a linked user with the chosen profile (initial password: their document number) */
     public function createUser(Request $request, Employee $employee)
     {
         if ($employee->user_id) {
@@ -66,20 +68,22 @@ class EmployeeController extends Controller
 
         $data = $request->validate([
             'email' => ['required', 'email', 'unique:users,email'],
+            'profile_id' => ['nullable', Rule::exists('profiles', 'id')->where('is_active', true)],
         ], [
             'email.unique' => __('That email is already registered to another user.'),
         ]);
 
-        $employeeProfile = Profile::firstOrCreate(
+        // Default profile: Employee (self-service). A supervisor picks their real profile here.
+        $profileId = $data['profile_id'] ?? Profile::firstOrCreate(
             ['name' => 'Employee'],
             ['description' => __('Views their attendance and requests vacations'), 'permissions' => []]
-        );
+        )->id;
 
         $user = User::create([
             'name' => trim($employee->first_name.' '.$employee->last_name),
             'email' => $data['email'],
             'password' => \Illuminate\Support\Facades\Hash::make($employee->document_number),
-            'profile_id' => $employeeProfile->id,
+            'profile_id' => $profileId,
             'must_change_password' => true,
         ]);
 
@@ -106,6 +110,49 @@ class EmployeeController extends Controller
             'email' => $user->email,
             'password' => $employee->document_number,
         ]);
+    }
+
+    /** Links an existing (unlinked) user to this employee — e.g. a supervisor account created first */
+    public function linkUser(Request $request, Employee $employee)
+    {
+        if ($employee->user_id) {
+            return back()->with('error', __('This employee already has a linked user.'));
+        }
+
+        $data = $request->validate([
+            'user_id' => ['required', 'exists:users,id', Rule::unique('employees', 'user_id')],
+        ], [
+            'user_id.unique' => __('That user is already linked to another employee.'),
+        ]);
+
+        $employee->update(['user_id' => $data['user_id']]);
+
+        AuditLog::record('UPDATE', 'Employees',
+            __('User :email was linked to employee :employee', [
+                'email' => User::find($data['user_id'])->email,
+                'employee' => $employee->full_name,
+            ]));
+
+        return back()->with('ok', __('User linked to the employee.'));
+    }
+
+    /** Unlinks the user account (the account survives; the person just stops seeing their own marks) */
+    public function unlinkUser(Employee $employee)
+    {
+        if (!$employee->user_id) {
+            return back()->with('error', __('This employee has no linked user.'));
+        }
+
+        $email = $employee->user?->email;
+        $employee->update(['user_id' => null]);
+
+        AuditLog::record('UPDATE', 'Employees',
+            __('User :email was unlinked from employee :employee', [
+                'email' => $email,
+                'employee' => $employee->full_name,
+            ]));
+
+        return back()->with('ok', __('User unlinked from the employee.'));
     }
 
     public function destroy(Employee $employee)
@@ -190,11 +237,9 @@ class EmployeeController extends Controller
             'position_id' => ['nullable', 'exists:positions,id'],
             'hire_date' => ['nullable', 'date'],
             'schedule_id' => ['required', 'exists:schedules,id'],
-            'user_id' => ['nullable', 'exists:users,id', Rule::unique('employees')->ignore($employee)],
         ], [
             'document_number.unique' => __('That document number is already registered to another employee.'),
             'schedule_id.required' => __('You must assign a schedule to the employee (needed to compute tardiness).'),
-            'user_id.unique' => __('That user is already linked to another employee.'),
         ]) + ['is_active' => $request->boolean('is_active')];
     }
 }

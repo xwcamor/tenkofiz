@@ -12,7 +12,8 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('profile')->orderBy('name')->get();
+        // 'employee' tells apart people who mark attendance from admin-only accounts
+        $users = User::with(['profile', 'employee'])->orderBy('name')->get();
         $profiles = Profile::where('is_active', true)->orderBy('name')->get();
         return view('users.index', compact('users', 'profiles'));
     }
@@ -24,10 +25,12 @@ class UserController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
+            'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'is_active' => ['boolean'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active');
+        $data['photo'] = $this->storePhoto($request);
         User::create($data);
 
         return redirect()->route('users.index')->with('ok', __('User created successfully.'));
@@ -40,6 +43,7 @@ class UserController extends Controller
             'email' => ['required', 'email', Rule::unique('users')->ignore($user)],
             'password' => ['nullable', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
+            'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'is_active' => ['boolean'],
         ]);
 
@@ -47,6 +51,12 @@ class UserController extends Controller
             unset($data['password']);
         }
         $data['is_active'] = $request->boolean('is_active');
+
+        if ($photo = $this->storePhoto($request, $user)) {
+            $data['photo'] = $photo;
+        } else {
+            unset($data['photo']);
+        }
 
         // A user cannot deactivate their own account
         if ($user->id === auth()->id() && !$data['is_active']) {
@@ -71,5 +81,27 @@ class UserController extends Controller
         $user->delete();
 
         return back()->with('ok', __('User deleted.'));
+    }
+
+    /** Saves the uploaded avatar and removes the previous one */
+    private function storePhoto(Request $request, ?User $user = null): ?string
+    {
+        if (!$request->hasFile('photo')) {
+            return null;
+        }
+
+        $dir = public_path('uploads/avatars');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $name = uniqid('avatar_').'.'.$request->file('photo')->getClientOriginalExtension();
+        $request->file('photo')->move($dir, $name);
+
+        if ($user?->photo && is_file(public_path($user->photo))) {
+            @unlink(public_path($user->photo));
+        }
+
+        return 'uploads/avatars/'.$name;
     }
 }
