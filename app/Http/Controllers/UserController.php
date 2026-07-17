@@ -83,7 +83,7 @@ class UserController extends Controller
         return back()->with('ok', __('User deleted.'));
     }
 
-    /** Saves the uploaded avatar and removes the previous one */
+    /** Saves the avatar center-cropped to a 256px square JPEG and removes the previous one */
     private function storePhoto(Request $request, ?User $user = null): ?string
     {
         if (!$request->hasFile('photo')) {
@@ -95,8 +95,23 @@ class UserController extends Controller
             mkdir($dir, 0755, true);
         }
 
-        $name = uniqid('avatar_').'.'.$request->file('photo')->getClientOriginalExtension();
-        $request->file('photo')->move($dir, $name);
+        $name = uniqid('avatar_').'.jpg';
+        $source = imagecreatefromstring(file_get_contents($request->file('photo')->getRealPath()));
+
+        // Center-crop to a square, then scale down to 256x256
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $side = min($width, $height);
+        $avatar = imagecreatetruecolor(256, 256);
+        imagecopyresampled(
+            $avatar, $source,
+            0, 0,
+            (int) (($width - $side) / 2), (int) (($height - $side) / 2),
+            256, 256, $side, $side
+        );
+        imagejpeg($avatar, $dir.'/'.$name, 88);
+        imagedestroy($source);
+        imagedestroy($avatar);
 
         if ($user?->photo && is_file(public_path($user->photo))) {
             @unlink(public_path($user->photo));

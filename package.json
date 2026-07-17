@@ -4,7 +4,27 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "vendor": "node scripts/copy-vendor.mjs"
+    },
+    "dependencies": {
+        "@fontsource/inter": "^5.0.0",
+        "@fortawesome/fontawesome-free": "6.5.2",
+        "@vladmandic/face-api": "1.7.13",
+        "admin-lte": "3.2.0",
+        "bootstrap4": "npm:bootstrap@4.6.2",
+        "bootstrap5": "npm:bootstrap@5.3.3",
+        "chart.js": "4.4.2",
+        "datatables.net": "1.13.8",
+        "datatables.net-bs4": "1.13.8",
+        "datatables.net-buttons": "2.4.2",
+        "datatables.net-buttons-bs4": "2.4.2",
+        "datatables.net-responsive": "2.5.0",
+        "datatables.net-responsive-bs4": "2.5.0",
+        "fullcalendar": "6.1.11",
+        "jquery": "3.7.1",
+        "jszip": "3.10.1",
+        "sweetalert2": "11.10.5"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

@@ -66,12 +66,17 @@
                             <label>{{ __('Hire date') }}</label>
                             <input type="date" name="hire_date" value="{{ old('hire_date', $employee->hire_date?->toDateString()) }}" class="form-control">
                         </div>
+                        <div class="col-md-2 form-group">
+                            <label>{{ __('Vacation days/year') }}</label>
+                            <input type="number" name="vacation_days_per_year" value="{{ old('vacation_days_per_year', $employee->vacation_days_per_year ?? 30) }}" class="form-control @error('vacation_days_per_year') is-invalid @enderror" min="0" max="60" required>
+                            @error('vacation_days_per_year')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        </div>
                         <div class="col-md-6 form-group">
                             <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
                             <select name="schedule_id" class="form-control @error('schedule_id') is-invalid @enderror" required>
                                 <option value="">— {{ __('Select a schedule') }} —</option>
                                 @foreach($schedules as $schedule)
-                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} ({{ substr($schedule->start_time, 0, 5) }}–{{ substr($schedule->end_time, 0, 5) }})</option>
+                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
                                 @endforeach
                             </select>
                             @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror

@@ -129,16 +129,42 @@ class KioskController extends Controller
             ], 422);
         }
 
-        $attendance = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $today]);
-
         // Kiosk device audit trail
         $device = ['ip' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 255)];
 
+        // Overnight shifts: if yesterday's shift crosses midnight and is still open,
+        // a mark before noon closes it as that shift's CHECK-OUT instead of opening today.
+        $yesterday = $now->copy()->subDay();
+        $yesterdayShift = $employee->schedule?->worksOn($yesterday->dayOfWeek);
+        if ($yesterdayShift && $yesterdayShift->crossesMidnight() && $now->format('H:i') < '12:00') {
+            $openOvernight = Attendance::where('employee_id', $employee->id)
+                ->whereDate('date', $yesterday->toDateString())
+                ->whereNotNull('check_in')
+                ->whereNull('check_out')
+                ->first();
+
+            if ($openOvernight) {
+                $openOvernight->update(['check_out' => $currentTime] + $device);
+
+                return response()->json([
+                    'ok' => true,
+                    'type' => 'CHECK_OUT',
+                    'status' => $openOvernight->status,
+                    'status_label' => __($openOvernight->status),
+                    'employee' => $employee->full_name,
+                    'time' => $now->format('h:i a'),
+                ]);
+            }
+        }
+
+        $attendance = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $today]);
+
         if (!$attendance->exists) {
-            // First mark of the day = CHECK-IN
+            // First mark of the day = CHECK-IN; lateness depends on TODAY's weekday hours
+            $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
             $status = 'ON_TIME';
-            if ($employee->schedule) {
-                $limit = \Carbon\Carbon::parse($today.' '.$employee->schedule->start_time, company_timezone())
+            if ($todayShift) {
+                $limit = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone())
                     ->addMinutes($employee->schedule->tolerance_minutes);
                 if ($now->greaterThan($limit)) {
                     $status = 'LATE';

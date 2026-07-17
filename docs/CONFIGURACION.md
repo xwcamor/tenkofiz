@@ -12,6 +12,7 @@ Marca cada punto al montar una instalación nueva. Los detalles de cada tema est
 | `APP_TIMEZONE=UTC` | **No la cambies.** El servidor trabaja en UTC; la zona horaria "real" de la empresa se configura DENTRO de la app (Ajustes) | ✅ |
 | `DB_*` | Conexión a la base de datos → [BASE_DE_DATOS.md](BASE_DE_DATOS.md) | ✅ |
 | `MAIL_*` | SMTP para los avisos → [CORREO.md](CORREO.md) | Recomendada |
+| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Alertas por Telegram al grupo de aprobadores cuando se registra una vacación/justificación. Crea el bot con @BotFather, agrégalo al grupo y obtén el chat id (ej. con @getidsbot). Sin configurar = no envía nada | Opcional |
 | `DECOLECTA_API_TOKEN` | Token de la API de Decolecta para el botón **RENIEC** del formulario de empleados (autocompleta nombres por DNI). Se obtiene en <https://decolecta.com> → panel → API keys. Sin token, el botón avisa que no está configurado; todo lo demás funciona | Opcional |
 
 Tras cualquier cambio en `.env`: `php artisan config:clear`.
@@ -71,6 +72,26 @@ php artisan schedule:work
 
 También puedes generarlas a mano: botón "Generar faltas" en Asistencias, o
 `php artisan attendances:mark-absences 2026-07-15`.
+
+Con el mismo planificador corren automáticamente:
+
+- **`system:backup`** (diario 02:00): respalda BD + `public/uploads` en `storage/app/backups`
+  (zip, conserva los últimos 14). SQLite se copia tal cual; MySQL usa `mysqldump` si está instalado.
+- **`kiosk:purge-evidence --days=90`** (domingos 03:00): borra las fotos de evidencia de marcados
+  por DNI con más de 90 días (minimización de datos); los registros de asistencia se conservan.
+
+## 5b. Assets locales (recomendado)
+
+Por defecto las librerías (AdminLTE, Chart.js, face-api, etc.) cargan desde CDNs. Para que la app
+—especialmente la tablet del kiosco— funcione **sin internet**:
+
+```bash
+npm install --ignore-scripts
+npm run vendor        # copia todo a public/vendor
+```
+
+Las vistas detectan automáticamente los archivos locales (`vendor_asset()`); si no existen, usan el CDN.
+Repite `npm run vendor` después de cada `git pull` que cambie versiones.
 
 ## 6. Kiosco (la tablet)
 

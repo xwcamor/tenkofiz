@@ -74,6 +74,13 @@ class JustificationController extends Controller
             ])
         );
 
+        notify_telegram(__(":employee submitted a justification for :date.\nReason: :reason\n\nReview it at: :url", [
+            'employee' => $justification->employee->full_name,
+            'date' => $justification->date->format('d/m/Y'),
+            'reason' => $justification->reason,
+            'url' => route('justifications.index', ['status' => 'PENDING']),
+        ]));
+
         return redirect()->route('justifications.index')->with('ok', __('Justification submitted. It is pending review.'));
     }
 

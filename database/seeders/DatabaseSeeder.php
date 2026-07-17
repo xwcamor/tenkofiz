@@ -41,8 +41,13 @@ class DatabaseSeeder extends Seeder
             'profile_id' => $admin->id,
         ]);
 
-        Schedule::create(['name' => 'Morning Shift', 'start_time' => '08:00:00', 'end_time' => '17:00:00', 'tolerance_minutes' => 10]);
-        Schedule::create(['name' => 'Evening Shift', 'start_time' => '14:00:00', 'end_time' => '22:00:00', 'tolerance_minutes' => 10]);
+        // Working days Monday-Saturday; Sunday off
+        $morning = Schedule::create(['name' => 'Morning Shift', 'tolerance_minutes' => 10]);
+        $evening = Schedule::create(['name' => 'Evening Shift', 'tolerance_minutes' => 10]);
+        foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
+            $morning->days()->create(['weekday' => $weekday, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
+            $evening->days()->create(['weekday' => $weekday, 'start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        }
 
         foreach (['Administration', 'Information Technology', 'Human Resources', 'Accounting', 'Operations'] as $area) {
             Area::create(['name' => $area]);

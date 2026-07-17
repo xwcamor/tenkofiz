@@ -7,13 +7,18 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Start') }}</th><th>{{ __('End') }}</th><th>{{ __('Tolerance') }}</th><th>{{ __('Employees') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Working days') }}</th><th>{{ __('Tolerance') }}</th><th>{{ __('Employees') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
             @foreach($schedules as $schedule)
                 <tr>
-                    <td>{{ $schedule->name }}</td>
-                    <td>{{ substr($schedule->start_time, 0, 5) }}</td>
-                    <td>{{ substr($schedule->end_time, 0, 5) }}</td>
+                    <td>{{ $schedule->name }}
+                        @unless($schedule->is_active)<span class="badge badge-secondary ml-1">{{ __('Inactive') }}</span>@endunless
+                    </td>
+                    <td class="text-muted">{{ $schedule->daysSummary() }}
+                        @if($schedule->days->contains(fn ($d) => $d->crossesMidnight()))
+                            <span class="badge badge-info ml-1" title="{{ __('A shift that ends past midnight') }}"><i class="fas fa-moon"></i> {{ __('overnight') }}</span>
+                        @endif
+                    </td>
                     <td>{{ $schedule->tolerance_minutes }} min</td>
                     <td><span class="badge badge-info">{{ $schedule->employees_count }}</span></td>
                     <td>
@@ -21,10 +26,12 @@
                             $payload = json_encode([
                                 'action' => route('schedules.update', $schedule),
                                 'name' => $schedule->name,
-                                'start_time' => substr($schedule->start_time, 0, 5),
-                                'end_time' => substr($schedule->end_time, 0, 5),
                                 'tolerance_minutes' => $schedule->tolerance_minutes,
                                 'is_active' => $schedule->is_active,
+                                'days' => $schedule->days->mapWithKeys(fn ($d) => [$d->weekday => [
+                                    'start' => substr($d->start_time, 0, 5),
+                                    'end' => substr($d->end_time, 0, 5),
+                                ]]),
                             ]);
                         @endphp
                         <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openScheduleModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
@@ -57,17 +64,23 @@
                     <input name="name" id="scheduleName" value="{{ old('name') }}" class="form-control @error('name') is-invalid @enderror" required placeholder="{{ __('E.g.: Morning Shift') }}">
                     @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-                <div class="row">
-                    <div class="col form-group">
-                        <label>{{ __('Start time') }}</label>
-                        <input type="time" name="start_time" id="scheduleStart" value="{{ old('start_time') }}" class="form-control @error('start_time') is-invalid @enderror" required>
-                        @error('start_time')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                    </div>
-                    <div class="col form-group">
-                        <label>{{ __('End time') }}</label>
-                        <input type="time" name="end_time" id="scheduleEnd" value="{{ old('end_time') }}" class="form-control @error('end_time') is-invalid @enderror" required>
-                        @error('end_time')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                    </div>
+                <div class="form-group">
+                    <label>{{ __('Working days and hours') }}</label>
+                    <small class="text-muted d-block mb-2">{{ __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).') }}</small>
+                    @error('days')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                    @php $weekdays = [1 => __('Monday'), 2 => __('Tuesday'), 3 => __('Wednesday'), 4 => __('Thursday'), 5 => __('Friday'), 6 => __('Saturday'), 0 => __('Sunday')]; @endphp
+                    @foreach($weekdays as $weekday => $label)
+                        <div class="d-flex align-items-center mb-1" style="gap:.5rem">
+                            <div class="custom-control custom-checkbox" style="width:120px">
+                                <input type="checkbox" name="days[{{ $weekday }}][on]" value="1" class="custom-control-input day-toggle" id="day{{ $weekday }}" data-weekday="{{ $weekday }}"
+                                       @checked(old("days.$weekday.on"))>
+                                <label class="custom-control-label" for="day{{ $weekday }}">{{ $label }}</label>
+                            </div>
+                            <input type="time" name="days[{{ $weekday }}][start]" id="dayStart{{ $weekday }}" value="{{ old("days.$weekday.start") }}" class="form-control form-control-sm" style="width:110px">
+                            <span class="text-muted">–</span>
+                            <input type="time" name="days[{{ $weekday }}][end]" id="dayEnd{{ $weekday }}" value="{{ old("days.$weekday.end") }}" class="form-control form-control-sm" style="width:110px">
+                        </div>
+                    @endforeach
                 </div>
                 <div class="form-group">
                     <label>{{ __('Tardiness tolerance (minutes)') }}</label>
@@ -97,12 +110,32 @@ function openScheduleModal(data = null) {
     document.getElementById('scheduleFormAction').value = form.action;
     document.getElementById('scheduleMethod').value = data ? 'PUT' : 'POST';
     document.getElementById('scheduleName').value = data ? data.name : '';
-    document.getElementById('scheduleStart').value = data ? data.start_time : '';
-    document.getElementById('scheduleEnd').value = data ? data.end_time : '';
     document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 10;
     document.getElementById('scheduleActive').checked = data ? !!data.is_active : true;
+
+    for (let weekday = 0; weekday <= 6; weekday++) {
+        const dayData = data && data.days ? data.days[weekday] : null;
+        // Sensible default for a new schedule: Monday-Saturday 08:00-17:00
+        const defaultOn = !data && weekday >= 1 && weekday <= 6;
+        document.getElementById('day' + weekday).checked = dayData ? true : defaultOn;
+        document.getElementById('dayStart' + weekday).value = dayData ? dayData.start : (defaultOn ? '08:00' : '');
+        document.getElementById('dayEnd' + weekday).value = dayData ? dayData.end : (defaultOn ? '17:00' : '');
+    }
+
     $('#scheduleModal').modal('show');
 }
+
+// Ticking a day without hours prefills the previous day's hours
+document.querySelectorAll('.day-toggle').forEach(toggle => {
+    toggle.addEventListener('change', function () {
+        const weekday = this.dataset.weekday;
+        const start = document.getElementById('dayStart' + weekday);
+        if (this.checked && !start.value) {
+            start.value = '08:00';
+            document.getElementById('dayEnd' + weekday).value = '17:00';
+        }
+    });
+});
 
 @if($errors->any())
     $('#scheduleModal').modal('show');

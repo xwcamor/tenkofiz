@@ -18,7 +18,7 @@
 
 @if($isManager)
 {{-- ================= GLOBAL DASHBOARD (managers) ================= --}}
-@php($pendingTotal = $pendingVacations + $pendingJustifications)
+@php $pendingTotal = $pendingVacations + $pendingJustifications; @endphp
 
 <div class="row">
     <div class="col-xl-3 col-md-6 mb-3">
@@ -255,9 +255,12 @@
 <script>
 const STATUS_COLORS = @json($statusColors);
 const STATUS_LABELS = @json(collect(\App\Models\Attendance::STATUSES)->mapWithKeys(fn ($s) => [$s => __($s)]));
-const INK_MUTED = '#667085';
-const GRID = '#eef1f6';
-const SURFACE = '#ffffff';
+// Chart chrome follows the active theme (light/dark tokens from theme.css)
+const THEME_CSS = getComputedStyle(document.documentElement);
+const INK_MUTED = THEME_CSS.getPropertyValue('--ink-3').trim() || '#667085';
+const INK_STRONG = THEME_CSS.getPropertyValue('--ink').trim() || '#101828';
+const GRID = THEME_CSS.getPropertyValue('--hairline').trim() || '#eef1f6';
+const SURFACE = THEME_CSS.getPropertyValue('--card-bg').trim() || '#ffffff';
 
 Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
 Chart.defaults.color = INK_MUTED;
@@ -323,7 +326,7 @@ new Chart(document.getElementById('todayChart'), {
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#101828';
+            ctx.fillStyle = INK_STRONG;
             ctx.font = "700 26px 'Inter', system-ui, sans-serif";
             ctx.fillText(@json($attendancesToday), x, y - 8);
             ctx.fillStyle = INK_MUTED;

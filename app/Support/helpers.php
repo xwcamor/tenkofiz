@@ -82,6 +82,22 @@ if (!function_exists('current_period')) {
     }
 }
 
+if (!function_exists('vendor_asset')) {
+    /**
+     * Local-first asset: serves the file from public/ when it exists (run
+     * `npm install && npm run vendor` once) and falls back to the CDN
+     * otherwise. Keeps the kiosk working without internet once vendored.
+     */
+    function vendor_asset(string $localPath, string $cdnUrl): string
+    {
+        $absolute = public_path($localPath);
+
+        return is_file($absolute)
+            ? asset($localPath).'?v='.(@filemtime($absolute) ?: 1)
+            : $cdnUrl;
+    }
+}
+
 if (!function_exists('safe_mail')) {
     /** Sends an email without breaking the request if SMTP fails */
     function safe_mail(?string $to, string $subject, string $body): void
@@ -96,6 +112,31 @@ if (!function_exists('safe_mail')) {
             });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Could not send email: '.$e->getMessage());
+        }
+    }
+}
+
+if (!function_exists('notify_telegram')) {
+    /**
+     * Sends a message to the approvers' Telegram group (fire-and-forget).
+     * Configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env; without them
+     * this is a no-op, so the feature is fully optional.
+     */
+    function notify_telegram(string $text): void
+    {
+        $token = config('services.telegram.token');
+        $chatId = config('services.telegram.chat_id');
+        if (!$token || !$chatId) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Http::timeout(5)->post(
+                "https://api.telegram.org/bot{$token}/sendMessage",
+                ['chat_id' => $chatId, 'text' => $text]
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Could not send Telegram message: '.$e->getMessage());
         }
     }
 }

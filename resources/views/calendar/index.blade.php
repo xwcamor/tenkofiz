@@ -37,9 +37,9 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="{{ vendor_asset('vendor/fullcalendar/index.global.min.js', 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js') }}"></script>
 @if(app()->getLocale() === 'es')
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/es.global.min.js"></script>
+<script src="{{ vendor_asset('vendor/fullcalendar/es.global.min.js', 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/es.global.min.js') }}"></script>
 @endif
 <script>
 document.addEventListener('DOMContentLoaded', function () {

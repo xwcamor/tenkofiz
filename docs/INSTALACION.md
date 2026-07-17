@@ -42,7 +42,11 @@ bash download_models.sh
 # desde https://github.com/vladmandic/face-api/tree/master/model
 # y colócalos en public/models/
 
-# 6. Levantar el servidor
+# 6. (Recomendado) Assets locales: la app funciona sin internet/CDNs
+npm install --ignore-scripts
+npm run vendor
+
+# 7. Levantar el servidor
 php artisan serve
 # → http://127.0.0.1:8000
 ```

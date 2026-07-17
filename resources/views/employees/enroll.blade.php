@@ -50,7 +50,7 @@
 </div>
 @endsection
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
+<script src="{{ vendor_asset('vendor/faceapi/face-api.min.js', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js') }}"></script>
 <script>
     window.ENROLL_URL = "{{ route('employees.descriptor', $employee) }}";
     window.CSRF = "{{ csrf_token() }}";

@@ -24,7 +24,13 @@ class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $schedule = Schedule::first() ?? Schedule::create(['name' => 'Morning Shift', 'start_time' => '08:00:00', 'end_time' => '17:00:00', 'tolerance_minutes' => 10]);
+        $schedule = Schedule::first();
+        if (!$schedule) {
+            $schedule = Schedule::create(['name' => 'Morning Shift', 'tolerance_minutes' => 10]);
+            foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
+                $schedule->days()->create(['weekday' => $weekday, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
+            }
+        }
         $areas = Area::pluck('id')->all() ?: [Area::create(['name' => 'Operations'])->id];
         $positions = Position::pluck('id')->all() ?: [Position::create(['name' => 'Assistant'])->id];
 

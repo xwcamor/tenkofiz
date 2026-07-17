@@ -20,21 +20,15 @@ class Attendance extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    /** Non-working weekdays (0 = Sunday). Adjust to the company's reality. */
-    public const NON_WORKING_DAYS = [0];
-
     /**
-     * Marks ABSENT every active employee with a schedule who has no attendance
-     * record on the given date. Skips holidays, non-working days, approved
-     * vacations and already excused days. Returns how many records were created.
+     * Marks ABSENT every active employee whose schedule works on that weekday
+     * and who has no attendance record on the given date. Skips holidays,
+     * days off per schedule, approved vacations and already excused days.
+     * Returns how many records were created.
      */
     public static function markAbsences(string $date): int
     {
         $day = \Carbon\Carbon::parse($date);
-
-        if (in_array($day->dayOfWeek, self::NON_WORKING_DAYS, true)) {
-            return 0;
-        }
 
         if (Holiday::onDate($date)) {
             return 0;
@@ -44,6 +38,8 @@ class Attendance extends Model
 
         Employee::where('is_active', true)
             ->whereNotNull('schedule_id')
+            // Only employees whose schedule has working hours on that weekday
+            ->whereHas('schedule.days', fn ($q) => $q->where('weekday', $day->dayOfWeek))
             ->whereDoesntHave('attendances', fn ($q) => $q->whereDate('date', $date))
             ->each(function (Employee $employee) use ($date, &$created) {
                 if ($employee->onVacation($date)) {

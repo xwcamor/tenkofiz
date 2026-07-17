@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'telegram' => [
+        'token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
     'decolecta' => [
         'token' => env('DECOLECTA_API_TOKEN'),
         'url' => env('DECOLECTA_API_URL', 'https://api.decolecta.com'),

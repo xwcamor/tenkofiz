@@ -27,7 +27,15 @@ class VacationController extends Controller
             ? Employee::where('is_active', true)->orderBy('last_name')->get()
             : Employee::where('user_id', $user->id)->get();
 
-        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees'));
+        // Remaining days this year, shown in the request modal and next to pending rows
+        $balances = $employees->mapWithKeys(fn ($e) => [$e->id => $e->remainingVacationDays()]);
+        foreach ($vacations as $vacation) {
+            if (!$balances->has($vacation->employee_id)) {
+                $balances[$vacation->employee_id] = $vacation->employee->remainingVacationDays();
+            }
+        }
+
+        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances'));
     }
 
     public function store(Request $request)
@@ -48,6 +56,15 @@ class VacationController extends Controller
         $data['days'] = \Carbon\Carbon::parse($data['start_date'])
             ->diffInDays(\Carbon\Carbon::parse($data['end_date'])) + 1;
 
+        // Annual balance guard: the request cannot exceed the remaining days
+        $employee = Employee::findOrFail($data['employee_id']);
+        $remaining = $employee->remainingVacationDays((int) \Carbon\Carbon::parse($data['start_date'])->year);
+        if ($data['days'] > $remaining) {
+            return back()->withInput()->withErrors([
+                'end_date' => __('Insufficient vacation balance: :remaining day(s) available this year.', ['remaining' => $remaining]),
+            ]);
+        }
+
         $vacation = Vacation::create($data);
         $vacation->load('employee');
 
@@ -64,6 +81,15 @@ class VacationController extends Controller
                 'url' => route('vacations.index', ['status' => 'PENDING']),
             ])
         );
+
+        notify_telegram(__(":employee requested vacations from :from to :to (:days days).\nReason: :reason\n\nReview it at: :url", [
+            'employee' => $vacation->employee->full_name,
+            'from' => $vacation->start_date->format('d/m/Y'),
+            'to' => $vacation->end_date->format('d/m/Y'),
+            'days' => $vacation->days,
+            'reason' => $vacation->reason,
+            'url' => route('vacations.index', ['status' => 'PENDING']),
+        ]));
 
         return redirect()->route('vacations.index')->with('ok', __('Vacation request submitted.'));
     }
@@ -87,6 +113,14 @@ class VacationController extends Controller
     public function changeStatus(Request $request, Vacation $vacation)
     {
         $data = $request->validate(['status' => ['required', 'in:APPROVED,REJECTED,PENDING']]);
+
+        // Balance re-check at approval time (requests may compete for the same days)
+        if ($data['status'] === 'APPROVED' && $vacation->status !== 'APPROVED') {
+            $remaining = $vacation->employee->remainingVacationDays((int) $vacation->start_date->year);
+            if ($vacation->days > $remaining) {
+                return back()->with('error', __('Cannot approve: the employee only has :remaining day(s) left this year.', ['remaining' => $remaining]));
+            }
+        }
 
         $vacation->update([
             'status' => $data['status'],

@@ -236,6 +236,7 @@ class EmployeeController extends Controller
             'area_id' => ['nullable', 'exists:areas,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'hire_date' => ['nullable', 'date'],
+            'vacation_days_per_year' => ['required', 'integer', 'min:0', 'max:60'],
             'schedule_id' => ['required', 'exists:schedules,id'],
         ], [
             'document_number.unique' => __('That document number is already registered to another employee.'),

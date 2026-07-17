@@ -9,6 +9,7 @@
             <label class="mr-2">{{ __('To') }}</label>
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
+            <a href="{{ route('reports.export', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Export Excel') }}</a>
             @if(app_setting()->cutoff_day)
                 @php [$periodStart, $periodEnd] = current_period(); @endphp
                 <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">
@@ -22,7 +23,7 @@
             <thead>
                 <tr>
                     <th>{{ __('Employee') }}</th><th>{{ __('Document') }}</th><th>{{ __('Area') }}</th><th>{{ __('Position') }}</th>
-                    <th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th>
+                    <th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th>
                     <th>{{ __('Worked hours') }}</th><th>{{ __('Vacation days') }}</th><th>{{ __('Sheet') }}</th>
                 </tr>
             </thead>
@@ -36,6 +37,7 @@
                     <td class="text-center">{{ $row['worked_days'] }}</td>
                     <td class="text-center text-success font-weight-bold">{{ $row['on_time'] }}</td>
                     <td class="text-center text-warning font-weight-bold">{{ $row['late'] }}</td>
+                    <td class="text-center">{{ $row['late_minutes'] }}</td>
                     <td class="text-center text-danger font-weight-bold">{{ $row['absent'] }}</td>
                     <td class="text-center">{{ $row['excused'] }}</td>
                     <td class="text-center">{{ $row['worked_hours'] }}</td>

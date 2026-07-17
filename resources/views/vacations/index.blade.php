@@ -34,7 +34,11 @@
                     <td>{{ $vacation->employee->full_name }}</td>
                     <td>{{ $vacation->start_date->format('d/m/Y') }}</td>
                     <td>{{ $vacation->end_date->format('d/m/Y') }}</td>
-                    <td>{{ $vacation->days }}</td>
+                    <td>{{ $vacation->days }}
+                        @if($canApprove && $vacation->status === 'PENDING')
+                            <div class="text-muted small" title="{{ __('Remaining days this year') }}">{{ __('left') }}: {{ $balances[$vacation->employee_id] ?? '—' }}</div>
+                        @endif
+                    </td>
                     <td class="text-muted">{{ $vacation->reason }}</td>
                     <td>
                         <span class="badge badge-{{ $statusBadge($vacation->status) }}">{{ __($vacation->status) }}</span>
@@ -77,12 +81,13 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>{{ __('Employee') }}</label>
-                    <select name="employee_id" class="form-control @error('employee_id') is-invalid @enderror" required {{ $employees->count() === 1 ? 'readonly' : '' }}>
+                    <select name="employee_id" id="vacationEmployee" class="form-control @error('employee_id') is-invalid @enderror" required {{ $employees->count() === 1 ? 'readonly' : '' }}>
                         @foreach($employees as $employee)
                             <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
                         @endforeach
                     </select>
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    <small class="text-muted" id="vacationBalanceHint"></small>
                 </div>
                 <div class="row">
                     <div class="col form-group">
@@ -113,6 +118,22 @@
 
 @push('scripts')
 <script>
+// Remaining vacation days per employee (current year), shown under the selector
+const VACATION_BALANCES = @json($balances);
+const employeeSelect = document.getElementById('vacationEmployee');
+
+function refreshBalanceHint() {
+    if (!employeeSelect) return;
+    const remaining = VACATION_BALANCES[employeeSelect.value];
+    document.getElementById('vacationBalanceHint').textContent =
+        remaining === undefined ? '' : @json(__('Available this year:')) + ' ' + remaining + ' ' + @json(__('days'));
+}
+
+if (employeeSelect) {
+    employeeSelect.addEventListener('change', refreshBalanceHint);
+    refreshBalanceHint();
+}
+
 @if($errors->any())
     $('#vacationModal').modal('show');
 @endif

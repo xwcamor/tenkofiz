@@ -14,4 +14,30 @@ class Schedule extends Model
     {
         return $this->hasMany(Employee::class);
     }
+
+    public function days()
+    {
+        return $this->hasMany(ScheduleDay::class)->orderBy('weekday');
+    }
+
+    /** Working hours for the given weekday (0=Sunday..6=Saturday), null = day off */
+    public function worksOn(int $weekday): ?ScheduleDay
+    {
+        return $this->days->firstWhere('weekday', $weekday);
+    }
+
+    /** Short summary such as "Mon–Sat 08:00–17:00" or "Custom" when days differ */
+    public function daysSummary(): string
+    {
+        if ($this->days->isEmpty()) {
+            return __('No working days');
+        }
+
+        $uniformTimes = $this->days->map(fn ($d) => substr($d->start_time, 0, 5).'–'.substr($d->end_time, 0, 5))->unique();
+        $dayNames = $this->days->map(fn ($d) => __(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][$d->weekday]))->implode(', ');
+
+        return $uniformTimes->count() === 1
+            ? $dayNames.' · '.$uniformTimes->first()
+            : $dayNames.' · '.__('varies per day');
+    }
 }

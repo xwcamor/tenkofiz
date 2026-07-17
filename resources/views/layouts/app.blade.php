@@ -5,15 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', __('System')) | {{ __('Facial Attendance') }}</title>
+    <script>
+        // Apply the saved theme before first paint (avoids a light flash)
+        (function () {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
     <!-- AdminLTE 3 + plugins (CDN) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.8/css/dataTables.bootstrap4.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.5.0/css/responsive.bootstrap4.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-buttons-bs4@2.4.2/css/buttons.bootstrap4.min.css">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/fontawesome/css/all.min.css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/adminlte/adminlte.min.css', 'https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css') }}">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/datatables/dataTables.bootstrap4.min.css', 'https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.8/css/dataTables.bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/datatables/responsive.bootstrap4.min.css', 'https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.5.0/css/responsive.bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/datatables/buttons.bootstrap4.min.css', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons-bs4@2.4.2/css/buttons.bootstrap4.min.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ vendor_asset('vendor/inter/inter.css', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/theme.css') }}?v={{ @filemtime(public_path('css/theme.css')) ?: 1 }}">
     <style>
         /* Top loading bar while navigating */
@@ -77,6 +85,12 @@
                     </div>
                 </li>
             @endif
+            <!-- Dark mode toggle -->
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="toggleTheme(); return false;" title="{{ __('Toggle dark mode') }}">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </a>
+            </li>
             <!-- Language switcher -->
             <li class="nav-item dropdown">
                 <a class="nav-link" data-toggle="dropdown" href="#" title="{{ __('Language') }}">
@@ -110,7 +124,7 @@
 
     <!-- Sidebar -->
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
-        @php($companySetting = app_setting())
+        @php $companySetting = app_setting(); @endphp
         <a href="{{ route('dashboard') }}" class="brand-link">
             @if($companySetting->logo)
                 <img src="{{ asset($companySetting->logo) }}" alt="logo" class="brand-image img-circle elevation-2" style="opacity:.9">
@@ -270,22 +284,32 @@
 </div>
 
 <!-- Scripts: jQuery, Bootstrap, AdminLTE, DataTables, SweetAlert2, Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/js/adminlte.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net@1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.8/js/dataTables.bootstrap4.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive@2.5.0/js/dataTables.responsive.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.5.0/js/responsive.bootstrap4.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons-bs4@2.4.2/js/buttons.bootstrap4.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/buttons.html5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/buttons.print.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="{{ vendor_asset('vendor/jquery/jquery.min.js', 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/bootstrap4/bootstrap.bundle.min.js', 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/adminlte/adminlte.min.js', 'https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/js/adminlte.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/jquery.dataTables.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net@1.13.8/js/jquery.dataTables.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/dataTables.bootstrap4.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.8/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/dataTables.responsive.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-responsive@2.5.0/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/responsive.bootstrap4.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.5.0/js/responsive.bootstrap4.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/jszip/jszip.min.js', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/dataTables.buttons.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/dataTables.buttons.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/buttons.bootstrap4.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons-bs4@2.4.2/js/buttons.bootstrap4.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/buttons.html5.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/buttons.html5.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/datatables/buttons.print.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/buttons.print.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/sweetalert2/sweetalert2.all.min.js', 'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/chartjs/chart.umd.min.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js') }}"></script>
 <script>
-    const DATATABLE_LANG = @json(app()->getLocale() === 'es' ? ['url' => 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json'] : new stdClass());
+    @php
+        // Inline Spanish strings: no external i18n download
+        $dataTableLang = app()->getLocale() === 'es' ? [
+            'processing' => 'Procesando...', 'search' => 'Buscar:', 'lengthMenu' => 'Mostrar _MENU_ registros',
+            'info' => 'Mostrando _START_ a _END_ de _TOTAL_ registros', 'infoEmpty' => 'Sin registros',
+            'infoFiltered' => '(filtrado de _MAX_ registros)', 'loadingRecords' => 'Cargando...',
+            'zeroRecords' => 'No se encontraron resultados', 'emptyTable' => 'Sin datos disponibles',
+            'paginate' => ['first' => 'Primero', 'previous' => 'Anterior', 'next' => 'Siguiente', 'last' => 'Último'],
+        ] : new stdClass();
+    @endphp
+    const DATATABLE_LANG = @json($dataTableLang);
 
     // DataTables on every table with .data-table (client-side; used for small catalogs)
     $(function () {
@@ -310,6 +334,19 @@
             language: DATATABLE_LANG
         });
     });
+
+    // Dark mode toggle (persisted per device). Reloads so charts repaint with the new tokens.
+    function toggleTheme() {
+        const dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+        localStorage.setItem('theme', dark ? 'dark' : 'light');
+        location.reload();
+    }
+    function syncThemeIcon() {
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const icon = document.getElementById('themeIcon');
+        if (icon) icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+    }
+    syncThemeIcon();
 
     // Prevent multiple clicks on links (New/Edit buttons, menu, etc.)
     (function () {
