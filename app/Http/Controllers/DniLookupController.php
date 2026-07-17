@@ -20,7 +20,7 @@ class DniLookupController extends Controller
         if (!$token) {
             return response()->json([
                 'ok' => false,
-                'message' => __('RENIEC lookup is not configured: add DECOLECTA_API_TOKEN to your .env file.'),
+                'message' => __('Validation not configured: add DECOLECTA_API_TOKEN to your .env file.'),
             ], 503);
         }
 
@@ -37,17 +37,17 @@ class DniLookupController extends Controller
 
                 $message = str_contains($e->getMessage(), 'cURL error 60') || stripos($e->getMessage(), 'SSL certificate') !== false
                     ? __('SSL error in PHP: set curl.cainfo and openssl.cafile in php.ini to a cacert.pem file (see docs/CONFIGURACION.md) and restart the server.')
-                    : __('Could not reach the RENIEC service. Try again in a moment.').' ('.\Illuminate\Support\Str::limit($e->getMessage(), 90).')';
+                    : __('Could not reach the validation service. Try again in a moment.').' ('.\Illuminate\Support\Str::limit($e->getMessage(), 90).')';
 
                 return ['ok' => false, 'status' => 503, 'message' => $message];
             }
 
             if ($response->status() === 404) {
-                return ['ok' => false, 'status' => 404, 'message' => __('DNI not found in RENIEC.')];
+                return ['ok' => false, 'status' => 404, 'message' => __('DNI not found.')];
             }
 
             if (!$response->successful()) {
-                return ['ok' => false, 'status' => 502, 'message' => __('The RENIEC service answered with an error (check your Decolecta token or credits).')];
+                return ['ok' => false, 'status' => 502, 'message' => __('The validation service answered with an error (check your Decolecta token or credits).')];
             }
 
             $data = $response->json() ?? [];
@@ -68,7 +68,7 @@ class DniLookupController extends Controller
             }
 
             if ($firstName === '' && $lastName === '') {
-                return ['ok' => false, 'status' => 502, 'message' => __('Unexpected response from the RENIEC service.')];
+                return ['ok' => false, 'status' => 502, 'message' => __('Unexpected response from the validation service.')];
             }
 
             return [

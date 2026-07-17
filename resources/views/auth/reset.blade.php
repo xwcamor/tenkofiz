@@ -55,5 +55,6 @@
         <button class="btn-brand"><i class="fas fa-save mr-1"></i> {{ __('Reset password') }}</button>
     </form>
 </div>
+<script src="{{ asset('js/trim-inputs.js') }}?v={{ @filemtime(public_path('js/trim-inputs.js')) ?: 1 }}"></script>
 </body>
 </html>

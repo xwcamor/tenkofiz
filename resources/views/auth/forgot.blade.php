@@ -51,5 +51,6 @@
     </form>
     <p class="text-center mt-3 mb-0 auth-links"><a href="{{ route('login') }}">{{ __('Back to sign in') }}</a></p>
 </div>
+<script src="{{ asset('js/trim-inputs.js') }}?v={{ @filemtime(public_path('js/trim-inputs.js')) ?: 1 }}"></script>
 </body>
 </html>

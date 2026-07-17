@@ -71,3 +71,5 @@ correo, token de Decolecta, zona horaria, día de corte, seguridad del kiosco, c
 | `could not find driver` al migrar | Falta la extensión `pdo_sqlite` o `pdo_mysql` en `php.ini` |
 | La cámara no enciende | El navegador exige **HTTPS** (o `localhost`) para dar acceso a la cámara |
 | Los correos no llegan | Ver [CORREO.md](CORREO.md) — sin configurar SMTP el sistema no se rompe, solo lo anota en el log |
+| La validación de DNI o el correo fallan con error SSL (cURL error 60), pero `curl` en la terminal sí funciona | PHP no tiene certificados configurados: ver la sección **"Windows: certificados SSL de PHP"** en [CONFIGURACION.md](CONFIGURACION.md) (`curl.cainfo` + `openssl.cafile` en `php.ini`) |
+| El import de Excel falla o la plantilla no descarga | Faltan las extensiones `gd` y `zip` en `php.ini`, o falta `composer install` (ver primera fila) |

@@ -419,5 +419,6 @@
     @endif
 </script>
 @stack('scripts')
+<script src="{{ asset('js/trim-inputs.js') }}?v={{ @filemtime(public_path('js/trim-inputs.js')) ?: 1 }}"></script>
 </body>
 </html>

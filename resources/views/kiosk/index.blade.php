@@ -209,5 +209,6 @@
     };
 </script>
 <script defer src="{{ asset('js/kiosk.js') }}?v={{ @filemtime(public_path('js/kiosk.js')) ?: 1 }}"></script>
+<script src="{{ asset('js/trim-inputs.js') }}?v={{ @filemtime(public_path('js/trim-inputs.js')) ?: 1 }}"></script>
 </body>
 </html>

@@ -24,7 +24,7 @@
                             </div>
                             @error('document_type')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                             @error('document_number')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
-                            <small class="text-muted d-block" id="dniLookupStatus">{{ __('DNI: names autofill from RENIEC when you finish the 8 digits.') }}</small>
+                            <small class="text-muted d-block" id="dniLookupStatus">{{ __('8 digits. Validated against RENIEC automatically.') }}</small>
                         </div>
                         <div class="col-md-4 form-group">
                             <label>{{ __('First names') }}</label>
@@ -132,19 +132,33 @@
     const lastName = document.getElementById('lastNameInput');
     const status = document.getElementById('dniLookupStatus');
 
-    const HINTS = {
-        DNI: { pattern: '[0-9]{8}', hint: @json(__('DNI: names autofill from RENIEC when you finish the 8 digits.')) },
-        CE: { pattern: '[0-9A-Za-z]{9,12}', hint: @json(__('Foreigner ID card: 9 to 12 characters, no RENIEC lookup.')) },
-        PASSPORT: { pattern: '[0-9A-Za-z]{6,12}', hint: @json(__('Passport: 6 to 12 characters, no RENIEC lookup.')) },
+    // Per-type rules: length, allowed characters and a short hint
+    const DOC_RULES = {
+        DNI: { pattern: '[0-9]{8}', maxLength: 8, allowed: /[^0-9]/g, hint: @json(__('8 digits. Validated against RENIEC automatically.')) },
+        CE: { pattern: '[0-9A-Z]{9,12}', maxLength: 12, allowed: /[^0-9A-Za-z]/g, hint: @json(__('9 to 12 characters.')) },
+        PASSPORT: { pattern: '[0-9A-Z]{6,12}', maxLength: 12, allowed: /[^0-9A-Za-z]/g, hint: @json(__('6 to 12 characters.')) },
     };
 
     let lastLookedUp = null;
     let debounceTimer = null;
 
+    function currentRule() {
+        return DOC_RULES[typeSelect.value] || DOC_RULES.DNI;
+    }
+
     function applyType() {
-        const config = HINTS[typeSelect.value] || HINTS.DNI;
-        documentInput.pattern = config.pattern;
-        setStatus('muted', config.hint);
+        const rule = currentRule();
+        documentInput.pattern = rule.pattern;
+        documentInput.maxLength = rule.maxLength;
+        cleanDocument();
+        setStatus('muted', rule.hint);
+    }
+
+    // Live cleanup: strips characters the selected type does not allow, uppercases, caps the length
+    function cleanDocument() {
+        const rule = currentRule();
+        const cleaned = documentInput.value.replace(rule.allowed, '').toUpperCase().slice(0, rule.maxLength);
+        if (cleaned !== documentInput.value) documentInput.value = cleaned;
     }
 
     function setStatus(kind, text) {
@@ -158,7 +172,7 @@
         if (typeSelect.value !== 'DNI' || !/^\d{8}$/.test(dni) || dni === lastLookedUp) return;
         lastLookedUp = dni; // one lookup per number, even if the request fails
 
-        setStatus('muted', '<span class="spinner-border spinner-border-sm mr-1"></span> ' + @json(__('Searching RENIEC...')));
+        setStatus('muted', '<span class="spinner-border spinner-border-sm mr-1"></span> ' + @json(__('Validating...')));
 
         try {
             const res = await fetch(`{{ url('dni-lookup') }}/${dni}`, { headers: { 'Accept': 'application/json' } });
@@ -168,16 +182,17 @@
                 // Only fill fields the user has not typed in
                 if (!firstName.value.trim()) firstName.value = data.first_name;
                 if (!lastName.value.trim()) lastName.value = data.last_name;
-                setStatus('ok', '<i class="fas fa-check-circle"></i> ' + @json(__('Found in RENIEC:')) + ' ' + data.last_name + ', ' + data.first_name);
+                setStatus('ok', '<i class="fas fa-check-circle"></i> ' + @json(__('Validated in RENIEC:')) + ' ' + data.last_name + ', ' + data.first_name);
             } else {
-                setStatus('warn', '<i class="fas fa-info-circle"></i> ' + (data.message || @json(__('Not found in RENIEC: type the names manually.'))));
+                setStatus('warn', '<i class="fas fa-info-circle"></i> ' + (data.message || @json(__('Not found: type the names manually.'))));
             }
         } catch (e) {
-            setStatus('warn', '<i class="fas fa-info-circle"></i> ' + @json(__('RENIEC unavailable: type the names manually.')));
+            setStatus('warn', '<i class="fas fa-info-circle"></i> ' + @json(__('Validation unavailable: type the names manually.')));
         }
     }
 
     documentInput.addEventListener('input', function () {
+        cleanDocument();
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(maybeLookup, 500); // waits half a second after the last keystroke
     });
