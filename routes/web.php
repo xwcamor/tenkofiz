@@ -1,89 +1,118 @@
 <?php
 
-use App\Http\Controllers\AjusteController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AreaController;
-use App\Http\Controllers\AuditoriaController;
-use App\Http\Controllers\CalendarioController;
-use App\Http\Controllers\CuentaController;
-use App\Http\Controllers\JustificacionController;
-use App\Http\Controllers\AsistenciaController;
-use App\Http\Controllers\CargoController;
-use App\Http\Controllers\FeriadoController;
-use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\EmpleadoController;
-use App\Http\Controllers\HorarioController;
-use App\Http\Controllers\KioscoController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\JustificationController;
+use App\Http\Controllers\KioskController;
 use App\Http\Controllers\LoginController;
-use App\Http\Controllers\PerfilController;
-use App\Http\Controllers\UsuarioController;
-use App\Http\Controllers\VacacionController;
+use App\Http\Controllers\PositionController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\VacationController;
 use Illuminate\Support\Facades\Route;
 
-// ---------- Autenticación ----------
+// ---------- Authentication ----------
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login')->middleware('guest');
 Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
+Route::post('/locale', [LoginController::class, 'switchLocale'])->name('locale.switch');
 
-// ---------- Recuperación de contraseña ----------
+// ---------- Password recovery ----------
 Route::middleware('guest')->group(function () {
-    Route::get('/olvide-password', [CuentaController::class, 'olvido'])->name('password.request');
-    Route::post('/olvide-password', [CuentaController::class, 'enviarEnlace'])->name('password.email');
-    Route::get('/reset-password/{token}', [CuentaController::class, 'formRestablecer'])->name('password.reset');
-    Route::post('/reset-password', [CuentaController::class, 'restablecer'])->name('password.update');
+    Route::get('/forgot-password', [AccountController::class, 'showForgot'])->name('password.request');
+    Route::post('/forgot-password', [AccountController::class, 'sendResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [AccountController::class, 'showReset'])->name('password.reset');
+    Route::post('/reset-password', [AccountController::class, 'reset'])->name('password.update');
 });
 
-// ---------- Kiosco de marcado facial (pantalla pública del local) ----------
-Route::get('/kiosco', [KioscoController::class, 'index'])->name('kiosco');
-Route::get('/kiosco/descriptores', [KioscoController::class, 'descriptores'])->name('kiosco.descriptores');
-Route::post('/kiosco/marcar', [KioscoController::class, 'marcar'])->name('kiosco.marcar');
+// ---------- Facial marking kiosk (public screen on an authorized device) ----------
+Route::middleware('kiosk.token')->group(function () {
+    Route::get('/kiosk', [KioskController::class, 'index'])->name('kiosk');
+    Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
+    Route::post('/kiosk/mark', [KioskController::class, 'mark'])->name('kiosk.mark');
+});
 
-// ---------- Módulos internos ----------
+// ---------- Internal modules ----------
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Solo Administrador
-    Route::middleware('perfil:Administrador')->group(function () {
-        Route::resource('usuarios', UsuarioController::class)->except(['show']);
-        Route::resource('perfiles', PerfilController::class)->except(['show'])->parameters(['perfiles' => 'perfil']);
-        Route::resource('horarios', HorarioController::class)->except(['show']);
-        Route::resource('feriados', FeriadoController::class)->except(['show']);
-        Route::post('feriados-generar', [FeriadoController::class, 'generar'])->name('feriados.generar');
-        Route::get('auditorias', [AuditoriaController::class, 'index'])->name('auditorias.index');
-        Route::get('ajustes', [AjusteController::class, 'edit'])->name('ajustes.edit');
-        Route::put('ajustes', [AjusteController::class, 'update'])->name('ajustes.update');
-        Route::post('empleados/{empleado}/crear-usuario', [EmpleadoController::class, 'crearUsuario'])->name('empleados.crearUsuario');
+    // Access is granted per module according to the profile's permissions
+    Route::middleware('module:users')->group(function () {
+        Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 
-    // Administrador y Supervisor
-    Route::middleware('perfil:Administrador,Supervisor')->group(function () {
-        Route::resource('empleados', EmpleadoController::class)->except(['show']);
-        Route::get('empleados/{empleado}/enrolar', [EmpleadoController::class, 'enrolar'])->name('empleados.enrolar');
-        Route::post('empleados/{empleado}/descriptor', [EmpleadoController::class, 'guardarDescriptor'])->name('empleados.descriptor');
-        Route::get('asistencias', [AsistenciaController::class, 'index'])->name('asistencias.index');
-        Route::post('asistencias', [AsistenciaController::class, 'store'])->name('asistencias.store');
-        Route::patch('vacaciones/{vacacion}/estado', [VacacionController::class, 'cambiarEstado'])->name('vacaciones.estado');
-        Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
-        Route::get('asistencias/{asistencia}/edit', [AsistenciaController::class, 'edit'])->name('asistencias.edit');
-        Route::put('asistencias/{asistencia}', [AsistenciaController::class, 'update'])->name('asistencias.update');
-        Route::post('asistencias-marcar-faltas', [AsistenciaController::class, 'marcarFaltas'])->name('asistencias.marcarFaltas');
-        Route::patch('justificaciones/{justificacion}/estado', [JustificacionController::class, 'cambiarEstado'])->name('justificaciones.estado');
-        Route::delete('justificaciones/{justificacion}', [JustificacionController::class, 'destroy'])->name('justificaciones.destroy');
+    Route::middleware('module:profiles')->group(function () {
+        Route::resource('profiles', ProfileController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
+    Route::middleware('module:schedules')->group(function () {
+        Route::resource('schedules', ScheduleController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
+    Route::middleware('module:holidays')->group(function () {
+        Route::resource('holidays', HolidayController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('holidays-generate', [HolidayController::class, 'generate'])->name('holidays.generate');
+    });
+
+    Route::middleware('module:audit_logs')->group(function () {
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit.index');
+    });
+
+    Route::middleware('module:settings')->group(function () {
+        Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
+        Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('settings/kiosk-token', [SettingController::class, 'regenerateKioskToken'])->name('settings.kioskToken');
+        Route::delete('settings/kiosk-token', [SettingController::class, 'clearKioskToken'])->name('settings.kioskToken.clear');
+    });
+
+    Route::middleware('module:employees')->group(function () {
+        Route::resource('employees', EmployeeController::class)->except(['show']);
+        Route::get('employees/{employee}/enroll', [EmployeeController::class, 'enroll'])->name('employees.enroll');
+        Route::post('employees/{employee}/descriptor', [EmployeeController::class, 'storeDescriptor'])->name('employees.descriptor');
+        Route::post('employees/{employee}/create-user', [EmployeeController::class, 'createUser'])->name('employees.createUser');
         Route::post('areas', [AreaController::class, 'store'])->name('areas.store');
-        Route::post('cargos', [CargoController::class, 'store'])->name('cargos.store');
+        Route::post('positions', [PositionController::class, 'store'])->name('positions.store');
     });
 
-    // Todos los autenticados
-    Route::get('vacaciones', [VacacionController::class, 'index'])->name('vacaciones.index');
-    Route::get('vacaciones/crear', [VacacionController::class, 'create'])->name('vacaciones.create');
-    Route::post('vacaciones', [VacacionController::class, 'store'])->name('vacaciones.store');
-    Route::get('mis-asistencias', [AsistenciaController::class, 'misAsistencias'])->name('asistencias.mias');
-    Route::get('justificaciones', [JustificacionController::class, 'index'])->name('justificaciones.index');
-    Route::get('justificaciones/crear', [JustificacionController::class, 'create'])->name('justificaciones.create');
-    Route::post('justificaciones', [JustificacionController::class, 'store'])->name('justificaciones.store');
-    Route::get('calendario', [CalendarioController::class, 'index'])->name('calendario.index');
-    Route::get('mi-ficha', [ReporteController::class, 'miFicha'])->name('reportes.miFicha');
-    Route::get('cambiar-password', [CuentaController::class, 'editarPassword'])->name('cuenta.password');
-    Route::put('cambiar-password', [CuentaController::class, 'actualizarPassword'])->name('cuenta.password.update');
-    Route::get('reportes/ficha/{empleado}', [ReporteController::class, 'ficha'])->name('reportes.ficha');
+    Route::middleware('module:attendances')->group(function () {
+        Route::get('attendances', [AttendanceController::class, 'index'])->name('attendances.index');
+        Route::post('attendances', [AttendanceController::class, 'store'])->name('attendances.store');
+        Route::put('attendances/{attendance}', [AttendanceController::class, 'update'])->name('attendances.update');
+        Route::post('attendances-mark-absences', [AttendanceController::class, 'markAbsences'])->name('attendances.markAbsences');
+    });
+
+    Route::middleware('module:reports')->group(function () {
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    });
+
+    Route::middleware('module:vacations_manage')->group(function () {
+        Route::patch('vacations/{vacation}/status', [VacationController::class, 'changeStatus'])->name('vacations.status');
+    });
+
+    Route::middleware('module:justifications_manage')->group(function () {
+        Route::patch('justifications/{justification}/status', [JustificationController::class, 'changeStatus'])->name('justifications.status');
+        Route::delete('justifications/{justification}', [JustificationController::class, 'destroy'])->name('justifications.destroy');
+    });
+
+    // All authenticated users
+    Route::get('vacations', [VacationController::class, 'index'])->name('vacations.index');
+    Route::post('vacations', [VacationController::class, 'store'])->name('vacations.store');
+    Route::get('my-attendances', [AttendanceController::class, 'mine'])->name('attendances.mine');
+    Route::get('justifications', [JustificationController::class, 'index'])->name('justifications.index');
+    Route::post('justifications', [JustificationController::class, 'store'])->name('justifications.store');
+    Route::get('calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::get('my-sheet', [ReportController::class, 'mySheet'])->name('reports.mySheet');
+    Route::get('account', [AccountController::class, 'edit'])->name('account.edit');
+    Route::put('account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
+    Route::put('account/preferences', [AccountController::class, 'updatePreferences'])->name('account.preferences.update');
+    Route::get('reports/sheet/{employee}', [ReportController::class, 'sheet'])->name('reports.sheet');
 });

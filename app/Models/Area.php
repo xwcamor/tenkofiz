@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Area extends Model
 {
-    protected $fillable = ['nombre', 'activo'];
+    protected $fillable = ['name', 'is_active'];
 
-    protected $casts = ['activo' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean'];
 
-    public function empleados()
+    public function employees()
     {
-        return $this->hasMany(Empleado::class);
+        return $this->hasMany(Employee::class);
     }
 }

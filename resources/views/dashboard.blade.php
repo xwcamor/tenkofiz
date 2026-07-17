@@ -1,67 +1,79 @@
 @extends('layouts.app')
-@section('titulo', 'Dashboard')
-@section('contenido')
+@section('title', __('Dashboard'))
+@section('content')
 
-@if($esGestor)
-{{-- ================= DASHBOARD GLOBAL (Administrador / Supervisor) ================= --}}
+@php
+    $statusBadge = fn ($status) => match ($status) {
+        'ON_TIME' => 'success',
+        'LATE' => 'warning',
+        'EXCUSED' => 'info',
+        'APPROVED', 'ACCEPTED' => 'success',
+        'REJECTED' => 'danger',
+        'PENDING' => 'warning',
+        default => 'secondary',
+    };
+@endphp
+
+@if($isManager)
+{{-- ================= GLOBAL DASHBOARD (managers) ================= --}}
 <div class="row">
     <div class="col-lg-3 col-6">
         <div class="small-box bg-info">
-            <div class="inner"><h3>{{ $totalEmpleados }}</h3><p>Empleados activos</p></div>
+            <div class="inner"><h3>{{ $totalEmployees }}</h3><p>{{ __('Active employees') }}</p></div>
             <div class="icon"><i class="fas fa-users"></i></div>
-            <a href="{{ route('empleados.index') }}" class="small-box-footer">Ver más <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('employees.index') }}" class="small-box-footer">{{ __('See more') }} <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
     <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
-            <div class="inner"><h3>{{ $asistenciasHoy }}</h3><p>Asistencias hoy</p></div>
+            <div class="inner"><h3>{{ $attendancesToday }}</h3><p>{{ __('Attendance today') }}</p></div>
             <div class="icon"><i class="fas fa-calendar-check"></i></div>
-            <a href="{{ route('asistencias.index') }}" class="small-box-footer">Ver más <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('attendances.index') }}" class="small-box-footer">{{ __('See more') }} <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
-            <div class="inner"><h3>{{ $tardanzasHoy }}</h3><p>Tardanzas hoy</p></div>
+            <div class="inner"><h3>{{ $lateToday }}</h3><p>{{ __('Late today') }}</p></div>
             <div class="icon"><i class="fas fa-user-clock"></i></div>
             <span class="small-box-footer">&nbsp;</span>
         </div>
     </div>
     <div class="col-lg-3 col-6">
         <div class="small-box bg-danger">
-            <div class="inner"><h3>{{ $vacacionesPendientes }}</h3><p>Vacaciones pendientes</p></div>
+            <div class="inner"><h3>{{ $pendingVacations }}</h3><p>{{ __('Pending vacations') }}</p></div>
             <div class="icon"><i class="fas fa-umbrella-beach"></i></div>
-            <a href="{{ route('vacaciones.index') }}" class="small-box-footer">Ver más <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('vacations.index') }}" class="small-box-footer">{{ __('See more') }} <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
 </div>
 
-@if($sinRostro > 0)
-    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Hay <strong>{{ $sinRostro }}</strong> empleado(s) sin rostro enrolado: no podrán marcar asistencia facial.</div>
+@if($withoutFace > 0)
+    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> {{ __('There are :count employee(s) without an enrolled face: they will not be able to mark facial attendance.', ['count' => $withoutFace]) }}</div>
 @endif
 
 <div class="row">
     <div class="col-md-7">
         <div class="card card-primary card-outline">
-            <div class="card-header"><h3 class="card-title"><i class="fas fa-chart-line"></i> Asistencias de los últimos 7 días</h3></div>
-            <div class="card-body"><canvas id="graficoSemana" height="180"></canvas></div>
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-chart-line"></i> {{ __('Attendance in the last 7 days') }}</h3></div>
+            <div class="card-body"><canvas id="weekChart" height="180"></canvas></div>
         </div>
     </div>
     <div class="col-md-5">
         <div class="card card-primary card-outline">
-            <div class="card-header"><h3 class="card-title"><i class="fas fa-list"></i> Últimos marcados de hoy</h3></div>
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-list"></i> {{ __('Latest marks today') }}</h3></div>
             <div class="card-body table-responsive p-0">
                 <table class="table table-hover table-sm mb-0">
-                    <thead><tr><th>Empleado</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead>
+                    <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Status') }}</th></tr></thead>
                     <tbody>
-                    @forelse($ultimas as $a)
+                    @forelse($latest as $attendance)
                         <tr>
-                            <td>{{ $a->empleado->nombre_completo }}</td>
-                            <td>{{ $a->hora_entrada }}</td>
-                            <td>{{ $a->hora_salida ?? '—' }}</td>
-                            <td><span class="badge badge-{{ $a->estado === 'PUNTUAL' ? 'success' : ($a->estado === 'TARDANZA' ? 'warning' : 'secondary') }}">{{ $a->estado }}</span></td>
+                            <td>{{ $attendance->employee->full_name }}</td>
+                            <td>{{ $attendance->check_in }}</td>
+                            <td>{{ $attendance->check_out ?? '—' }}</td>
+                            <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="text-center text-muted py-4">Sin marcados hoy</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-4">{{ __('No marks today') }}</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -71,36 +83,36 @@
 </div>
 
 @else
-{{-- ================= DASHBOARD PERSONAL (perfil Empleado) ================= --}}
-@if(!$empleado)
-    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Su usuario aún no está vinculado a un registro de empleado. Solicite al administrador que lo vincule para ver su información.</div>
+{{-- ================= PERSONAL DASHBOARD (employee profile) ================= --}}
+@if(!$employee)
+    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> {{ __('Your user is not linked to an employee record yet. Ask the administrator to link it to see your information.') }}</div>
 @else
     <div class="callout callout-info">
-        <h5><i class="fas fa-user"></i> Hola, {{ $empleado->nombres }}</h5>
-        <p class="mb-0">{{ $empleado->cargo?->nombre ?? '' }} {{ $empleado->area ? '— '.$empleado->area->nombre : '' }} | Horario: {{ $empleado->horario?->nombre ?? 'sin asignar' }}</p>
+        <h5><i class="fas fa-user"></i> {{ __('Hello, :name', ['name' => $employee->first_name]) }}</h5>
+        <p class="mb-0">{{ $employee->position?->name ?? '' }} {{ $employee->area ? '— '.$employee->area->name : '' }} | {{ __('Schedule') }}: {{ $employee->schedule?->name ?? __('not assigned') }}</p>
     </div>
 
     <div class="row">
         <div class="col-lg-4 col-12">
-            <div class="small-box bg-{{ $asistenciaHoy ? ($asistenciaHoy->estado === 'TARDANZA' ? 'warning' : 'success') : 'secondary' }}">
+            <div class="small-box bg-{{ $todayAttendance ? ($todayAttendance->status === 'LATE' ? 'warning' : 'success') : 'secondary' }}">
                 <div class="inner">
-                    <h3>{{ $asistenciaHoy?->hora_entrada ?? '—' }}</h3>
-                    <p>Mi entrada de hoy {{ $asistenciaHoy ? '('.$asistenciaHoy->estado.')' : '(sin marcar)' }}</p>
+                    <h3>{{ $todayAttendance?->check_in ?? '—' }}</h3>
+                    <p>{{ __('My check-in today') }} {{ $todayAttendance ? '('.__($todayAttendance->status).')' : '('.__('not marked').')' }}</p>
                 </div>
                 <div class="icon"><i class="fas fa-sign-in-alt"></i></div>
-                <span class="small-box-footer">Salida: {{ $asistenciaHoy?->hora_salida ?? 'pendiente' }}</span>
+                <span class="small-box-footer">{{ __('Check-out') }}: {{ $todayAttendance?->check_out ?? __('pending') }}</span>
             </div>
         </div>
         <div class="col-lg-4 col-6">
             <div class="small-box bg-info">
-                <div class="inner"><h3>{{ $diasMes }}</h3><p>Días trabajados este mes</p></div>
+                <div class="inner"><h3>{{ $daysThisMonth }}</h3><p>{{ __('Days worked this month') }}</p></div>
                 <div class="icon"><i class="fas fa-calendar-check"></i></div>
-                <a href="{{ route('asistencias.mias') }}" class="small-box-footer">Ver historial <i class="fas fa-arrow-circle-right"></i></a>
+                <a href="{{ route('attendances.mine') }}" class="small-box-footer">{{ __('View history') }} <i class="fas fa-arrow-circle-right"></i></a>
             </div>
         </div>
         <div class="col-lg-4 col-6">
             <div class="small-box bg-warning">
-                <div class="inner"><h3>{{ $tardanzasMes }}</h3><p>Tardanzas este mes</p></div>
+                <div class="inner"><h3>{{ $lateThisMonth }}</h3><p>{{ __('Late arrivals this month') }}</p></div>
                 <div class="icon"><i class="fas fa-user-clock"></i></div>
                 <span class="small-box-footer">&nbsp;</span>
             </div>
@@ -110,20 +122,20 @@
     <div class="row">
         <div class="col-md-7">
             <div class="card card-primary card-outline">
-                <div class="card-header"><h3 class="card-title"><i class="fas fa-list"></i> Mis últimas asistencias</h3></div>
+                <div class="card-header"><h3 class="card-title"><i class="fas fa-list"></i> {{ __('My latest attendance') }}</h3></div>
                 <div class="card-body table-responsive p-0">
                     <table class="table table-hover table-sm mb-0">
-                        <thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Status') }}</th></tr></thead>
                         <tbody>
-                        @forelse($recientes as $a)
+                        @forelse($recent as $attendance)
                             <tr>
-                                <td>{{ $a->fecha->format('d/m/Y') }}</td>
-                                <td>{{ $a->hora_entrada ?? '—' }}</td>
-                                <td>{{ $a->hora_salida ?? '—' }}</td>
-                                <td><span class="badge badge-{{ $a->estado === 'PUNTUAL' ? 'success' : ($a->estado === 'TARDANZA' ? 'warning' : 'secondary') }}">{{ $a->estado }}</span></td>
+                                <td>{{ $attendance->date->format('d/m/Y') }}</td>
+                                <td>{{ $attendance->check_in ?? '—' }}</td>
+                                <td>{{ $attendance->check_out ?? '—' }}</td>
+                                <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-muted py-4">Sin asistencias registradas</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted py-4">{{ __('No attendance recorded') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -132,20 +144,20 @@
         </div>
         <div class="col-md-5">
             <div class="card card-primary card-outline">
-                <div class="card-header"><h3 class="card-title"><i class="fas fa-umbrella-beach"></i> Mis vacaciones recientes</h3></div>
+                <div class="card-header"><h3 class="card-title"><i class="fas fa-umbrella-beach"></i> {{ __('My recent vacations') }}</h3></div>
                 <div class="card-body table-responsive p-0">
                     <table class="table table-hover table-sm mb-0">
-                        <thead><tr><th>Inicio</th><th>Fin</th><th>Días</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>{{ __('Start') }}</th><th>{{ __('End') }}</th><th>{{ __('Days') }}</th><th>{{ __('Status') }}</th></tr></thead>
                         <tbody>
-                        @forelse($misVacaciones as $v)
+                        @forelse($myVacations as $vacation)
                             <tr>
-                                <td>{{ $v->fecha_inicio->format('d/m/Y') }}</td>
-                                <td>{{ $v->fecha_fin->format('d/m/Y') }}</td>
-                                <td>{{ $v->dias }}</td>
-                                <td><span class="badge badge-{{ $v->estado === 'APROBADO' ? 'success' : ($v->estado === 'RECHAZADO' ? 'danger' : 'warning') }}">{{ $v->estado }}</span></td>
+                                <td>{{ $vacation->start_date->format('d/m/Y') }}</td>
+                                <td>{{ $vacation->end_date->format('d/m/Y') }}</td>
+                                <td>{{ $vacation->days }}</td>
+                                <td><span class="badge badge-{{ $statusBadge($vacation->status) }}">{{ __($vacation->status) }}</span></td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center text-muted py-4">Sin solicitudes</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -158,15 +170,15 @@
 @endsection
 
 @push('scripts')
-@if($esGestor)
+@if($isManager)
 <script>
-new Chart(document.getElementById('graficoSemana'), {
+new Chart(document.getElementById('weekChart'), {
     type: 'bar',
     data: {
         labels: @json($labels),
         datasets: [
-            { label: 'Asistencias', data: @json($serieAsistencias), backgroundColor: 'rgba(0,123,255,.6)' },
-            { label: 'Tardanzas', data: @json($serieTardanzas), backgroundColor: 'rgba(255,193,7,.7)' }
+            { label: @json(__('Attendance')), data: @json($attendanceSeries), backgroundColor: 'rgba(0,123,255,.6)' },
+            { label: @json(__('Late')), data: @json($lateSeries), backgroundColor: 'rgba(255,193,7,.7)' }
         ]
     },
     options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }

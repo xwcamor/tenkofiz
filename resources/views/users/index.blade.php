@@ -1,0 +1,124 @@
+@extends('layouts.app')
+@section('title', __('Users'))
+@section('header-button')
+    <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> {{ __('New user') }}</button>
+@endsection
+@section('content')
+<div class="card card-primary card-outline">
+    <div class="card-body">
+        <table class="table table-bordered table-hover data-table">
+            <thead>
+                <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Timezone') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+            </thead>
+            <tbody>
+            @foreach($users as $user)
+                <tr>
+                    <td>{{ $user->name }} @if($user->id === auth()->id())<span class="badge badge-secondary">{{ __('you') }}</span>@endif</td>
+                    <td>{{ $user->email }}</td>
+                    <td><span class="badge badge-primary">{{ $user->profile?->name ?? '—' }}</span></td>
+                    <td class="text-muted">{{ $user->timezone ?? __('Company default') }}</td>
+                    <td><span class="badge badge-{{ $user->is_active ? 'success' : 'secondary' }}">{{ $user->is_active ? __('Active') : __('Inactive') }}</span></td>
+                    <td>
+                        @php
+                            $payload = json_encode([
+                                'action' => route('users.update', $user),
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'profile_id' => $user->profile_id,
+                                'is_active' => $user->is_active,
+                            ]);
+                        @endphp
+                        <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openUserModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                        @if($user->id !== auth()->id())
+                            <form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                            </form>
+                        @else
+                            <button class="btn btn-sm btn-danger" disabled title="{{ __('You cannot delete your own account.') }}"><i class="fas fa-trash"></i></button>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- Create / edit modal --}}
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ old('_form_action', route('users.store')) }}" class="modal-content" id="userForm">
+            @csrf
+            <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="userMethod">
+            <input type="hidden" name="_form_action" value="{{ old('_form_action', route('users.store')) }}" id="userFormAction">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-cog"></i> {{ __('User') }}</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>{{ __('Full name') }}</label>
+                    <input name="name" id="userName" value="{{ old('name') }}" class="form-control @error('name') is-invalid @enderror" required>
+                    @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                </div>
+                <div class="form-group">
+                    <label>{{ __('Email address') }}</label>
+                    <input type="email" name="email" id="userEmail" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" required>
+                    @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                </div>
+                <div class="form-group">
+                    <label>{{ __('Password') }} <small class="text-muted" id="userPasswordHint">({{ __('leave empty to keep the current one') }})</small></label>
+                    <input type="password" name="password" id="userPassword" class="form-control @error('password') is-invalid @enderror">
+                    @error('password')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                </div>
+                <div class="form-group">
+                    <label>{{ __('Profile') }}</label>
+                    <select name="profile_id" id="userProfile" class="form-control @error('profile_id') is-invalid @enderror" required>
+                        <option value="">— {{ __('Select') }} —</option>
+                        @foreach($profiles as $profile)
+                            <option value="{{ $profile->id }}" @selected(old('profile_id') == $profile->id)>{{ $profile->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('profile_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    <small class="text-muted">{{ __('The profile defines which modules the user can see (configure it in Profiles).') }}</small>
+                </div>
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="userActive" @checked(old('is_active', true))>
+                    <label class="custom-control-label" for="userActive">{{ __('Active') }}</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+                <button class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+const USER_STORE_URL = @json(route('users.store'));
+
+function openUserModal(data = null) {
+    const form = document.getElementById('userForm');
+    form.action = data ? data.action : USER_STORE_URL;
+    document.getElementById('userFormAction').value = form.action;
+    document.getElementById('userMethod').value = data ? 'PUT' : 'POST';
+    document.getElementById('userName').value = data ? data.name : '';
+    document.getElementById('userEmail').value = data ? data.email : '';
+    document.getElementById('userProfile').value = data ? (data.profile_id || '') : '';
+    document.getElementById('userActive').checked = data ? !!data.is_active : true;
+    const password = document.getElementById('userPassword');
+    password.value = '';
+    password.required = !data;
+    document.getElementById('userPasswordHint').style.display = data ? '' : 'none';
+    $('#userModal').modal('show');
+}
+
+@if($errors->any())
+    $('#userModal').modal('show');
+@endif
+</script>
+@endpush

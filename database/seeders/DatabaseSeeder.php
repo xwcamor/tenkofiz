@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\Ajuste;
 use App\Models\Area;
-use App\Models\Cargo;
-use App\Models\Feriado;
-use App\Models\Horario;
-use App\Models\Perfil;
+use App\Models\Holiday;
+use App\Models\Position;
+use App\Models\Profile;
+use App\Models\Schedule;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -16,52 +16,67 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = Perfil::create(['nombre' => 'Administrador', 'descripcion' => 'Acceso total al sistema']);
-        Perfil::create(['nombre' => 'Supervisor', 'descripcion' => 'Gestiona asistencias y aprueba vacaciones']);
-        Perfil::create(['nombre' => 'Empleado', 'descripcion' => 'Consulta sus asistencias y solicita vacaciones']);
+        $admin = Profile::create([
+            'name' => 'Administrator',
+            'description' => 'Full access to the system',
+            'permissions' => array_keys(Profile::MODULES),
+        ]);
+
+        Profile::create([
+            'name' => 'Supervisor',
+            'description' => 'Manages attendance and approves requests',
+            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage'],
+        ]);
+
+        Profile::create([
+            'name' => 'Employee',
+            'description' => 'Views their attendance and requests vacations',
+            'permissions' => [],
+        ]);
 
         User::create([
             'name' => 'Carlos Alberto Morales Larrañaga',
             'email' => 'admin@sistema.test',
             'password' => Hash::make('admin123'),
-            'perfil_id' => $admin->id,
+            'profile_id' => $admin->id,
         ]);
 
-        Horario::create(['nombre' => 'Turno Mañana', 'hora_entrada' => '08:00:00', 'hora_salida' => '17:00:00', 'tolerancia_min' => 10]);
-        Horario::create(['nombre' => 'Turno Tarde', 'hora_entrada' => '14:00:00', 'hora_salida' => '22:00:00', 'tolerancia_min' => 10]);
+        Schedule::create(['name' => 'Morning Shift', 'start_time' => '08:00:00', 'end_time' => '17:00:00', 'tolerance_minutes' => 10]);
+        Schedule::create(['name' => 'Evening Shift', 'start_time' => '14:00:00', 'end_time' => '22:00:00', 'tolerance_minutes' => 10]);
 
-        foreach (['Administración', 'Tecnologías de la Información', 'Recursos Humanos', 'Contabilidad', 'Operaciones'] as $a) {
-            Area::create(['nombre' => $a]);
+        foreach (['Administration', 'Information Technology', 'Human Resources', 'Accounting', 'Operations'] as $area) {
+            Area::create(['name' => $area]);
         }
 
-        foreach (['Instructor', 'Asistente Administrativo', 'Analista', 'Coordinador', 'Técnico de Soporte'] as $c) {
-            Cargo::create(['nombre' => $c]);
+        foreach (['Instructor', 'Administrative Assistant', 'Analyst', 'Coordinator', 'Support Technician'] as $position) {
+            Position::create(['name' => $position]);
         }
 
-        // Feriados nacionales de fecha fija (Perú)
-        $anio = now()->year;
-        $feriados = [
-            ["$anio-01-01", 'Año Nuevo'],
-            ["$anio-05-01", 'Día del Trabajo'],
-            ["$anio-06-29", 'San Pedro y San Pablo'],
-            ["$anio-07-28", 'Fiestas Patrias'],
-            ["$anio-07-29", 'Fiestas Patrias'],
-            ["$anio-08-30", 'Santa Rosa de Lima'],
-            ["$anio-10-08", 'Combate de Angamos'],
-            ["$anio-11-01", 'Todos los Santos'],
-            ["$anio-12-08", 'Inmaculada Concepción'],
-            ["$anio-12-09", 'Batalla de Ayacucho'],
-            ["$anio-12-25", 'Navidad'],
+        // Fixed-date national holidays (Peru)
+        $year = now()->year;
+        $holidays = [
+            ["$year-01-01", 'Año Nuevo'],
+            ["$year-05-01", 'Día del Trabajo'],
+            ["$year-06-29", 'San Pedro y San Pablo'],
+            ["$year-07-28", 'Fiestas Patrias'],
+            ["$year-07-29", 'Fiestas Patrias'],
+            ["$year-08-30", 'Santa Rosa de Lima'],
+            ["$year-10-08", 'Combate de Angamos'],
+            ["$year-11-01", 'Todos los Santos'],
+            ["$year-12-08", 'Inmaculada Concepción'],
+            ["$year-12-09", 'Batalla de Ayacucho'],
+            ["$year-12-25", 'Navidad'],
         ];
-        foreach ($feriados as [$f, $n]) {
-            Feriado::create(['fecha' => $f, 'nombre' => $n]);
+        foreach ($holidays as [$date, $name]) {
+            Holiday::create(['date' => $date, 'name' => $name]);
         }
 
-        Ajuste::create([
-            'empresa' => 'MI EMPRESA S.A.C.',
-            'ruc' => '20000000001',
-            'direccion' => 'Av. Principal 123, Lima',
-            'telefono' => '(01) 000-0000',
+        Setting::create([
+            'company_name' => 'MI EMPRESA S.A.C.',
+            'tax_id' => '20000000001',
+            'address' => 'Av. Principal 123, Lima',
+            'phone' => '(01) 000-0000',
+            'timezone' => 'America/Lima',
         ]);
     }
 }

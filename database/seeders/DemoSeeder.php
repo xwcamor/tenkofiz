@@ -3,32 +3,32 @@
 namespace Database\Seeders;
 
 use App\Models\Area;
-use App\Models\Asistencia;
-use App\Models\Cargo;
-use App\Models\Empleado;
-use App\Models\Feriado;
-use App\Models\Horario;
-use App\Models\Justificacion;
-use App\Models\Perfil;
+use App\Models\Attendance;
+use App\Models\Employee;
+use App\Models\Holiday;
+use App\Models\Justification;
+use App\Models\Position;
+use App\Models\Profile;
+use App\Models\Schedule;
 use App\Models\User;
-use App\Models\Vacacion;
+use App\Models\Vacation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Datos de demostración: 8 empleados con 30 días de asistencias simuladas.
- * Ejecutar con: php artisan db:seed --class=DemoSeeder
- * (No borra nada: agrega sobre lo existente)
+ * Demo data: 8 employees with 30 days of simulated attendance.
+ * Run with: php artisan db:seed --class=DemoSeeder
+ * (Nothing is deleted: it only adds on top of existing data)
  */
 class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $horario = Horario::first() ?? Horario::create(['nombre' => 'Turno Mañana', 'hora_entrada' => '08:00:00', 'hora_salida' => '17:00:00', 'tolerancia_min' => 10]);
-        $areas = Area::pluck('id')->all() ?: [Area::create(['nombre' => 'Operaciones'])->id];
-        $cargos = Cargo::pluck('id')->all() ?: [Cargo::create(['nombre' => 'Asistente'])->id];
+        $schedule = Schedule::first() ?? Schedule::create(['name' => 'Morning Shift', 'start_time' => '08:00:00', 'end_time' => '17:00:00', 'tolerance_minutes' => 10]);
+        $areas = Area::pluck('id')->all() ?: [Area::create(['name' => 'Operations'])->id];
+        $positions = Position::pluck('id')->all() ?: [Position::create(['name' => 'Assistant'])->id];
 
-        $personas = [
+        $people = [
             ['GARCÍA TORRES', 'MARÍA ELENA', '40111222'],
             ['QUISPE HUAMÁN', 'JOSÉ LUIS', '40222333'],
             ['RODRÍGUEZ VEGA', 'ANA PAULA', '40333444'],
@@ -39,82 +39,85 @@ class DemoSeeder extends Seeder
             ['TORRES MENDOZA', 'PEDRO PABLO', '40888999'],
         ];
 
-        $feriados = Feriado::pluck('fecha')->map(fn ($f) => $f->toDateString())->all();
-        $empleados = [];
+        $holidays = Holiday::pluck('date')->map(fn ($date) => $date->toDateString())->all();
+        $employees = [];
 
-        foreach ($personas as [$apellidos, $nombres, $dni]) {
-            $empleados[] = Empleado::firstOrCreate(
-                ['dni' => $dni],
+        foreach ($people as [$lastName, $firstName, $documentNumber]) {
+            $employees[] = Employee::firstOrCreate(
+                ['document_number' => $documentNumber],
                 [
-                    'nombres' => $nombres,
-                    'apellidos' => $apellidos,
-                    'horario_id' => $horario->id,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'schedule_id' => $schedule->id,
                     'area_id' => $areas[array_rand($areas)],
-                    'cargo_id' => $cargos[array_rand($cargos)],
-                    'fecha_ingreso' => now()->subMonths(rand(6, 36))->toDateString(),
+                    'position_id' => $positions[array_rand($positions)],
+                    'hire_date' => now()->subMonths(rand(6, 36))->toDateString(),
                 ]
             );
         }
 
-        // 30 días de asistencias simuladas (sin domingos ni feriados)
-        foreach ($empleados as $e) {
+        // 30 days of simulated attendance (skipping Sundays and holidays)
+        foreach ($employees as $employee) {
             for ($i = 30; $i >= 1; $i--) {
-                $dia = now()->subDays($i);
-                if ($dia->dayOfWeek === 0 || in_array($dia->toDateString(), $feriados, true)) {
+                $day = now()->subDays($i);
+                if ($day->dayOfWeek === 0 || in_array($day->toDateString(), $holidays, true)) {
                     continue;
                 }
 
-                $azar = rand(1, 100);
-                if ($azar <= 78) {          // puntual
-                    $entrada = sprintf('07:%02d:%02d', rand(45, 59), rand(0, 59));
-                    $estado = 'PUNTUAL';
-                } elseif ($azar <= 93) {    // tardanza
-                    $entrada = sprintf('08:%02d:%02d', rand(11, 45), rand(0, 59));
-                    $estado = 'TARDANZA';
-                } else {                    // falta
-                    Asistencia::firstOrCreate(
-                        ['empleado_id' => $e->id, 'fecha' => $dia->toDateString()],
-                        ['estado' => 'FALTA', 'metodo' => 'MANUAL', 'observacion' => 'Falta generada automáticamente (demo)']
+                $roll = rand(1, 100);
+                if ($roll <= 78) {          // on time
+                    $checkIn = sprintf('07:%02d:%02d', rand(45, 59), rand(0, 59));
+                    $status = 'ON_TIME';
+                } elseif ($roll <= 93) {    // late
+                    $checkIn = sprintf('08:%02d:%02d', rand(11, 45), rand(0, 59));
+                    $status = 'LATE';
+                } else {                    // absent
+                    Attendance::firstOrCreate(
+                        ['employee_id' => $employee->id, 'date' => $day->toDateString()],
+                        ['status' => 'ABSENT', 'method' => 'MANUAL', 'note' => 'Absence generated automatically (demo)']
                     );
                     continue;
                 }
 
-                Asistencia::firstOrCreate(
-                    ['empleado_id' => $e->id, 'fecha' => $dia->toDateString()],
+                Attendance::firstOrCreate(
+                    ['employee_id' => $employee->id, 'date' => $day->toDateString()],
                     [
-                        'hora_entrada' => $entrada,
-                        'hora_salida' => sprintf('17:%02d:%02d', rand(0, 35), rand(0, 59)),
-                        'estado' => $estado,
-                        'metodo' => 'FACIAL',
-                        'similitud' => rand(28, 48) / 100,
+                        'check_in' => $checkIn,
+                        'check_out' => sprintf('17:%02d:%02d', rand(0, 35), rand(0, 59)),
+                        'status' => $status,
+                        'method' => 'FACIAL',
+                        'similarity' => rand(28, 48) / 100,
                     ]
                 );
             }
         }
 
-        // Vacaciones y justificación de muestra
-        Vacacion::firstOrCreate(
-            ['empleado_id' => $empleados[0]->id, 'fecha_inicio' => now()->addDays(10)->toDateString()],
-            ['fecha_fin' => now()->addDays(16)->toDateString(), 'dias' => 7, 'estado' => 'PENDIENTE', 'motivo' => 'Vacaciones familiares']
+        // Sample vacation requests and a justification
+        Vacation::firstOrCreate(
+            ['employee_id' => $employees[0]->id, 'start_date' => now()->addDays(10)->toDateString()],
+            ['end_date' => now()->addDays(16)->toDateString(), 'days' => 7, 'status' => 'PENDING', 'reason' => 'Family vacation']
         );
-        Vacacion::firstOrCreate(
-            ['empleado_id' => $empleados[1]->id, 'fecha_inicio' => now()->addDays(20)->toDateString()],
-            ['fecha_fin' => now()->addDays(27)->toDateString(), 'dias' => 8, 'estado' => 'APROBADO', 'motivo' => 'Descanso anual', 'aprobado_por' => User::first()?->id]
+        Vacation::firstOrCreate(
+            ['employee_id' => $employees[1]->id, 'start_date' => now()->addDays(20)->toDateString()],
+            ['end_date' => now()->addDays(27)->toDateString(), 'days' => 8, 'status' => 'APPROVED', 'reason' => 'Annual leave', 'approved_by' => User::first()?->id]
         );
-        Justificacion::firstOrCreate(
-            ['empleado_id' => $empleados[2]->id, 'fecha' => now()->subDays(3)->toDateString()],
-            ['motivo' => 'Cita médica en EsSalud — se adjuntó constancia', 'estado' => 'PENDIENTE']
+        Justification::firstOrCreate(
+            ['employee_id' => $employees[2]->id, 'date' => now()->subDays(3)->toDateString()],
+            ['reason' => 'Medical appointment — certificate attached', 'status' => 'PENDING']
         );
 
-        // Usuario demo con perfil Empleado (vinculado al primer empleado)
-        $perfilEmp = Perfil::firstOrCreate(['nombre' => 'Empleado'], ['descripcion' => 'Consulta sus asistencias']);
-        $userDemo = User::firstOrCreate(
+        // Demo user with the Employee profile (linked to the first employee)
+        $employeeProfile = Profile::firstOrCreate(
+            ['name' => 'Employee'],
+            ['description' => 'Views their attendance and requests vacations', 'permissions' => []]
+        );
+        $demoUser = User::firstOrCreate(
             ['email' => 'empleado@demo.test'],
-            ['name' => 'María Elena García Torres', 'password' => Hash::make('demo1234'), 'perfil_id' => $perfilEmp->id]
+            ['name' => 'María Elena García Torres', 'password' => Hash::make('demo1234'), 'profile_id' => $employeeProfile->id]
         );
-        $empleados[0]->update(['user_id' => $userDemo->id]);
+        $employees[0]->update(['user_id' => $demoUser->id]);
 
-        $this->command?->info('Demo cargada: 8 empleados, ~1 mes de asistencias, vacaciones y justificación de muestra.');
-        $this->command?->info('Usuario demo (perfil Empleado): empleado@demo.test / demo1234');
+        $this->command?->info('Demo loaded: 8 employees, ~1 month of attendance, sample vacations and a justification.');
+        $this->command?->info('Demo user (Employee profile): empleado@demo.test / demo1234');
     }
 }

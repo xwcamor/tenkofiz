@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\Ajuste;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\ServiceProvider;
@@ -11,30 +10,30 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        require_once app_path('Support/correo.php');
+        require_once app_path('Support/helpers.php');
     }
 
     public function boot(): void
     {
-        // Correo de recuperación de contraseña en español
+        // Password recovery email using the configured company name and locale
         ResetPassword::toMailUsing(function ($notifiable, string $token) {
             $url = route('password.reset', ['token' => $token, 'email' => $notifiable->getEmailForPasswordReset()]);
 
-            $empresa = 'Sistema de Asistencia';
+            $company = __('Attendance System');
             try {
-                $empresa = Ajuste::obtener()->empresa;
+                $company = app_setting()->company_name;
             } catch (\Throwable $e) {
-                // BD aún no migrada: usar nombre por defecto
+                // DB not migrated yet: keep the default name
             }
 
             return (new MailMessage)
-                ->subject("Recuperación de contraseña — {$empresa}")
-                ->greeting('¡Hola!')
-                ->line('Recibimos una solicitud para restablecer la contraseña de su cuenta.')
-                ->action('Restablecer contraseña', $url)
-                ->line('Este enlace expira en 60 minutos.')
-                ->line('Si usted no solicitó el cambio, ignore este correo.')
-                ->salutation("Atentamente, {$empresa}");
+                ->subject(__('Password recovery').' — '.$company)
+                ->greeting(__('Hello!'))
+                ->line(__('We received a request to reset the password of your account.'))
+                ->action(__('Reset password'), $url)
+                ->line(__('This link expires in 60 minutes.'))
+                ->line(__('If you did not request the change, ignore this email.'))
+                ->salutation(__('Kind regards,').' '.$company);
         });
     }
 }

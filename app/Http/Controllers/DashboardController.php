@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Asistencia;
-use App\Models\Empleado;
-use App\Models\Vacacion;
+use App\Models\Attendance;
+use App\Models\Employee;
+use App\Models\Vacation;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -13,87 +13,87 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        // Administrador y Supervisor ven el dashboard global; el resto, solo su información
-        if ($user->tienePerfil('Administrador', 'Supervisor')) {
-            return $this->dashboardGestor();
+        // Managers see the global dashboard; everyone else sees their own info
+        if ($user->isManager()) {
+            return $this->managerDashboard();
         }
 
-        return $this->dashboardEmpleado($user);
+        return $this->employeeDashboard($user);
     }
 
-    /** Dashboard global (Administrador / Supervisor) */
-    private function dashboardGestor()
+    /** Global dashboard (managers) */
+    private function managerDashboard()
     {
-        $hoy = now()->toDateString();
+        $today = company_now()->toDateString();
 
-        $totalEmpleados = Empleado::where('activo', true)->count();
-        $asistenciasHoy = Asistencia::whereDate('fecha', $hoy)->count();
-        $tardanzasHoy = Asistencia::whereDate('fecha', $hoy)->where('estado', 'TARDANZA')->count();
-        $vacacionesPendientes = Vacacion::where('estado', 'PENDIENTE')->count();
-        $sinRostro = Empleado::where('activo', true)->whereNull('descriptor_facial')->count();
+        $totalEmployees = Employee::where('is_active', true)->count();
+        $attendancesToday = Attendance::whereDate('date', $today)->count();
+        $lateToday = Attendance::whereDate('date', $today)->where('status', 'LATE')->count();
+        $pendingVacations = Vacation::pending()->count();
+        $withoutFace = Employee::where('is_active', true)->whereNull('face_descriptor')->count();
 
-        $ultimas = Asistencia::with('empleado')
-            ->whereDate('fecha', $hoy)
+        $latest = Attendance::with('employee')
+            ->whereDate('date', $today)
             ->latest('updated_at')
             ->take(8)
             ->get();
 
         $labels = [];
-        $serieAsistencias = [];
-        $serieTardanzas = [];
+        $attendanceSeries = [];
+        $lateSeries = [];
         for ($i = 6; $i >= 0; $i--) {
-            $dia = now()->subDays($i)->toDateString();
-            $labels[] = now()->subDays($i)->format('d/m');
-            $serieAsistencias[] = Asistencia::whereDate('fecha', $dia)->count();
-            $serieTardanzas[] = Asistencia::whereDate('fecha', $dia)->where('estado', 'TARDANZA')->count();
+            $day = company_now()->subDays($i)->toDateString();
+            $labels[] = company_now()->subDays($i)->format('d/m');
+            $attendanceSeries[] = Attendance::whereDate('date', $day)->count();
+            $lateSeries[] = Attendance::whereDate('date', $day)->where('status', 'LATE')->count();
         }
 
         return view('dashboard', [
-            'esGestor' => true,
-            'totalEmpleados' => $totalEmpleados,
-            'asistenciasHoy' => $asistenciasHoy,
-            'tardanzasHoy' => $tardanzasHoy,
-            'vacacionesPendientes' => $vacacionesPendientes,
-            'sinRostro' => $sinRostro,
-            'ultimas' => $ultimas,
+            'isManager' => true,
+            'totalEmployees' => $totalEmployees,
+            'attendancesToday' => $attendancesToday,
+            'lateToday' => $lateToday,
+            'pendingVacations' => $pendingVacations,
+            'withoutFace' => $withoutFace,
+            'latest' => $latest,
             'labels' => $labels,
-            'serieAsistencias' => $serieAsistencias,
-            'serieTardanzas' => $serieTardanzas,
+            'attendanceSeries' => $attendanceSeries,
+            'lateSeries' => $lateSeries,
         ]);
     }
 
-    /** Dashboard personal (perfil Empleado): solo su propia información */
-    private function dashboardEmpleado($user)
+    /** Personal dashboard (employee profile): only their own information */
+    private function employeeDashboard($user)
     {
-        $empleado = Empleado::with('horario')->where('user_id', $user->id)->first();
-        $hoy = now()->toDateString();
-        $inicioMes = now()->startOfMonth()->toDateString();
+        $employee = Employee::with('schedule')->where('user_id', $user->id)->first();
+        $today = company_now()->toDateString();
+        $monthStart = company_now()->startOfMonth()->toDateString();
 
-        $asistenciaHoy = null;
-        $diasMes = 0;
-        $tardanzasMes = 0;
-        $misVacaciones = collect();
-        $recientes = collect();
+        $todayAttendance = null;
+        $daysThisMonth = 0;
+        $lateThisMonth = 0;
+        $myVacations = collect();
+        $recent = collect();
 
-        if ($empleado) {
-            $asistenciaHoy = $empleado->asistencias()->whereDate('fecha', $hoy)->first();
+        if ($employee) {
+            $todayAttendance = $employee->attendances()->whereDate('date', $today)->first();
 
-            $delMes = $empleado->asistencias()->whereBetween('fecha', [$inicioMes, $hoy])->get();
-            $diasMes = $delMes->whereIn('estado', ['PUNTUAL', 'TARDANZA'])->count();
-            $tardanzasMes = $delMes->where('estado', 'TARDANZA')->count();
+            $thisMonth = $employee->attendances()->whereBetween('date', [$monthStart, $today])->get();
+            $daysThisMonth = $thisMonth->whereIn('status', ['ON_TIME', 'LATE'])->count();
+            $lateThisMonth = $thisMonth->where('status', 'LATE')->count();
 
-            $misVacaciones = $empleado->vacaciones()->latest()->take(3)->get();
-            $recientes = $empleado->asistencias()->orderByDesc('fecha')->take(7)->get();
+            $myVacations = $employee->vacations()->latest()->take(3)->get();
+            $recent = $employee->attendances()->orderByDesc('date')->take(7)->get();
         }
 
         return view('dashboard', [
-            'esGestor' => false,
-            'empleado' => $empleado,
-            'asistenciaHoy' => $asistenciaHoy,
-            'diasMes' => $diasMes,
-            'tardanzasMes' => $tardanzasMes,
-            'misVacaciones' => $misVacaciones,
-            'recientes' => $recientes,
+            'isManager' => false,
+            'employee' => $employee,
+            'todayAttendance' => $todayAttendance,
+            'daysThisMonth' => $daysThisMonth,
+            'lateThisMonth' => $lateThisMonth,
+            'myVacations' => $myVacations,
+            'recent' => $recent,
         ]);
     }
 }

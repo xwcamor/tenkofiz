@@ -7,17 +7,17 @@ use Illuminate\Http\Request;
 
 class AreaController extends Controller
 {
-    /** Alta rápida desde el formulario de empleados (AJAX) */
+    /** Quick creation from the employee form (AJAX) */
     public function store(Request $request)
     {
-        $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:100', 'unique:areas,nombre'],
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100', 'unique:areas,name'],
         ], [
-            'nombre.unique' => 'Esa área ya existe.',
+            'name.unique' => __('That area already exists.'),
         ]);
 
-        $area = Area::create($datos);
+        $area = Area::create($data);
 
-        return response()->json(['id' => $area->id, 'nombre' => $area->nombre]);
+        return response()->json(['id' => $area->id, 'name' => $area->name]);
     }
 }

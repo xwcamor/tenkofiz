@@ -10,7 +10,10 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'perfil_id', 'activo', 'debe_cambiar_password'];
+    protected $fillable = [
+        'name', 'email', 'password', 'profile_id', 'is_active',
+        'must_change_password', 'timezone', 'locale',
+    ];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -19,23 +22,49 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'activo' => 'boolean',
-            'debe_cambiar_password' => 'boolean',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 
-    public function perfil()
+    public function profile()
     {
-        return $this->belongsTo(Perfil::class);
+        return $this->belongsTo(Profile::class);
     }
 
-    public function empleado()
+    public function employee()
     {
-        return $this->hasOne(Empleado::class);
+        return $this->hasOne(Employee::class);
     }
 
-    public function tienePerfil(string ...$nombres): bool
+    /** Whether the user's profile grants access to the given module */
+    public function hasModule(string $module): bool
     {
-        return $this->perfil && in_array($this->perfil->nombre, $nombres, true);
+        return $this->profile !== null
+            && $this->profile->is_active
+            && in_array($module, $this->profile->permissions ?? [], true);
+    }
+
+    public function hasAnyModule(string ...$modules): bool
+    {
+        foreach ($modules as $module) {
+            if ($this->hasModule($module)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Managers see company-wide data (dashboard, everyone's requests, calendars) */
+    public function isManager(): bool
+    {
+        return $this->hasAnyModule('employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage');
+    }
+
+    /** Timezone used to display dates for this user (falls back to the company timezone) */
+    public function displayTimezone(): string
+    {
+        return $this->timezone ?: company_timezone();
     }
 }

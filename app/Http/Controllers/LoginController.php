@@ -14,19 +14,19 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
-        $credenciales = $request->validate([
+        $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        $credenciales['activo'] = true;
+        $credentials['is_active'] = true;
 
-        if (Auth::attempt($credenciales, $request->boolean('remember'))) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
             return redirect()->intended(route('dashboard'));
         }
 
-        return back()->withErrors(['email' => 'Credenciales incorrectas o usuario inactivo.'])->onlyInput('email');
+        return back()->withErrors(['email' => __('Invalid credentials or inactive user.')])->onlyInput('email');
     }
 
     public function logout(Request $request)
@@ -35,5 +35,16 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('login');
+    }
+
+    /** Language switcher (works for guests via session and for users via their profile) */
+    public function switchLocale(Request $request)
+    {
+        $data = $request->validate(['locale' => ['required', 'in:es,en']]);
+
+        $request->session()->put('locale', $data['locale']);
+        $request->user()?->update(['locale' => $data['locale']]);
+
+        return back();
     }
 }

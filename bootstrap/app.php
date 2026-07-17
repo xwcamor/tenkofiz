@@ -12,11 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'perfil' => \App\Http\Middleware\CheckPerfil::class,
+            'module' => \App\Http\Middleware\CheckModule::class,
+            'kiosk.token' => \App\Http\Middleware\VerifyKioskToken::class,
         ]);
         $middleware->web(append: [
-            \App\Http\Middleware\SinCache::class,
-            \App\Http\Middleware\ForzarCambioPassword::class,
+            \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\NoCache::class,
+            \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

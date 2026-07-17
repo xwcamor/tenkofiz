@@ -2,7 +2,7 @@
 
 return [
 
-    'name' => env('APP_NAME', 'Sistema de Asistencia Facial'),
+    'name' => env('APP_NAME', 'Facial Attendance System'),
 
     'env' => env('APP_ENV', 'production'),
 
@@ -10,8 +10,13 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    // Zona horaria del Perú: todas las marcas y cálculos de tardanza usan hora de Lima
-    'timezone' => env('APP_TIMEZONE', 'America/Lima'),
+    // The server always runs and stores dates in UTC. The company operational
+    // timezone (kiosk, tardiness rules) and each user's display timezone are
+    // configured inside the application (Settings and user preferences).
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
+
+    // Fallback display timezone used before the settings table exists
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'America/Lima'),
 
     'locale' => env('APP_LOCALE', 'es'),
 

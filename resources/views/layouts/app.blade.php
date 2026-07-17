@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('titulo', 'Sistema') | Asistencia Facial</title>
+    <title>@yield('title', __('System')) | {{ __('Facial Attendance') }}</title>
     <!-- AdminLTE 3 + plugins (CDN) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2.0/dist/css/adminlte.min.css">
@@ -12,27 +12,79 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.5.0/css/responsive.bootstrap4.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-buttons-bs4@2.4.2/css/buttons.bootstrap4.min.css">
     <style>
-        /* Barra de carga superior al navegar */
-        #barra-carga { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: #007bff; z-index: 99999; transition: width .4s ease; }
-        a.nav-bloqueado { pointer-events: none; opacity: .65; }
+        /* Top loading bar while navigating */
+        #loading-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: #007bff; z-index: 99999; transition: width .4s ease; }
+        a.nav-locked { pointer-events: none; opacity: .65; }
     </style>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
+@php
+    $currentUser = auth()->user();
+    $canApproveVacations = $currentUser->hasModule('vacations_manage');
+    $canReviewJustifications = $currentUser->hasModule('justifications_manage');
+    $pendingVacations = $canApproveVacations ? \App\Models\Vacation::pending()->count() : 0;
+    $pendingJustifications = $canReviewJustifications ? \App\Models\Justification::pending()->count() : 0;
+    $pendingTotal = $pendingVacations + $pendingJustifications;
+@endphp
 <div class="wrapper">
 
-    <!-- Navbar superior -->
+    <!-- Top navbar -->
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
         <ul class="navbar-nav">
             <li class="nav-item"><a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a></li>
         </ul>
         <ul class="navbar-nav ml-auto">
+            @if($canApproveVacations || $canReviewJustifications)
+                <!-- Pending approvals bell -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#" title="{{ __('Pending approvals') }}">
+                        <i class="far fa-bell"></i>
+                        @if($pendingTotal > 0)
+                            <span class="badge badge-danger navbar-badge">{{ $pendingTotal }}</span>
+                        @endif
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <span class="dropdown-item dropdown-header">{{ __('Pending approvals') }}</span>
+                        <div class="dropdown-divider"></div>
+                        @if($canApproveVacations)
+                            <a href="{{ route('vacations.index', ['status' => 'PENDING']) }}" class="dropdown-item">
+                                <i class="fas fa-umbrella-beach mr-2"></i> {{ __('Vacation requests') }}
+                                <span class="float-right text-muted text-sm">{{ $pendingVacations }}</span>
+                            </a>
+                        @endif
+                        @if($canReviewJustifications)
+                            <a href="{{ route('justifications.index', ['status' => 'PENDING']) }}" class="dropdown-item">
+                                <i class="fas fa-file-medical mr-2"></i> {{ __('Justifications') }}
+                                <span class="float-right text-muted text-sm">{{ $pendingJustifications }}</span>
+                            </a>
+                        @endif
+                        @if($pendingTotal === 0)
+                            <span class="dropdown-item text-muted">{{ __('Nothing pending. Well done!') }}</span>
+                        @endif
+                    </div>
+                </li>
+            @endif
+            <!-- Language switcher -->
+            <li class="nav-item dropdown">
+                <a class="nav-link" data-toggle="dropdown" href="#" title="{{ __('Language') }}">
+                    <i class="fas fa-globe"></i> {{ strtoupper(app()->getLocale()) }}
+                </a>
+                <div class="dropdown-menu dropdown-menu-right">
+                    @foreach(['es' => 'Español', 'en' => 'English'] as $code => $label)
+                        <form method="POST" action="{{ route('locale.switch') }}">@csrf
+                            <input type="hidden" name="locale" value="{{ $code }}">
+                            <button class="dropdown-item {{ app()->getLocale() === $code ? 'active' : '' }}">{{ $label }}</button>
+                        </form>
+                    @endforeach
+                </div>
+            </li>
             <li class="nav-item d-flex align-items-center mr-3 text-muted">
-                <i class="fas fa-user-circle mr-1"></i> {{ auth()->user()->name }}
-                <span class="badge badge-primary ml-2">{{ auth()->user()->perfil?->nombre }}</span>
+                <i class="fas fa-user-circle mr-1"></i> {{ $currentUser->name }}
+                <span class="badge badge-primary ml-2">{{ $currentUser->profile?->name }}</span>
             </li>
             <li class="nav-item">
                 <form method="POST" action="{{ route('logout') }}">@csrf
-                    <button class="btn btn-outline-danger btn-sm mt-1"><i class="fas fa-sign-out-alt"></i> Salir</button>
+                    <button class="btn btn-outline-danger btn-sm mt-1"><i class="fas fa-sign-out-alt"></i> {{ __('Sign out') }}</button>
                 </form>
             </li>
         </ul>
@@ -40,137 +92,162 @@
 
     <!-- Sidebar -->
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
-        @php($ajusteEmpresa = \App\Models\Ajuste::obtener())
+        @php($companySetting = app_setting())
         <a href="{{ route('dashboard') }}" class="brand-link">
-            @if($ajusteEmpresa->logo)
-                <img src="{{ asset($ajusteEmpresa->logo) }}" alt="logo" class="brand-image img-circle elevation-2" style="opacity:.9">
+            @if($companySetting->logo)
+                <img src="{{ asset($companySetting->logo) }}" alt="logo" class="brand-image img-circle elevation-2" style="opacity:.9">
             @else
                 <i class="fas fa-id-badge brand-image ml-3 mt-2"></i>
             @endif
-            <span class="brand-text font-weight-light">{{ \Illuminate\Support\Str::limit($ajusteEmpresa->empresa, 18) }}</span>
+            <span class="brand-text font-weight-light">{{ \Illuminate\Support\Str::limit($companySetting->company_name, 18) }}</span>
         </a>
         <div class="sidebar">
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
                     <li class="nav-item">
                         <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p>
+                            <i class="nav-icon fas fa-tachometer-alt"></i><p>{{ __('Dashboard') }}</p>
                         </a>
                     </li>
 
-                    @if(auth()->user()->tienePerfil('Administrador','Supervisor'))
-                        <li class="nav-header">GESTIÓN</li>
+                    @if($currentUser->hasAnyModule('employees', 'attendances', 'reports'))
+                        <li class="nav-header">{{ __('MANAGEMENT') }}</li>
+                        @if($currentUser->hasModule('employees'))
+                            <li class="nav-item">
+                                <a href="{{ route('employees.index') }}" class="nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-users"></i><p>{{ __('Employees') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('attendances'))
+                            <li class="nav-item">
+                                <a href="{{ route('attendances.index') }}" class="nav-link {{ request()->routeIs('attendances.index') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-calendar-check"></i><p>{{ __('Attendance') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('reports'))
+                            <li class="nav-item">
+                                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-chart-bar"></i><p>{{ __('Reports') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                    @endif
+
+                    <li class="nav-header">{{ __('MY ACCOUNT') }}</li>
+                    <li class="nav-item">
+                        <a href="{{ route('vacations.index') }}" class="nav-link {{ request()->routeIs('vacations.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-umbrella-beach"></i><p>{{ __('Vacations') }}
+                                @if($pendingVacations > 0)<span class="badge badge-danger right">{{ $pendingVacations }}</span>@endif
+                            </p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('attendances.mine') }}" class="nav-link {{ request()->routeIs('attendances.mine') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-user-check"></i><p>{{ __('My attendance') }}</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('justifications.index') }}" class="nav-link {{ request()->routeIs('justifications.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-file-medical"></i><p>{{ __('Justifications') }}
+                                @if($pendingJustifications > 0)<span class="badge badge-danger right">{{ $pendingJustifications }}</span>@endif
+                            </p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('calendar.index') }}" class="nav-link {{ request()->routeIs('calendar.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-calendar-alt"></i><p>{{ __('Calendar') }}</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('reports.mySheet') }}" target="_blank" class="nav-link">
+                            <i class="nav-icon fas fa-file-pdf"></i><p>{{ __('My sheet (PDF)') }}</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('account.edit') }}" class="nav-link {{ request()->routeIs('account.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-user-cog"></i><p>{{ __('My account') }}</p>
+                        </a>
+                    </li>
+
+                    @if($currentUser->hasAnyModule('users', 'profiles', 'schedules', 'holidays', 'audit_logs', 'settings'))
+                        <li class="nav-header">{{ __('ADMINISTRATION') }}</li>
+                        @if($currentUser->hasModule('users'))
+                            <li class="nav-item">
+                                <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-user-cog"></i><p>{{ __('Users') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('profiles'))
+                            <li class="nav-item">
+                                <a href="{{ route('profiles.index') }}" class="nav-link {{ request()->routeIs('profiles.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-shield-alt"></i><p>{{ __('Profiles') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('schedules'))
+                            <li class="nav-item">
+                                <a href="{{ route('schedules.index') }}" class="nav-link {{ request()->routeIs('schedules.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-clock"></i><p>{{ __('Schedules') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('holidays'))
+                            <li class="nav-item">
+                                <a href="{{ route('holidays.index') }}" class="nav-link {{ request()->routeIs('holidays.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-calendar-times"></i><p>{{ __('Holidays') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('audit_logs'))
+                            <li class="nav-item">
+                                <a href="{{ route('audit.index') }}" class="nav-link {{ request()->routeIs('audit.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-shield-alt"></i><p>{{ __('Audit log') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                        @if($currentUser->hasModule('settings'))
+                            <li class="nav-item">
+                                <a href="{{ route('settings.edit') }}" class="nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-cog"></i><p>{{ __('Settings') }}</p>
+                                </a>
+                            </li>
+                        @endif
+                    @endif
+
+                    @if($currentUser->hasModule('settings'))
+                        <li class="nav-header">{{ __('KIOSK') }}</li>
                         <li class="nav-item">
-                            <a href="{{ route('empleados.index') }}" class="nav-link {{ request()->routeIs('empleados.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-users"></i><p>Empleados</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('asistencias.index') }}" class="nav-link {{ request()->routeIs('asistencias.index') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-calendar-check"></i><p>Asistencias</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('reportes.index') }}" class="nav-link {{ request()->routeIs('reportes.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-chart-bar"></i><p>Reportes</p>
+                            <a href="{{ route('kiosk', app_setting()->kiosk_token ? ['token' => app_setting()->kiosk_token] : []) }}" target="_blank" class="nav-link">
+                                <i class="nav-icon fas fa-camera"></i><p>{{ __('Marking kiosk') }}</p>
                             </a>
                         </li>
                     @endif
-
-                    <li class="nav-header">MI CUENTA</li>
-                    <li class="nav-item">
-                        <a href="{{ route('vacaciones.index') }}" class="nav-link {{ request()->routeIs('vacaciones.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-umbrella-beach"></i><p>Vacaciones</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('asistencias.mias') }}" class="nav-link {{ request()->routeIs('asistencias.mias') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-user-check"></i><p>Mis asistencias</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('justificaciones.index') }}" class="nav-link {{ request()->routeIs('justificaciones.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-file-medical"></i><p>Justificaciones</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('calendario.index') }}" class="nav-link {{ request()->routeIs('calendario.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-calendar-alt"></i><p>Calendario</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('reportes.miFicha') }}" target="_blank" class="nav-link">
-                            <i class="nav-icon fas fa-file-pdf"></i><p>Mi ficha (PDF)</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('cuenta.password') }}" class="nav-link {{ request()->routeIs('cuenta.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-key"></i><p>Cambiar contraseña</p>
-                        </a>
-                    </li>
-
-                    @if(auth()->user()->tienePerfil('Administrador'))
-                        <li class="nav-header">ADMINISTRACIÓN</li>
-                        <li class="nav-item">
-                            <a href="{{ route('usuarios.index') }}" class="nav-link {{ request()->routeIs('usuarios.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-user-cog"></i><p>Usuarios</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('perfiles.index') }}" class="nav-link {{ request()->routeIs('perfiles.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-shield-alt"></i><p>Perfiles</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('horarios.index') }}" class="nav-link {{ request()->routeIs('horarios.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-clock"></i><p>Horarios</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('feriados.index') }}" class="nav-link {{ request()->routeIs('feriados.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-calendar-times"></i><p>Feriados</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('auditorias.index') }}" class="nav-link {{ request()->routeIs('auditorias.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-shield-alt"></i><p>Auditoría</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('ajustes.edit') }}" class="nav-link {{ request()->routeIs('ajustes.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-cog"></i><p>Ajustes</p>
-                            </a>
-                        </li>
-                    @endif
-
-                    <li class="nav-header">KIOSCO</li>
-                    <li class="nav-item">
-                        <a href="{{ route('kiosco') }}" target="_blank" class="nav-link">
-                            <i class="nav-icon fas fa-camera"></i><p>Kiosco de marcado</p>
-                        </a>
-                    </li>
                 </ul>
             </nav>
         </div>
     </aside>
 
-    <!-- Contenido -->
+    <!-- Content -->
     <div class="content-wrapper">
         <section class="content-header">
             <div class="container-fluid d-flex justify-content-between">
-                <h1 class="h4">@yield('titulo')</h1>
-                @yield('boton-header')
+                <h1 class="h4">@yield('title')</h1>
+                @yield('header-button')
             </div>
         </section>
         <section class="content">
             <div class="container-fluid">
-                @yield('contenido')
+                @yield('content')
             </div>
         </section>
     </div>
 
     <footer class="main-footer text-sm">
-        <strong>Sistema de Control de Asistencia con Reconocimiento Facial</strong> — Proyecto de Titulación 2026
+        <strong>{{ __('Attendance Control System with Facial Recognition') }}</strong>
+        <span class="float-right text-muted">{{ __('Times shown in') }}: {{ user_timezone() }}</span>
     </footer>
 </div>
 
@@ -190,84 +267,86 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
-    // Plugin DataTables en toda tabla con clase .tabla-datos (idioma español)
+    const DATATABLE_LANG = @json(app()->getLocale() === 'es' ? ['url' => 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json'] : new stdClass());
+
+    // DataTables on every table with .data-table (client-side; used for small catalogs)
     $(function () {
-        $('.tabla-datos').DataTable({
+        $('.data-table').DataTable({
             responsive: true,
             pageLength: 10,
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' }
+            language: DATATABLE_LANG
         });
     });
 
-    // Tabla de reportes: con botones de exportación (Excel / Imprimir / Copiar)
+    // Report table: with export buttons (Excel / Print / Copy)
     $(function () {
-        $('.tabla-reporte').DataTable({
+        $('.report-table').DataTable({
             responsive: true,
             pageLength: 25,
             dom: "<'row'<'col-sm-6'B><'col-sm-6'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-5'i><'col-sm-7'p>>",
             buttons: [
                 { extend: 'excelHtml5', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn btn-success btn-sm' },
-                { extend: 'print', text: '<i class="fas fa-print"></i> Imprimir', className: 'btn btn-secondary btn-sm' },
-                { extend: 'copyHtml5', text: '<i class="fas fa-copy"></i> Copiar', className: 'btn btn-info btn-sm' }
+                { extend: 'print', text: '<i class="fas fa-print"></i> {{ __('Print') }}', className: 'btn btn-secondary btn-sm' },
+                { extend: 'copyHtml5', text: '<i class="fas fa-copy"></i> {{ __('Copy') }}', className: 'btn btn-info btn-sm' }
             ],
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' }
+            language: DATATABLE_LANG
         });
     });
 
-    // Prevenir múltiples clicks en enlaces (botones "Nuevo", editar, menú, etc.)
+    // Prevent multiple clicks on links (New/Edit buttons, menu, etc.)
     (function () {
-        const barra = document.createElement('div');
-        barra.id = 'barra-carga';
-        document.body.appendChild(barra);
+        const bar = document.createElement('div');
+        bar.id = 'loading-bar';
+        document.body.appendChild(bar);
 
         document.addEventListener('click', function (e) {
-            const a = e.target.closest('a');
-            // Ignorar: sin href, anclas, nueva pestaña, o elementos de colapso/toggle
-            if (!a || !a.href || a.target === '_blank' || a.getAttribute('href').startsWith('#') || a.dataset.toggle) return;
+            const link = e.target.closest('a');
+            // Skip: no href, anchors, new tab, or collapse/toggle elements
+            if (!link || !link.href || link.target === '_blank' || link.getAttribute('href').startsWith('#') || link.dataset.toggle) return;
 
-            // Si ya se hizo click, bloquear los siguientes
-            if (a.dataset.navegando) { e.preventDefault(); return; }
-            a.dataset.navegando = '1';
-            a.classList.add('nav-bloqueado');
+            // Block further clicks after the first one
+            if (link.dataset.navigating) { e.preventDefault(); return; }
+            link.dataset.navigating = '1';
+            link.classList.add('nav-locked');
 
-            // Barra de progreso visual mientras carga la siguiente página
-            barra.style.width = '70%';
+            // Visual progress bar while the next page loads
+            bar.style.width = '70%';
 
-            // Liberar por si el usuario vuelve con el botón atrás (bfcache)
-            setTimeout(() => { delete a.dataset.navegando; a.classList.remove('nav-bloqueado'); barra.style.width = '0'; }, 6000);
+            // Release in case the user comes back with the back button (bfcache)
+            setTimeout(() => { delete link.dataset.navigating; link.classList.remove('nav-locked'); bar.style.width = '0'; }, 6000);
         }, true);
 
         window.addEventListener('pageshow', () => {
-            barra.style.width = '0';
-            document.querySelectorAll('a.nav-bloqueado').forEach(a => { delete a.dataset.navegando; a.classList.remove('nav-bloqueado'); });
+            bar.style.width = '0';
+            document.querySelectorAll('a.nav-locked').forEach(link => { delete link.dataset.navigating; link.classList.remove('nav-locked'); });
         });
     })();
 
-    // Protección anti doble submit: bloquea el botón y muestra spinner al enviar
-    $(document).on('submit', 'form:not(.form-eliminar)', function () {
-        const botones = $(this).find('button[type="submit"], button:not([type])');
+    // Anti double-submit: disables the button and shows a spinner on submit
+    $(document).on('submit', 'form:not(.delete-form)', function () {
+        const buttons = $(this).find('button[type="submit"], button:not([type])');
         setTimeout(() => {
-            botones.prop('disabled', true)
+            buttons.prop('disabled', true)
                    .prepend('<span class="spinner-border spinner-border-sm mr-1"></span>');
         }, 10);
     });
 
-    // Plugin SweetAlert2 para confirmar eliminaciones
-    $(document).on('submit', '.form-eliminar', function (e) {
+    // SweetAlert2 confirmation for deletions
+    $(document).on('submit', '.delete-form', function (e) {
         e.preventDefault();
         const form = this;
         Swal.fire({
-            title: '¿Está seguro?',
-            text: 'Esta acción no se puede deshacer.',
+            title: @json(__('Are you sure?')),
+            text: @json(__('This action cannot be undone.')),
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(r => { if (r.isConfirmed) form.submit(); });
+            confirmButtonText: @json(__('Yes, delete')),
+            cancelButtonText: @json(__('Cancel'))
+        }).then(result => { if (result.isConfirmed) form.submit(); });
     });
 
-    // Notificaciones de sesión con SweetAlert2 (toast)
+    // Session notifications as SweetAlert2 toasts
     @if(session('ok'))
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(session('ok')), showConfirmButton: false, timer: 3000 });
     @endif
