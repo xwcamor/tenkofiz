@@ -75,6 +75,8 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('module:employees')->group(function () {
+        Route::get('employees-import/template', [\App\Http\Controllers\EmployeeImportController::class, 'template'])->name('employees.import.template');
+        Route::post('employees-import', [\App\Http\Controllers\EmployeeImportController::class, 'store'])->name('employees.import');
         Route::resource('employees', EmployeeController::class)->except(['show']);
         Route::get('employees/{employee}/enroll', [EmployeeController::class, 'enroll'])->name('employees.enroll');
         Route::post('employees/{employee}/descriptor', [EmployeeController::class, 'storeDescriptor'])->name('employees.descriptor');

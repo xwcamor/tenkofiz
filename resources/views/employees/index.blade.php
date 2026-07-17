@@ -1,7 +1,10 @@
 @extends('layouts.app')
 @section('title', __('Employees'))
 @section('header-button')
-    <a href="{{ route('employees.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> {{ __('New employee') }}</a>
+    <div>
+        <button class="btn btn-default" onclick="$('#importModal').modal('show')"><i class="fas fa-file-excel text-success"></i> {{ __('Import') }}</button>
+        <a href="{{ route('employees.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> {{ __('New employee') }}</a>
+    </div>
 @endsection
 
 @push('scripts')
@@ -85,4 +88,64 @@ async function createUser(id, name) {
         </table>
     </div>
 </div>
+
+{{-- Import modal --}}
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" action="{{ route('employees.import') }}" enctype="multipart/form-data" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-excel text-success"></i> {{ __('Import employees') }}</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ol class="text-muted pl-3 mb-3" style="font-size:.875rem">
+                    <li>{{ __('Download the template: it includes dropdowns for schedule, area and position, plus an instructions sheet.') }}</li>
+                    <li>{{ __('Fill one row per employee (required: document, first names, last names and schedule).') }}</li>
+                    <li>{{ __('Upload the file. If any row has errors, nothing is imported and the errors are listed below so you can fix and retry.') }}</li>
+                </ol>
+                <a href="{{ route('employees.import.template') }}" class="btn btn-outline-primary mb-3">
+                    <i class="fas fa-download"></i> {{ __('Download template') }} (.xlsx)
+                </a>
+                <div class="form-group">
+                    <label>{{ __('File') }} <small class="text-muted">(.xlsx {{ __('or') }} .csv, {{ __('max.') }} 4MB)</small></label>
+                    <input type="file" name="file" class="form-control-file @error('file') is-invalid @enderror" accept=".xlsx,.xls,.csv" required>
+                    @error('file')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                </div>
+
+                @if(session('import_errors'))
+                    <div class="alert alert-danger py-2 mb-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ __('Nothing was imported: fix the :count row(s) with errors and upload the file again.', ['count' => count(session('import_errors'))]) }}
+                    </div>
+                    <div class="table-responsive border rounded" style="max-height:260px;overflow-y:auto">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th style="width:70px">{{ __('Row') }}</th><th>{{ __('Errors') }}</th></tr></thead>
+                            <tbody>
+                            @foreach(session('import_errors') as $error)
+                                <tr>
+                                    <td class="text-center font-weight-bold">{{ $error['row'] }}</td>
+                                    <td>{{ ucfirst(implode('; ', $error['messages'])) }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+                <button class="btn btn-primary"><i class="fas fa-upload"></i> {{ __('Import') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
+
+@push('scripts')
+<script>
+@if(session('import_errors') || $errors->has('file'))
+    $('#importModal').modal('show');
+@endif
+</script>
+@endpush
