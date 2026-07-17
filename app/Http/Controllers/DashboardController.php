@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\Justification;
 use App\Models\Vacation;
 use Illuminate\Http\Request;
 
@@ -25,12 +26,41 @@ class DashboardController extends Controller
     private function managerDashboard()
     {
         $today = company_now()->toDateString();
+        $weekStart = company_now()->subDays(6)->toDateString();
 
         $totalEmployees = Employee::where('is_active', true)->count();
-        $attendancesToday = Attendance::whereDate('date', $today)->count();
-        $lateToday = Attendance::whereDate('date', $today)->where('status', 'LATE')->count();
-        $pendingVacations = Vacation::pending()->count();
         $withoutFace = Employee::where('is_active', true)->whereNull('face_descriptor')->count();
+        $pendingVacations = Vacation::pending()->count();
+        $pendingJustifications = Justification::pending()->count();
+
+        // Today's marks split by status (KPIs + doughnut)
+        $todayByStatus = Attendance::whereDate('date', $today)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $attendancesToday = (int) $todayByStatus->sum();
+        $lateToday = (int) ($todayByStatus['LATE'] ?? 0);
+        $presentToday = (int) (($todayByStatus['ON_TIME'] ?? 0) + ($todayByStatus['LATE'] ?? 0));
+        $attendanceRate = $totalEmployees > 0 ? (int) round($presentToday * 100 / $totalEmployees) : 0;
+
+        // Last 7 days, one stacked series per status (single grouped query)
+        $weekRaw = Attendance::whereBetween('date', [$weekStart, $today])
+            ->selectRaw('date, status, count(*) as total')
+            ->groupBy('date', 'status')
+            ->get()
+            ->groupBy(fn ($row) => $row->date->toDateString());
+
+        $labels = [];
+        $statusSeries = array_fill_keys(Attendance::STATUSES, []);
+        for ($i = 6; $i >= 0; $i--) {
+            $day = company_now()->subDays($i)->toDateString();
+            $labels[] = company_now()->subDays($i)->format('d/m');
+            $byStatus = $weekRaw->get($day)?->pluck('total', 'status') ?? collect();
+            foreach (Attendance::STATUSES as $status) {
+                $statusSeries[$status][] = (int) ($byStatus[$status] ?? 0);
+            }
+        }
 
         $latest = Attendance::with('employee')
             ->whereDate('date', $today)
@@ -38,27 +68,25 @@ class DashboardController extends Controller
             ->take(8)
             ->get();
 
-        $labels = [];
-        $attendanceSeries = [];
-        $lateSeries = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $day = company_now()->subDays($i)->toDateString();
-            $labels[] = company_now()->subDays($i)->format('d/m');
-            $attendanceSeries[] = Attendance::whereDate('date', $day)->count();
-            $lateSeries[] = Attendance::whereDate('date', $day)->where('status', 'LATE')->count();
-        }
+        // Small work queue: the most recent items waiting for a decision
+        $pendingVacationList = Vacation::pending()->with('employee')->latest()->take(4)->get();
+        $pendingJustificationList = Justification::pending()->with('employee')->latest()->take(4)->get();
 
         return view('dashboard', [
             'isManager' => true,
             'totalEmployees' => $totalEmployees,
+            'withoutFace' => $withoutFace,
             'attendancesToday' => $attendancesToday,
             'lateToday' => $lateToday,
+            'attendanceRate' => $attendanceRate,
             'pendingVacations' => $pendingVacations,
-            'withoutFace' => $withoutFace,
-            'latest' => $latest,
+            'pendingJustifications' => $pendingJustifications,
+            'todayByStatus' => $todayByStatus,
             'labels' => $labels,
-            'attendanceSeries' => $attendanceSeries,
-            'lateSeries' => $lateSeries,
+            'statusSeries' => $statusSeries,
+            'latest' => $latest,
+            'pendingVacationList' => $pendingVacationList,
+            'pendingJustificationList' => $pendingJustificationList,
         ]);
     }
 
