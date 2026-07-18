@@ -100,8 +100,11 @@ class DashboardController extends Controller
         $todayAttendance = null;
         $daysThisMonth = 0;
         $lateThisMonth = 0;
+        $remainingVacation = 0;
         $myVacations = collect();
         $recent = collect();
+        $trendLabels = [];
+        $trendWorked = [];
 
         if ($employee) {
             $todayAttendance = $employee->attendances()->whereDate('date', $today)->first();
@@ -109,9 +112,23 @@ class DashboardController extends Controller
             $thisMonth = $employee->attendances()->whereBetween('date', [$monthStart, $today])->get();
             $daysThisMonth = $thisMonth->whereIn('status', ['ON_TIME', 'LATE'])->count();
             $lateThisMonth = $thisMonth->where('status', 'LATE')->count();
+            $remainingVacation = $employee->remainingVacationDays();
 
             $myVacations = $employee->vacations()->latest()->take(3)->get();
             $recent = $employee->attendances()->orderByDesc('date')->take(7)->get();
+
+            // Worked-days trend, last 6 months (one grouped query)
+            $sixMonthsAgo = company_now()->copy()->subMonths(5)->startOfMonth();
+            $byMonth = $employee->attendances()
+                ->where('date', '>=', $sixMonthsAgo->toDateString())
+                ->whereIn('status', ['ON_TIME', 'LATE'])
+                ->get()
+                ->groupBy(fn ($a) => $a->date->format('Y-m'));
+            for ($i = 5; $i >= 0; $i--) {
+                $m = company_now()->copy()->subMonths($i);
+                $trendLabels[] = ucfirst($m->locale(app()->getLocale())->translatedFormat('M'));
+                $trendWorked[] = $byMonth->get($m->format('Y-m'))?->count() ?? 0;
+            }
         }
 
         return view('dashboard', [
@@ -120,8 +137,11 @@ class DashboardController extends Controller
             'todayAttendance' => $todayAttendance,
             'daysThisMonth' => $daysThisMonth,
             'lateThisMonth' => $lateThisMonth,
+            'remainingVacation' => $remainingVacation,
             'myVacations' => $myVacations,
             'recent' => $recent,
+            'trendLabels' => $trendLabels,
+            'trendWorked' => $trendWorked,
         ]);
     }
 }

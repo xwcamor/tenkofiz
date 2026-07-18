@@ -170,6 +170,11 @@ class AttendanceController extends Controller
             ];
         }
 
-        return view('attendances.mine', compact('attendances', 'employee', 'selectedMonth', 'summary'));
+        // Status breakdown for the month's doughnut chart
+        $statusCounts = collect(Attendance::STATUSES)
+            ->mapWithKeys(fn ($s) => [$s => $attendances->where('status', $s)->count()])
+            ->filter();
+
+        return view('attendances.mine', compact('attendances', 'employee', 'selectedMonth', 'summary', 'statusCounts'));
     }
 }

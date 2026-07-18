@@ -1,6 +1,31 @@
 @extends('layouts.app')
 @section('title', __('Worked hours and days report'))
 @section('content')
+@php $statusColors = ['ON_TIME' => '#0ca30c', 'LATE' => '#fab219', 'ABSENT' => '#d03b3b', 'EXCUSED' => '#2a78d6']; @endphp
+
+@if($rows->isNotEmpty())
+<div class="row">
+    <div class="col-lg-7 mb-3">
+        <div class="card h-100 mb-0">
+            <div class="card-header"><h3 class="card-title">{{ __('Worked hours by employee (top 10)') }}</h3></div>
+            <div class="card-body"><canvas id="hoursChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-5 mb-3">
+        <div class="card h-100 mb-0">
+            <div class="card-header"><h3 class="card-title">{{ __('Status distribution') }}</h3></div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                @if(array_sum($statusTotals) > 0)
+                    <canvas id="statusChart" style="max-height:240px"></canvas>
+                @else
+                    <p class="text-muted mb-0">{{ __('No records in the period') }}</p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="card card-primary card-outline">
     <div class="card-header">
         <form class="form-inline">
@@ -54,3 +79,55 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@if($rows->isNotEmpty())
+<script>
+const R_STATUS_COLORS = @json($statusColors);
+const R_STATUS_LABELS = @json(collect(\App\Models\Attendance::STATUSES)->mapWithKeys(fn ($s) => [$s => __($s)]));
+const CSS = getComputedStyle(document.documentElement);
+const INK_MUTED = CSS.getPropertyValue('--ink-3').trim() || '#667085';
+const GRID = CSS.getPropertyValue('--hairline').trim() || '#eef1f6';
+const BRAND = CSS.getPropertyValue('--brand').trim() || '#2a78d6';
+const SURFACE = CSS.getPropertyValue('--card-bg').trim() || '#ffffff';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = INK_MUTED;
+
+// Worked hours by employee — horizontal bars (names read better on the y-axis)
+new Chart(document.getElementById('hoursChart'), {
+    type: 'bar',
+    data: {
+        labels: @json($hoursLabels),
+        datasets: [{ label: @json(__('Worked hours')), data: @json($hoursData), backgroundColor: BRAND, borderColor: SURFACE, borderWidth: 2, borderRadius: 4, borderSkipped: false, maxBarThickness: 22 }],
+    },
+    options: {
+        indexAxis: 'y',
+        maintainAspectRatio: true,
+        scales: {
+            x: { beginAtZero: true, grid: { color: GRID }, border: { display: false }, title: { display: true, text: @json(__('Hours')) } },
+            y: { grid: { display: false }, border: { color: GRID } },
+        },
+        plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
+    },
+});
+
+// Status distribution — doughnut
+@if(array_sum($statusTotals) > 0)
+const totals = @json($statusTotals);
+const keys = Object.keys(R_STATUS_COLORS).filter(k => totals[k] > 0);
+new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+        labels: keys.map(k => R_STATUS_LABELS[k]),
+        datasets: [{ data: keys.map(k => totals[k]), backgroundColor: keys.map(k => R_STATUS_COLORS[k]), borderColor: SURFACE, borderWidth: 2 }],
+    },
+    options: {
+        cutout: '70%',
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, padding: 14 } } },
+    },
+});
+@endif
+</script>
+@endif
+@endpush

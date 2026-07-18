@@ -161,7 +161,7 @@
     </div>
 
     <div class="row">
-        <div class="col-lg-4 col-12 mb-3">
+        <div class="col-lg-3 col-6 mb-3">
             <div class="stat-card">
                 <div>
                     <div class="stat-label">{{ __('My check-in today') }}</div>
@@ -169,7 +169,6 @@
                     <div class="stat-sub">
                         @if($todayAttendance)
                             <span class="badge badge-{{ $statusBadge($todayAttendance->status) }}">{{ __($todayAttendance->status) }}</span>
-                            · {{ __('Check-out') }}: {{ $todayAttendance->check_out ? substr($todayAttendance->check_out, 0, 5) : __('pending') }}
                         @else
                             {{ __('not marked') }}
                         @endif
@@ -178,24 +177,16 @@
                 <div class="stat-chip {{ $todayAttendance ? ($todayAttendance->status === 'LATE' ? 'chip-amber' : 'chip-green') : 'chip-slate' }}"><i class="fas fa-sign-in-alt"></i></div>
             </div>
         </div>
-        <div class="col-lg-4 col-6 mb-3">
-            <div class="stat-card">
-                <div>
-                    <div class="stat-label">{{ __('Days worked this month') }}</div>
-                    <div class="stat-value">{{ $daysThisMonth }}</div>
-                    <div class="stat-sub"><a href="{{ route('attendances.mine') }}">{{ __('View history') }} →</a></div>
-                </div>
-                <div class="stat-chip chip-blue"><i class="fas fa-calendar-check"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-4 col-6 mb-3">
-            <div class="stat-card">
-                <div>
-                    <div class="stat-label">{{ __('Late arrivals this month') }}</div>
-                    <div class="stat-value">{{ $lateThisMonth }}</div>
-                    <div class="stat-sub">&nbsp;</div>
-                </div>
-                <div class="stat-chip chip-amber"><i class="fas fa-user-clock"></i></div>
+        <div class="col-lg-3 col-6 mb-3">@include('partials.stat-card', ['label' => __('Days worked this month'), 'value' => $daysThisMonth, 'icon' => 'fa-calendar-check', 'chip' => 'chip-blue', 'sub' => '<a href="'.route('attendances.mine').'">'.__('View history').' →</a>'])</div>
+        <div class="col-lg-3 col-6 mb-3">@include('partials.stat-card', ['label' => __('Late arrivals this month'), 'value' => $lateThisMonth, 'icon' => 'fa-user-clock', 'chip' => 'chip-amber'])</div>
+        <div class="col-lg-3 col-6 mb-3">@include('partials.stat-card', ['label' => __('Vacation days left'), 'value' => $remainingVacation, 'icon' => 'fa-umbrella-beach', 'chip' => 'chip-green', 'sub' => '<a href="'.route('vacations.index').'">'.__('Request vacations').' →</a>'])</div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12 mb-3">
+            <div class="card mb-0">
+                <div class="card-header"><h3 class="card-title">{{ __('My worked days — last 6 months') }}</h3></div>
+                <div class="card-body"><canvas id="myTrendChart" height="90"></canvas></div>
             </div>
         </div>
     </div>
@@ -251,6 +242,33 @@
 @endsection
 
 @push('scripts')
+@if(!$isManager && $employee)
+<script>
+// Employee trend: worked days per month (single brand-colored series, no legend needed)
+const CSS = getComputedStyle(document.documentElement);
+const INK_MUTED = CSS.getPropertyValue('--ink-3').trim() || '#667085';
+const GRID = CSS.getPropertyValue('--hairline').trim() || '#eef1f6';
+const BRAND = CSS.getPropertyValue('--brand').trim() || '#2a78d6';
+const SURFACE = CSS.getPropertyValue('--card-bg').trim() || '#ffffff';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = INK_MUTED;
+new Chart(document.getElementById('myTrendChart'), {
+    type: 'bar',
+    data: {
+        labels: @json($trendLabels),
+        datasets: [{ label: @json(__('Worked days')), data: @json($trendWorked), backgroundColor: BRAND, borderColor: SURFACE, borderWidth: 2, borderRadius: 4, borderSkipped: false, maxBarThickness: 48 }],
+    },
+    options: {
+        maintainAspectRatio: true,
+        scales: {
+            x: { grid: { display: false }, border: { color: GRID } },
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: GRID }, border: { display: false } },
+        },
+        plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
+    },
+});
+</script>
+@endif
 @if($isManager)
 <script>
 const STATUS_COLORS = @json($statusColors);

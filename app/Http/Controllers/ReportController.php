@@ -16,7 +16,20 @@ class ReportController extends Controller
         [$from, $to] = $this->range($request);
         $rows = $this->buildRows($from, $to);
 
-        return view('reports.index', compact('rows', 'from', 'to'));
+        // Chart 1: status distribution across the whole period
+        $statusTotals = [
+            'ON_TIME' => (int) $rows->sum('on_time'),
+            'LATE' => (int) $rows->sum('late'),
+            'ABSENT' => (int) $rows->sum('absent'),
+            'EXCUSED' => (int) $rows->sum('excused'),
+        ];
+
+        // Chart 2: worked hours per employee (top 10 by hours)
+        $topHours = $rows->sortByDesc('worked_minutes')->take(10)->values();
+        $hoursLabels = $topHours->pluck('employee');
+        $hoursData = $topHours->map(fn ($r) => round($r['worked_minutes'] / 60, 1));
+
+        return view('reports.index', compact('rows', 'from', 'to', 'statusTotals', 'hoursLabels', 'hoursData'));
     }
 
     /** Same report as a server-generated Excel file (full data, not just the visible page) */
@@ -204,6 +217,7 @@ class ReportController extends Controller
                 'absent' => $attendances->where('status', 'ABSENT')->count(),
                 'excused' => $attendances->where('status', 'EXCUSED')->count(),
                 'worked_hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
+                'worked_minutes' => $minutes,
                 'vacation_days' => $employee->vacations->sum('days'),
             ];
         });
