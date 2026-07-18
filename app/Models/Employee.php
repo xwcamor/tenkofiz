@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
+    use SoftDeletes;
+
     /** Supported identity documents (key => translatable label) */
     public const DOCUMENT_TYPES = [
         'DNI' => 'DNI (Peru)',
@@ -16,7 +19,7 @@ class Employee extends Model
     protected $fillable = [
         'user_id', 'schedule_id', 'area_id', 'position_id', 'document_type', 'document_number',
         'first_name', 'last_name', 'hire_date', 'vacation_days_per_year', 'face_descriptor',
-        'biometric_consent_at', 'is_active',
+        'biometric_consent_at', 'is_active', 'delete_reason',
     ];
 
     protected $casts = [
@@ -27,7 +30,7 @@ class Employee extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function schedule()

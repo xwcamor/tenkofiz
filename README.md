@@ -55,7 +55,7 @@ bash download_models.sh                  # face models → public/models (requir
 php artisan serve
 ```
 
-Default admin: `admin@sistema.test` / `admin123` (change it immediately).
+Default test users: `admin@test.com`, `aprobador@test.com`, `empleado@test.com` — all with password `123456` (change them immediately).
 Then walk through [docs/CONFIGURACION.md](docs/CONFIGURACION.md) so nothing is left unconfigured.
 
 ## Scheduled tasks

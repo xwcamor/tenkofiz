@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
     // Access is granted per module according to the profile's permissions
     Route::middleware('module:users')->group(function () {
         Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('users/{user}/restore', [UserController::class, 'restore'])->name('users.restore')->withTrashed();
     });
 
     Route::middleware('module:profiles')->group(function () {
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::get('employees-import/template', [\App\Http\Controllers\EmployeeImportController::class, 'template'])->name('employees.import.template');
         Route::post('employees-import', [\App\Http\Controllers\EmployeeImportController::class, 'store'])->name('employees.import');
         Route::resource('employees', EmployeeController::class)->except(['show']);
+        Route::post('employees/{employee}/restore', [EmployeeController::class, 'restore'])->name('employees.restore')->withTrashed();
         Route::get('employees/{employee}/enroll', [EmployeeController::class, 'enroll'])->name('employees.enroll');
         Route::post('employees/{employee}/descriptor', [EmployeeController::class, 'storeDescriptor'])->name('employees.descriptor');
         Route::post('employees/{employee}/create-user', [EmployeeController::class, 'createUser'])->name('employees.createUser');
@@ -112,6 +114,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:justifications_manage')->group(function () {
         Route::patch('justifications/{justification}/status', [JustificationController::class, 'changeStatus'])->name('justifications.status');
         Route::delete('justifications/{justification}', [JustificationController::class, 'destroy'])->name('justifications.destroy');
+        Route::post('justifications/{justification}/restore', [JustificationController::class, 'restore'])->name('justifications.restore')->withTrashed();
     });
 
     // All authenticated users

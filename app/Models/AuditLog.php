@@ -12,7 +12,7 @@ class AuditLog extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     /** Records an audit event. Usage: AuditLog::record('DELETE', 'Employees', 'Deleted...', $model->toArray()) */

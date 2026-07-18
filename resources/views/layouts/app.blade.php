@@ -87,39 +87,39 @@
                     </div>
                 </li>
             @endif
-            <!-- Dark mode toggle -->
-            <li class="nav-item">
-                <a class="nav-link" href="#" onclick="toggleTheme(); return false;" title="{{ __('Toggle dark mode') }}">
-                    <i class="fas fa-moon" id="themeIcon"></i>
-                </a>
-            </li>
-            <!-- Language switcher -->
+            <!-- Profile menu: account, theme, language and sign out in one place -->
             <li class="nav-item dropdown">
-                <a class="nav-link" data-toggle="dropdown" href="#" title="{{ __('Language') }}">
-                    <i class="fas fa-globe"></i> {{ strtoupper(app()->getLocale()) }}
+                <a class="nav-link d-flex align-items-center py-1" data-toggle="dropdown" href="#" title="{{ $currentUser->name }}">
+                    @if($currentUser->photo)
+                        <img src="{{ asset($currentUser->photo) }}" alt="" class="img-circle elevation-1" style="width:32px;height:32px;object-fit:cover">
+                    @else
+                        <span class="d-inline-flex align-items-center justify-content-center img-circle"
+                              style="width:32px;height:32px;background:#e8f1fc;color:#2a78d6;font-size:.85rem;font-weight:700">{{ strtoupper(mb_substr($currentUser->name, 0, 1)) }}</span>
+                    @endif
+                    <i class="fas fa-caret-down ml-2 text-muted"></i>
                 </a>
-                <div class="dropdown-menu dropdown-menu-right">
+                <div class="dropdown-menu dropdown-menu-right" style="min-width:240px">
+                    <div class="px-3 py-2">
+                        <div class="font-weight-bold">{{ $currentUser->name }}</div>
+                        <div class="text-muted small">{{ $currentUser->email }}</div>
+                        <span class="badge badge-primary mt-1">{{ $currentUser->profile?->name }}</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="{{ route('account.edit') }}" class="dropdown-item"><i class="fas fa-user-cog mr-2 text-muted"></i> {{ __('My account') }}</a>
+                    <a href="#" class="dropdown-item" onclick="toggleTheme(); return false;"><i class="fas fa-moon mr-2 text-muted" id="themeIcon"></i> {{ __('Toggle dark mode') }}</a>
+                    <div class="dropdown-divider"></div>
+                    <span class="dropdown-item-text text-muted small"><i class="fas fa-globe mr-1"></i> {{ __('Language') }}</span>
                     @foreach(['es' => 'Español', 'en' => 'English'] as $code => $label)
                         <form method="POST" action="{{ route('locale.switch') }}">@csrf
                             <input type="hidden" name="locale" value="{{ $code }}">
                             <button class="dropdown-item {{ app()->getLocale() === $code ? 'active' : '' }}">{{ $label }}</button>
                         </form>
                     @endforeach
+                    <div class="dropdown-divider"></div>
+                    <form method="POST" action="{{ route('logout') }}">@csrf
+                        <button class="dropdown-item text-danger"><i class="fas fa-sign-out-alt mr-2"></i> {{ __('Sign out') }}</button>
+                    </form>
                 </div>
-            </li>
-            <li class="nav-item d-flex align-items-center mr-3 text-muted">
-                @if($currentUser->photo)
-                    <img src="{{ asset($currentUser->photo) }}" alt="" class="img-circle elevation-1 mr-2" style="width:28px;height:28px;object-fit:cover">
-                @else
-                    <i class="fas fa-user-circle mr-1"></i>
-                @endif
-                {{ $currentUser->name }}
-                <span class="badge badge-primary ml-2">{{ $currentUser->profile?->name }}</span>
-            </li>
-            <li class="nav-item">
-                <form method="POST" action="{{ route('logout') }}">@csrf
-                    <button class="btn btn-outline-danger btn-sm mt-1"><i class="fas fa-sign-out-alt"></i> {{ __('Sign out') }}</button>
-                </form>
             </li>
         </ul>
     </nav>
@@ -444,19 +444,34 @@
         }, 10);
     });
 
-    // SweetAlert2 confirmation for deletions
+    // SweetAlert2 confirmation for deletions, asking for the mandatory reason
     $(document).on('submit', '.delete-form', function (e) {
         e.preventDefault();
         const form = this;
         Swal.fire({
             title: @json(__('Are you sure?')),
-            text: @json(__('This action cannot be undone.')),
+            text: @json(__('The record will be removed from the lists. Please state the reason:')),
+            input: 'textarea',
+            inputPlaceholder: @json(__('Reason for deletion (required)')),
+            inputAttributes: { maxlength: 300 },
+            inputValidator: value => !value.trim() ? @json(__('The deletion reason is required.')) : undefined,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             confirmButtonText: @json(__('Yes, delete')),
             cancelButtonText: @json(__('Cancel'))
-        }).then(result => { if (result.isConfirmed) form.submit(); });
+        }).then(result => {
+            if (!result.isConfirmed) return;
+            let reason = form.querySelector('input[name="delete_reason"]');
+            if (!reason) {
+                reason = document.createElement('input');
+                reason.type = 'hidden';
+                reason.name = 'delete_reason';
+                form.appendChild(reason);
+            }
+            reason.value = result.value.trim();
+            form.submit();
+        });
     });
 
     // Session notifications as SweetAlert2 toasts

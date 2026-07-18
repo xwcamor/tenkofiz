@@ -19,7 +19,11 @@ class EmployeeController extends Controller
         // Server-side pagination + search: this list must stay fast with thousands of employees
         $search = trim((string) $request->input('q'));
 
+        // Deleted-records view: restricted to administrators (settings module)
+        $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
+
         $employees = Employee::with(['schedule', 'user', 'area', 'position'])
+            ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
                 $query->where(fn ($q) => $q
@@ -39,6 +43,7 @@ class EmployeeController extends Controller
 
         return view('employees.index', [
             'employees' => $employees,
+            'showDeleted' => $showDeleted,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
@@ -123,7 +128,7 @@ class EmployeeController extends Controller
         }
 
         $data = $request->validate([
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'profile_id' => ['nullable', Rule::exists('profiles', 'id')->where('is_active', true)],
         ], [
             'email.unique' => __('That email is already registered to another user.'),
@@ -146,10 +151,11 @@ class EmployeeController extends Controller
         safe_mail(
             $user->email,
             __('Your access credentials for the Attendance System'),
-            __("Hello :name,\n\nYour access account was created:\nEmail: :email\nInitial password: :password\n\nYou will be asked to change it on first sign-in.\n\nRegards.", [
+            __("Hello :name,\n\nYour access account was created:\nEmail: :email\nInitial password: :password\n\nSign in here: :url\n\nYou will be asked to change it on first sign-in.\n\nRegards.", [
                 'name' => $employee->first_name,
                 'email' => $user->email,
                 'password' => $employee->document_number,
+                'url' => route('login'),
             ])
         );
 
@@ -176,7 +182,7 @@ class EmployeeController extends Controller
         }
 
         $data = $request->validate([
-            'user_id' => ['required', 'exists:users,id', Rule::unique('employees', 'user_id')],
+            'user_id' => ['required', 'exists:users,id', Rule::unique('employees', 'user_id')->withoutTrashed()],
         ], [
             'user_id.unique' => __('That user is already linked to another employee.'),
         ]);
@@ -211,16 +217,41 @@ class EmployeeController extends Controller
         return back()->with('ok', __('User unlinked from the employee.'));
     }
 
-    public function destroy(Employee $employee)
+    public function destroy(Request $request, Employee $employee)
     {
+        $data = $request->validate(['delete_reason' => ['required', 'string', 'max:300']],
+            ['delete_reason.required' => __('The deletion reason is required.')]);
+
+        // Soft delete: the record (attendance history included) stays recoverable
+        $employee->update(['delete_reason' => $data['delete_reason']]);
+        $employee->delete();
+
         AuditLog::record('DELETE', 'Employees',
-            __('Employee :name (document :document) was deleted', [
+            __('Employee :name (document :document) was deleted. Reason: :reason', [
                 'name' => $employee->full_name,
                 'document' => $employee->document_number,
+                'reason' => $data['delete_reason'],
             ]),
             $employee->toArray());
-        $employee->delete();
-        return back()->with('ok', __('Employee deleted.'));
+
+        return back()->with('ok', __('Employee deleted. An administrator can restore it from "View deleted".'));
+    }
+
+    /** Brings a soft-deleted employee back (administrators only) */
+    public function restore(Request $request, Employee $employee)
+    {
+        abort_unless($request->user()->hasModule('settings'), 403);
+
+        $employee->restore();
+        $employee->update(['delete_reason' => null]);
+
+        AuditLog::record('UPDATE', 'Employees',
+            __('Employee :name (document :document) was restored', [
+                'name' => $employee->full_name,
+                'document' => $employee->document_number,
+            ]));
+
+        return back()->with('ok', __('Employee restored.'));
     }
 
     /** Face capture screen using the camera */
@@ -286,7 +317,7 @@ class EmployeeController extends Controller
 
         return $request->validate([
             'document_type' => ['required', Rule::in(array_keys(Employee::DOCUMENT_TYPES))],
-            'document_number' => [...$documentRule, Rule::unique('employees')->ignore($employee)],
+            'document_number' => [...$documentRule, Rule::unique('employees')->ignore($employee)->withoutTrashed()],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'area_id' => ['nullable', 'exists:areas,id'],

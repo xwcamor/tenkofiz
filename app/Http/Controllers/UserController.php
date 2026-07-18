@@ -16,7 +16,11 @@ class UserController extends Controller
         // 'employee' tells apart people who mark attendance from admin-only accounts.
         $search = trim((string) $request->input('q'));
 
+        // Deleted-records view: restricted to administrators (settings module)
+        $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
+
         $users = User::with(['profile', 'employee'])
+            ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
                 $query->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like));
@@ -29,14 +33,14 @@ class UserController extends Controller
             ->withQueryString();
 
         $profiles = Profile::where('is_active', true)->orderBy('name')->get();
-        return view('users.index', compact('users', 'profiles'));
+        return view('users.index', compact('users', 'profiles', 'showDeleted'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'password' => ['required', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
             'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
@@ -45,16 +49,28 @@ class UserController extends Controller
 
         $data['is_active'] = $request->boolean('is_active');
         $data['photo'] = $this->storePhoto($request);
-        User::create($data);
+        $user = User::create($data);
 
-        return redirect()->route('users.index')->with('ok', __('User created successfully.'));
+        // Welcome email with the sign-in link and credentials
+        safe_mail(
+            $user->email,
+            __('Your access credentials for the Attendance System'),
+            __("Hello :name,\n\nYour access account was created:\nEmail: :email\nInitial password: :password\n\nSign in here: :url\n\nRegards.", [
+                'name' => $user->name,
+                'email' => $user->email,
+                'password' => $request->input('password'),
+                'url' => route('login'),
+            ])
+        );
+
+        return redirect()->route('users.index')->with('ok', __('User created successfully. The credentials were emailed with the sign-in link.'));
     }
 
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user)],
+            'email' => ['required', 'email', Rule::unique('users')->ignore($user)->withoutTrashed()],
             'password' => ['nullable', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
             'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
@@ -82,19 +98,43 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('ok', __('User updated.'));
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
         // The logged-in user can never delete their own account
         if ($user->id === auth()->id()) {
             return back()->with('error', __('You cannot delete your own account.'));
         }
 
-        AuditLog::record('DELETE', 'Users',
-            __('User :name (:email) was deleted', ['name' => $user->name, 'email' => $user->email]),
-            $user->toArray());
+        $data = $request->validate(['delete_reason' => ['required', 'string', 'max:300']],
+            ['delete_reason.required' => __('The deletion reason is required.')]);
+
+        // Soft delete: the account can no longer sign in, but stays recoverable
+        $user->update(['delete_reason' => $data['delete_reason']]);
         $user->delete();
 
-        return back()->with('ok', __('User deleted.'));
+        AuditLog::record('DELETE', 'Users',
+            __('User :name (:email) was deleted. Reason: :reason', [
+                'name' => $user->name,
+                'email' => $user->email,
+                'reason' => $data['delete_reason'],
+            ]),
+            $user->toArray());
+
+        return back()->with('ok', __('User deleted. An administrator can restore it from "View deleted".'));
+    }
+
+    /** Brings a soft-deleted user back (administrators only) */
+    public function restore(Request $request, User $user)
+    {
+        abort_unless($request->user()->hasModule('settings'), 403);
+
+        $user->restore();
+        $user->update(['delete_reason' => null]);
+
+        AuditLog::record('UPDATE', 'Users',
+            __('User :name (:email) was restored', ['name' => $user->name, 'email' => $user->email]));
+
+        return back()->with('ok', __('User restored.'));
     }
 
     /** Saves the avatar center-cropped to a 256px square JPEG and removes the previous one */

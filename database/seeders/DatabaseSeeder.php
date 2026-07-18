@@ -26,20 +26,33 @@ class DatabaseSeeder extends Seeder
             'permissions' => array_keys(Profile::MODULES),
         ]);
 
-        Profile::firstOrCreate(['name' => 'Supervisor'], [
+        $supervisor = Profile::firstOrCreate(['name' => 'Supervisor'], [
             'description' => 'Manages attendance and approves requests',
             'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage'],
         ]);
 
-        Profile::firstOrCreate(['name' => 'Employee'], [
+        $employeeProfile = Profile::firstOrCreate(['name' => 'Employee'], [
             'description' => 'Views their attendance and requests vacations',
             'permissions' => [],
         ]);
 
-        User::firstOrCreate(['email' => 'admin@sistema.test'], [
-            'name' => 'Carlos Alberto Morales Larrañaga',
-            'password' => Hash::make('admin123'),
+        // Default test users (one per role). Change these passwords in production.
+        User::firstOrCreate(['email' => 'admin@test.com'], [
+            'name' => 'Administrador',
+            'password' => Hash::make('123456'),
             'profile_id' => $admin->id,
+        ]);
+
+        User::firstOrCreate(['email' => 'aprobador@test.com'], [
+            'name' => 'Aprobador',
+            'password' => Hash::make('123456'),
+            'profile_id' => $supervisor->id,
+        ]);
+
+        User::firstOrCreate(['email' => 'empleado@test.com'], [
+            'name' => 'Empleado',
+            'password' => Hash::make('123456'),
+            'profile_id' => $employeeProfile->id,
         ]);
 
         // Working days Monday-Saturday; Sunday off

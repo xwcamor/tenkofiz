@@ -2,6 +2,13 @@
 @section('title', __('Employees'))
 @section('header-button')
     <div>
+        @if(auth()->user()->hasModule('settings'))
+            @if($showDeleted)
+                <a href="{{ route('employees.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
+            @else
+                <a href="{{ route('employees.index', ['deleted' => 1]) }}" class="btn btn-outline-secondary" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
+            @endif
+        @endif
         <button class="btn btn-default" onclick="$('#importModal').modal('show')"><i class="fas fa-file-excel text-success"></i> {{ __('Import') }}</button>
         <a href="{{ route('employees.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> {{ __('New employee') }}</a>
     </div>
@@ -20,15 +27,15 @@ async function createUser(id, name) {
     ).join('');
 
     const { value: form } = await Swal.fire({
-        title: @json(__('Create user for')) + ' ' + name,
+        title: @json(__('Enable sign-in for')) + ' ' + name,
         html: `
             <input id="swalEmail" type="email" class="swal2-input" placeholder="email@company.com" style="width:85%">
             <select id="swalProfile" class="swal2-select" style="width:85%">${profileOptions}</select>
-            <p class="text-muted" style="font-size:.8rem;margin:0">${@json(__('The initial password will be their document number.'))}</p>
+            <p class="text-muted" style="font-size:.8rem;margin:0">${@json(__('They will sign in with this email. The initial password will be their document number.'))}</p>
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: @json(__('Create user')),
+        confirmButtonText: @json(__('Enable sign-in')),
         cancelButtonText: @json(__('Cancel')),
         preConfirm: () => {
             const email = document.getElementById('swalEmail').value.trim();
@@ -127,49 +134,81 @@ async function linkUser(id, name) {
         </form>
     </div>
     <div class="card-body">
+        @if($showDeleted)
+            <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
+        @endif
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('User') }}</th><th>{{ __('Face') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr></thead>
+            <thead>
+                @if($showDeleted)
+                    <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
+                @else
+                    <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('Web access') }}</th><th>{{ __('Face') }}</th><th>{{ __('Status') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr>
+                @endif
+            </thead>
             <tbody>
             @forelse($employees as $employee)
-                <tr>
-                    <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
-                    <td>{{ $employee->full_name }}</td>
-                    <td>{{ $employee->area?->name ?? '—' }}{{ $employee->position ? ' / '.$employee->position->name : '' }}</td>
-                    <td>{{ $employee->schedule?->name ?? '—' }}</td>
-                    <td>
-                        @if($employee->user)
-                            <span class="badge badge-primary" title="{{ $employee->user->email }}"><i class="fas fa-link"></i> {{ $employee->user->name }}</span>
-                            <form method="POST" action="{{ route('employees.unlinkUser', $employee) }}" class="d-inline delete-form">
+                @if($showDeleted)
+                    <tr>
+                        <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
+                        <td>{{ $employee->full_name }}</td>
+                        <td>{{ to_user_tz($employee->deleted_at)->format('d/m/Y H:i') }}</td>
+                        <td>{{ $employee->delete_reason ?? '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('employees.restore', $employee->id) }}" class="d-inline">
                                 @csrf
-                                <button class="btn btn-xs btn-outline-secondary" title="{{ __('Unlink user (the account is kept)') }}"><i class="fas fa-unlink"></i></button>
+                                <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>
-                        @else
-                            <button type="button" class="btn btn-xs btn-outline-success" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
-                                    onclick="createUser({{ $employee->id }}, this.dataset.name)"
-                                    title="{{ __('Create an access user for this employee') }}"><i class="fas fa-user-plus"></i> {{ __('Create user') }}</button>
-                            <button type="button" class="btn btn-xs btn-outline-primary" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
-                                    onclick="linkUser({{ $employee->id }}, this.dataset.name)"
-                                    title="{{ __('Link an existing user account') }}"><i class="fas fa-link"></i></button>
-                        @endif
-                    </td>
-                    <td>
-                        @if($employee->hasFace())
-                            <span class="badge badge-success"><i class="fas fa-check"></i> {{ __('Enrolled') }}</span>
-                        @else
-                            <span class="badge badge-danger"><i class="fas fa-times"></i> {{ __('Pending') }}</span>
-                        @endif
-                    </td>
-                    <td>
-                        <a href="{{ route('employees.enroll', $employee) }}" class="btn btn-sm btn-success" title="{{ __('Enroll face') }}"><i class="fas fa-camera"></i></a>
-                        <a href="{{ route('employees.edit', $employee) }}" class="btn btn-sm btn-info" title="{{ __('Edit') }}"><i class="fas fa-pencil-alt"></i></a>
-                        <form method="POST" action="{{ route('employees.destroy', $employee) }}" class="d-inline delete-form">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
-                        </form>
-                    </td>
-                </tr>
+                        </td>
+                    </tr>
+                @else
+                    <tr>
+                        <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
+                        <td>{{ $employee->full_name }}</td>
+                        <td>{{ $employee->area?->name ?? '—' }}{{ $employee->position ? ' / '.$employee->position->name : '' }}</td>
+                        <td>{{ $employee->schedule?->name ?? '—' }}</td>
+                        <td>
+                            @if($employee->user)
+                                <span class="badge badge-primary"><i class="fas fa-link"></i> {{ $employee->user->name }}</span>
+                                <div class="small text-muted" title="{{ __('Signs in with this email') }}"><i class="fas fa-envelope"></i> {{ $employee->user->email }}</div>
+                                <form method="POST" action="{{ route('employees.unlinkUser', $employee) }}" class="d-inline delete-form">
+                                    @csrf
+                                    <button class="btn btn-xs btn-outline-secondary" title="{{ __('Unlink user (the account is kept)') }}"><i class="fas fa-unlink"></i></button>
+                                </form>
+                            @else
+                                <button type="button" class="btn btn-xs btn-outline-success" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
+                                        onclick="createUser({{ $employee->id }}, this.dataset.name)"
+                                        title="{{ __('Creates a sign-in with their email (default profile: Employee; initial password: their document number)') }}"><i class="fas fa-user-plus"></i> {{ __('Enable sign-in') }}</button>
+                                <button type="button" class="btn btn-xs btn-outline-primary" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
+                                        onclick="linkUser({{ $employee->id }}, this.dataset.name)"
+                                        title="{{ __('Link an existing user account') }}"><i class="fas fa-link"></i></button>
+                            @endif
+                        </td>
+                        <td>
+                            @if($employee->hasFace())
+                                <span class="badge badge-success"><i class="fas fa-check"></i> {{ __('Enrolled') }}</span>
+                            @else
+                                <span class="badge badge-danger"><i class="fas fa-times"></i> {{ __('Pending') }}</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($employee->is_active)
+                                <span class="badge badge-success">{{ __('Active') }}</span>
+                            @else
+                                <span class="badge badge-secondary" title="{{ __('Does not appear in the kiosk nor in automatic absences') }}">{{ __('Terminated') }}</span>
+                            @endif
+                        </td>
+                        <td>
+                            <a href="{{ route('employees.enroll', $employee) }}" class="btn btn-sm btn-success" title="{{ __('Enroll face') }}"><i class="fas fa-camera"></i></a>
+                            <a href="{{ route('employees.edit', $employee) }}" class="btn btn-sm btn-info" title="{{ __('Edit') }}"><i class="fas fa-pencil-alt"></i></a>
+                            <form method="POST" action="{{ route('employees.destroy', $employee) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                @endif
             @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">{{ __('No employees match the current filters.') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 5 : 8 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No employees match the current filters.') }}</td></tr>
             @endforelse
             </tbody>
         </table>

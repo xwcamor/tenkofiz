@@ -1,9 +1,18 @@
 @extends('layouts.app')
 @section('title', __('Justifications'))
 @section('header-button')
-    @if($isManager || $employees->isNotEmpty())
-        <button class="btn btn-primary" onclick="$('#justificationModal').modal('show')"><i class="fas fa-plus"></i> {{ __('New justification') }}</button>
-    @endif
+    <div>
+        @if(auth()->user()->hasModule('settings'))
+            @if($showDeleted)
+                <a href="{{ route('justifications.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
+            @else
+                <a href="{{ route('justifications.index', ['deleted' => 1]) }}" class="btn btn-outline-secondary" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
+            @endif
+        @endif
+        @if($isManager || $employees->isNotEmpty())
+            <button class="btn btn-primary" onclick="$('#justificationModal').modal('show')"><i class="fas fa-plus"></i> {{ __('New justification') }}</button>
+        @endif
+    </div>
 @endsection
 @section('content')
 @php
@@ -26,10 +35,35 @@
         </form>
     </div>
     <div class="card-body">
+        @if($showDeleted)
+            <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
+        @endif
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Document') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canReview ? 180 : 60 }}px">{{ __('Actions') }}</th></tr></thead>
+            <thead>
+                @if($showDeleted)
+                    <tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
+                @else
+                    <tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Document') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canReview ? 180 : 60 }}px">{{ __('Actions') }}</th></tr>
+                @endif
+            </thead>
             <tbody>
             @forelse($justifications as $justification)
+                @if($showDeleted)
+                    <tr>
+                        <td>{{ $justification->employee->full_name }}</td>
+                        <td>{{ $justification->date->format('d/m/Y') }}</td>
+                        <td>{{ $justification->reason }}</td>
+                        <td>{{ to_user_tz($justification->deleted_at)->format('d/m/Y H:i') }}</td>
+                        <td>{{ $justification->delete_reason ?? '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('justifications.restore', $justification->id) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @continue
+                @endif
                 <tr>
                     <td>{{ $justification->employee->full_name }}</td>
                     <td>{{ $justification->date->format('d/m/Y') }}</td>
@@ -68,7 +102,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">{{ __('No justifications') }}</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No justifications') }}</td></tr>
             @endforelse
             </tbody>
         </table>

@@ -1,7 +1,16 @@
 @extends('layouts.app')
 @section('title', __('Users'))
 @section('header-button')
-    <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> {{ __('New user') }}</button>
+    <div>
+        @if(auth()->user()->hasModule('settings'))
+            @if($showDeleted)
+                <a href="{{ route('users.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
+            @else
+                <a href="{{ route('users.index', ['deleted' => 1]) }}" class="btn btn-outline-secondary" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
+            @endif
+        @endif
+        <button class="btn btn-primary" onclick="openUserModal()"><i class="fas fa-plus"></i> {{ __('New user') }}</button>
+    </div>
 @endsection
 @section('content')
 <div class="card card-primary card-outline">
@@ -30,12 +39,34 @@
         </form>
     </div>
     <div class="card-body">
+        @if($showDeleted)
+            <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
+        @endif
         <table class="table table-bordered table-hover">
             <thead>
-                <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+                @if($showDeleted)
+                    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
+                @else
+                    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+                @endif
             </thead>
             <tbody>
             @forelse($users as $user)
+                @if($showDeleted)
+                    <tr>
+                        <td>{{ $user->name }}</td>
+                        <td>{{ $user->email }}</td>
+                        <td>{{ to_user_tz($user->deleted_at)->format('d/m/Y H:i') }}</td>
+                        <td>{{ $user->delete_reason ?? '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('users.restore', $user->id) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @continue
+                @endif
                 <tr>
                     <td>
                         @if($user->photo)
@@ -78,7 +109,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">{{ __('No users match the current filters.') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 5 : 6 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No users match the current filters.') }}</td></tr>
             @endforelse
             </tbody>
         </table>

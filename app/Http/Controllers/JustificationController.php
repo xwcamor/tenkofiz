@@ -17,7 +17,11 @@ class JustificationController extends Controller
         $isManager = $user->isManager();
         $canReview = $user->hasModule('justifications_manage');
 
+        // Deleted-records view: restricted to administrators (settings module)
+        $showDeleted = $request->boolean('deleted') && $user->hasModule('settings');
+
         $justifications = Justification::with(['employee', 'reviewer'])
+            ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when(!$isManager, fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id)))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->orderByDesc('date')
@@ -29,13 +33,13 @@ class JustificationController extends Controller
         $employees = $isManager ? collect() : Employee::where('user_id', $user->id)->get();
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee'));
+        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id', Rule::unique('justifications')->where('date', $request->input('date'))],
+            'employee_id' => ['required', 'exists:employees,id', Rule::unique('justifications')->where('date', $request->input('date'))->withoutTrashed()],
             'date' => ['required', 'date', 'before_or_equal:today'],
             'reason' => ['required', 'string', 'max:300'],
             'document' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:2048'],
@@ -141,16 +145,40 @@ class JustificationController extends Controller
         return back()->with('ok', __('Justification :status.', ['status' => __($data['status'])]));
     }
 
-    public function destroy(Justification $justification)
+    public function destroy(Request $request, Justification $justification)
     {
+        $data = $request->validate(['delete_reason' => ['required', 'string', 'max:300']],
+            ['delete_reason.required' => __('The deletion reason is required.')]);
+
+        // Soft delete: recoverable by an administrator from "View deleted"
+        $justification->update(['delete_reason' => $data['delete_reason']]);
+        $justification->delete();
+
         AuditLog::record('DELETE', 'Justifications',
-            __('Justification of :name for :date was deleted', [
+            __('Justification of :name for :date was deleted. Reason: :reason', [
                 'name' => $justification->employee->full_name,
                 'date' => $justification->date->format('d/m/Y'),
+                'reason' => $data['delete_reason'],
             ]),
             $justification->toArray());
 
-        $justification->delete();
-        return back()->with('ok', __('Justification deleted.'));
+        return back()->with('ok', __('Justification deleted. An administrator can restore it from "View deleted".'));
+    }
+
+    /** Brings a soft-deleted justification back (administrators only) */
+    public function restore(Request $request, Justification $justification)
+    {
+        abort_unless($request->user()->hasModule('settings'), 403);
+
+        $justification->restore();
+        $justification->update(['delete_reason' => null]);
+
+        AuditLog::record('UPDATE', 'Justifications',
+            __('Justification of :name for :date was restored', [
+                'name' => $justification->employee->full_name,
+                'date' => $justification->date->format('d/m/Y'),
+            ]));
+
+        return back()->with('ok', __('Justification restored.'));
     }
 }

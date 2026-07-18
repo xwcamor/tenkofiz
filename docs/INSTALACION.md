@@ -55,10 +55,13 @@ php artisan serve
 
 | Usuario | Contraseña | Perfil |
 |---|---|---|
-| `admin@sistema.test` | `admin123` | Administrator (acceso total) |
-| `empleado@demo.test` | `demo1234` | Employee (solo si corriste el DemoSeeder) |
+| `admin@test.com` | `123456` | Administrator (acceso total) |
+| `aprobador@test.com` | `123456` | Supervisor (aprueba vacaciones/justificaciones) |
+| `empleado@test.com` | `123456` | Employee (autoservicio: ve sus marcas y pide vacaciones) |
 
-⚠️ **Cambia la contraseña del admin apenas entres** (Mi cuenta → Cambiar contraseña).
+⚠️ **Cambia estas contraseñas apenas entres** (Mi cuenta → Cambiar contraseña).
+Para probar como empleado con marcas propias, enlaza `empleado@test.com` a un
+empleado desde **Empleados → botón de enlace (🔗)**.
 
 ## Después de instalar
 
