@@ -73,4 +73,34 @@ class SettingController extends Controller
 
         return back()->with('ok', __('Kiosk token removed: the kiosk is now open to any device.'));
     }
+
+    /**
+     * Device binding: generate a short one-time code (valid 15 min). On the
+     * tablet, opening /kiosk/pair with this code binds that device; from then
+     * on only that device (identified by a cookie) can open the kiosk.
+     */
+    public function generatePairCode()
+    {
+        $code = strtoupper(Str::random(3).Str::padLeft((string) random_int(0, 999), 3, '0'));
+
+        app_setting()->update([
+            'kiosk_pair_code' => $code,
+            'kiosk_pair_expires_at' => now()->addMinutes(15),
+        ]);
+
+        AuditLog::record('UPDATE', 'Settings', __('A kiosk device pairing code was generated'));
+
+        return back()->with('ok', __('Pairing code generated. On the tablet, open the pairing page and enter it within 15 minutes.'))
+            ->with('pair_code', $code);
+    }
+
+    /** Unpair the current device so a new one can be paired */
+    public function unpairDevice()
+    {
+        app_setting()->update(['kiosk_device_hash' => null, 'kiosk_pair_code' => null, 'kiosk_pair_expires_at' => null]);
+
+        AuditLog::record('UPDATE', 'Settings', __('The kiosk device was unpaired'));
+
+        return back()->with('ok', __('Device unpaired. Generate a new pairing code to bind another device.'));
+    }
 }

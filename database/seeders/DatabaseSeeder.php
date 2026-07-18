@@ -63,6 +63,8 @@ class DatabaseSeeder extends Seeder
             $evening->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '14:00:00', 'end_time' => '22:00:00']);
         }
 
+        \App\Models\Site::firstOrCreate(['name' => 'Sede Principal'], ['address' => 'Av. Principal 123, Lima']);
+
         foreach (['Administration', 'Information Technology', 'Human Resources', 'Accounting', 'Operations'] as $area) {
             Area::firstOrCreate(['name' => $area]);
         }

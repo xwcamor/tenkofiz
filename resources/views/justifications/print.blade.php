@@ -6,7 +6,10 @@
     <style>
         * { font-family: Arial, Helvetica, sans-serif; }
         body { margin: 30px 40px; color: #222; font-size: 12px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1f4e79; padding-bottom: 12px; }
+        .header { display: table; width: 100%; border-bottom: 3px solid #1f4e79; padding-bottom: 12px; }
+        .header td { border: 0; padding: 0; vertical-align: middle; }
+        .header .company { width: 100%; }
+        .header .logo-cell { text-align: right; white-space: nowrap; }
         .header img { max-height: 70px; }
         .company h2 { margin: 0; color: #1f4e79; font-size: 18px; }
         .company p { margin: 2px 0; color: #555; font-size: 11px; }
@@ -22,26 +25,30 @@
         .status.REJECTED { background: #dc3545; }
         .status.PENDING { background: #d39e00; }
         .reason-box { border: 1px solid #999; min-height: 70px; padding: 8px; }
-        .signatures { display: flex; justify-content: space-around; margin-top: 90px; text-align: center; }
-        .signatures div { border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 11px; }
+        .signatures { display: table; width: 100%; margin-top: 90px; text-align: center; }
+        .signatures td { border: 0; vertical-align: top; text-align: center; width: 50%; padding: 0; }
+        .signatures .line { display: inline-block; border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 11px; }
         .no-print { text-align: center; margin-bottom: 18px; }
         .no-print button { background: #1f4e79; color: #fff; border: 0; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-size: 14px; }
         @media print { .no-print { display: none; } body { margin: 10px 15px; } }
     </style>
 </head>
 <body>
+@unless($pdf ?? false)
 <div class="no-print">
-    <button onclick="window.print()">🖨 {{ __('Print / Save as PDF') }}</button>
+    <a href="{{ url()->current() }}?format=pdf" style="text-decoration:none"><button type="button">⬇ {{ __('Download PDF') }}</button></a>
+    <button onclick="window.print()">🖨 {{ __('Print') }}</button>
 </div>
+@endunless
 
-<div class="header">
-    <div class="company">
+<table class="header"><tr>
+    <td class="company">
         <h2>{{ $setting->company_name }}</h2>
         @if($setting->tax_id)<p>{{ __('Tax ID') }}: {{ $setting->tax_id }}</p>@endif
         @if($setting->address)<p>{{ $setting->address }} @if($setting->phone) — {{ __('Phone') }}: {{ $setting->phone }} @endif</p>@endif
-    </div>
-    @if($setting->logo)<img src="{{ asset($setting->logo) }}" alt="logo">@endif
-</div>
+    </td>
+    <td class="logo-cell">@if($setting->logo)<img src="{{ ($pdf ?? false) ? public_path($setting->logo) : asset($setting->logo) }}" alt="logo">@endif</td>
+</tr></table>
 
 <p class="doc-number">N° {{ str_pad($justification->id, 6, '0', STR_PAD_LEFT) }}</p>
 <h3 class="title">{{ __('Absence Justification') }}</h3>
@@ -98,9 +105,9 @@
     <p style="color:#555"><em>{{ __('When a justification is accepted, that day is recorded as EXCUSED in the employee\'s attendance.') }}</em></p>
 @endif
 
-<div class="signatures">
-    <div>{{ $justification->employee->full_name }}<br>{{ __('EMPLOYEE') }}</div>
-    <div>{{ $justification->reviewer?->name ?? $setting->company_name }}<br>{{ __('EMPLOYER / HR') }}</div>
-</div>
+<table class="signatures"><tr>
+    <td><span class="line">{{ $justification->employee->full_name }}<br>{{ __('EMPLOYEE') }}</span></td>
+    <td><span class="line">{{ $justification->reviewer?->name ?? $setting->company_name }}<br>{{ __('EMPLOYER / HR') }}</span></td>
+</tr></table>
 </body>
 </html>

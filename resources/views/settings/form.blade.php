@@ -115,6 +115,28 @@
                     </form>
                 @endif
                 <hr>
+                {{-- Device binding: lock the kiosk to one physical tablet --}}
+                <h6 class="font-weight-bold"><i class="fas fa-fingerprint"></i> {{ __('Device binding (recommended)') }}</h6>
+                @if($setting->kiosk_device_hash)
+                    <p class="text-sm mb-2"><i class="fas fa-check-circle text-success"></i> {{ __('A device is paired. Only that tablet (which holds the device cookie) can open the kiosk; a copied URL on another device is rejected.') }}</p>
+                    <form method="POST" action="{{ route('settings.kioskUnpair') }}" class="d-inline delete-form">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlink"></i> {{ __('Unpair device') }}</button>
+                    </form>
+                @else
+                    <p class="text-sm text-muted mb-2">{{ __('Bind the kiosk to a single tablet: generate a one-time code, then open the pairing page on that tablet and enter it. From then on, only that device can open the kiosk.') }}</p>
+                    @if(session('pair_code'))
+                        <div class="alert alert-success py-2">
+                            {{ __('Pairing code (valid 15 min):') }} <span class="h4 font-weight-bold">{{ session('pair_code') }}</span><br>
+                            <span class="text-sm">{{ __('On the tablet open:') }} <a href="{{ route('kiosk.pair') }}" target="_blank">{{ route('kiosk.pair') }}</a></span>
+                        </div>
+                    @endif
+                    <form method="POST" action="{{ route('settings.kioskPair') }}" class="d-inline">
+                        @csrf
+                        <button class="btn btn-primary btn-sm"><i class="fas fa-key"></i> {{ __('Generate pairing code') }}</button>
+                    </form>
+                @endif
+                <hr>
                 <p class="text-muted text-sm mb-0">
                     <i class="fas fa-info-circle"></i>
                     {{ __('Every kiosk mark also records the device IP and browser, visible to auditors. For stronger control, combine this with the tablet\'s kiosk mode (pinned app) and, if possible, a Wi-Fi/IP restriction on your network.') }}

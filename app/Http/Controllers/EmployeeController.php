@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Schedule;
+use App\Models\Site;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,7 @@ class EmployeeController extends Controller
         // Deleted-records view: restricted to administrators (settings module)
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
-        $employees = Employee::with(['schedule', 'user', 'area', 'position'])
+        $employees = Employee::with(['schedule', 'user', 'area', 'position', 'site'])
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
@@ -32,6 +33,7 @@ class EmployeeController extends Controller
                     ->orWhere('last_name', 'like', $like));
             })
             ->when($request->filled('area_id'), fn ($q) => $q->where('area_id', $request->integer('area_id')))
+            ->when($request->filled('site_id'), fn ($q) => $q->where('site_id', $request->integer('site_id')))
             ->when($request->input('face') === 'enrolled', fn ($q) => $q->whereNotNull('face_descriptor'))
             ->when($request->input('face') === 'pending', fn ($q) => $q->whereNull('face_descriptor'))
             ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
@@ -45,6 +47,7 @@ class EmployeeController extends Controller
             'employees' => $employees,
             'showDeleted' => $showDeleted,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
+            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -95,6 +98,7 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
+            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -111,6 +115,7 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
+            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -322,6 +327,7 @@ class EmployeeController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'area_id' => ['nullable', 'exists:areas,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
+            'site_id' => ['nullable', 'exists:sites,id'],
             'hire_date' => ['nullable', 'date'],
             'vacation_days_per_year' => ['required', 'integer', 'min:0', 'max:60'],
             'schedule_id' => ['required', 'exists:schedules,id'],

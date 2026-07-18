@@ -6,7 +6,10 @@
     <style>
         * { font-family: Arial, Helvetica, sans-serif; }
         body { margin: 30px 40px; color: #222; font-size: 12px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1f4e79; padding-bottom: 12px; }
+        .header { display: table; width: 100%; border-bottom: 3px solid #1f4e79; padding-bottom: 12px; }
+        .header td { border: 0; padding: 0; vertical-align: middle; }
+        .header .company { width: 100%; }
+        .header .logo-cell { text-align: right; white-space: nowrap; }
         .header img { max-height: 70px; }
         .company h2 { margin: 0; color: #1f4e79; font-size: 18px; }
         .company p { margin: 2px 0; color: #555; font-size: 11px; }
@@ -17,8 +20,9 @@
         th { background: #1f4e79; color: #fff; font-size: 11px; }
         .section { background: #e8eef5; font-weight: bold; color: #1f4e79; padding: 6px 8px; border-left: 4px solid #1f4e79; margin: 16px 0 8px; }
         .summary td { text-align: center; font-weight: bold; font-size: 13px; }
-        .signatures { display: flex; justify-content: space-around; margin-top: 70px; text-align: center; }
-        .signatures div { border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 11px; }
+        .signatures { display: table; width: 100%; margin-top: 70px; text-align: center; }
+        .signatures td { border: 0; vertical-align: top; text-align: center; width: 50%; padding: 0; }
+        .signatures .line { display: inline-block; border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 11px; }
         .no-print { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
         .no-print button { background: #1f4e79; color: #fff; border: 0; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-size: 14px; }
         .no-print .picker { display: flex; gap: 8px; align-items: center; background: #f1f4f9; padding: 8px 12px; border-radius: 8px; }
@@ -29,23 +33,28 @@
     </style>
 </head>
 <body>
+@unless($pdf ?? false)
 <div class="no-print">
     <form method="GET" action="{{ route('reports.sheet', $employee) }}" class="picker">
         <label style="font-weight:bold; color:#1f4e79">{{ __('Month') }}:</label>
         <input type="month" name="month" value="{{ $selectedMonth }}" max="{{ company_now()->format('Y-m') }}">
         <button type="submit">{{ __('View') }}</button>
     </form>
-    <button onclick="window.print()">🖨 {{ __('Print / Save as PDF') }}</button>
+    <a href="{{ route('reports.sheet', $employee) }}?month={{ $selectedMonth }}&format=pdf" style="text-decoration:none">
+        <button type="button">⬇ {{ __('Download PDF') }}</button>
+    </a>
+    <button onclick="window.print()">🖨 {{ __('Print') }}</button>
 </div>
+@endunless
 
-<div class="header">
-    <div class="company">
+<table class="header"><tr>
+    <td class="company">
         <h2>{{ $setting->company_name }}</h2>
         @if($setting->tax_id)<p>{{ __('Tax ID') }}: {{ $setting->tax_id }}</p>@endif
         @if($setting->address)<p>{{ $setting->address }} @if($setting->phone) — {{ __('Phone') }}: {{ $setting->phone }} @endif</p>@endif
-    </div>
-    @if($setting->logo)<img src="{{ asset($setting->logo) }}" alt="logo">@endif
-</div>
+    </td>
+    <td class="logo-cell">@if($setting->logo)<img src="{{ ($pdf ?? false) ? public_path($setting->logo) : asset($setting->logo) }}" alt="logo">@endif</td>
+</tr></table>
 
 <h3 class="title">{{ __('Employee Attendance Sheet') }}</h3>
 <p class="range">{{ __('Period: from :from to :to — Issued: :issued', ['from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i')]) }}</p>
@@ -133,9 +142,9 @@
     </tbody>
 </table>
 
-<div class="signatures">
-    <div>{{ $employee->full_name }}<br>{{ __('EMPLOYEE') }}</div>
-    <div>{{ $setting->company_name }}<br>{{ __('EMPLOYER / HR') }}</div>
-</div>
+<table class="signatures"><tr>
+    <td><span class="line">{{ $employee->full_name }}<br>{{ __('EMPLOYEE') }}</span></td>
+    <td><span class="line">{{ $setting->company_name }}<br>{{ __('EMPLOYER / HR') }}</span></td>
+</tr></table>
 </body>
 </html>

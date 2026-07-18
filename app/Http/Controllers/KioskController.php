@@ -6,7 +6,9 @@ use App\Models\Attendance;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\Site;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class KioskController extends Controller
 {
@@ -19,20 +21,74 @@ class KioskController extends Controller
     /** How long the enrollment mode stays unlocked after entering the PIN */
     public const ENROLL_SESSION_MINUTES = 15;
 
-    public function index()
+    public function index(Request $request)
     {
-        return view('kiosk.index');
+        // Multi-site: a site kiosk link carries ?site=ID; remember it for this device
+        if ($request->filled('site')) {
+            $site = Site::where('is_active', true)->find($request->integer('site'));
+            $request->session()->put('kiosk_site', $site?->id);
+        }
+
+        $site = $request->session()->get('kiosk_site') ? Site::find($request->session()->get('kiosk_site')) : null;
+
+        return view('kiosk.index', ['site' => $site]);
+    }
+
+    /** Device pairing page (outside the kiosk gate; the one-time code is the secret) */
+    public function showPair(Request $request)
+    {
+        return view('kiosk.pair', ['code' => (string) $request->query('code', '')]);
+    }
+
+    /**
+     * Binds THIS device: validates the one-time code, stores the hash of a new
+     * device secret and sets a long-lived cookie. From now on only this device
+     * (which carries the cookie) can open the kiosk — a copied URL cannot.
+     */
+    public function pair(Request $request)
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:16']]);
+        $setting = app_setting();
+
+        $valid = $setting->kiosk_pair_code
+            && $setting->kiosk_pair_expires_at?->isFuture()
+            && hash_equals($setting->kiosk_pair_code, strtoupper(trim($data['code'])));
+
+        if (!$valid) {
+            return back()->withErrors(['code' => __('Invalid or expired pairing code. Ask an administrator for a new one.')]);
+        }
+
+        $secret = Str::random(48);
+        $setting->update([
+            'kiosk_device_hash' => hash('sha256', $secret),
+            'kiosk_pair_code' => null,
+            'kiosk_pair_expires_at' => null,
+        ]);
+
+        AuditLog::record('UPDATE', 'Settings', __('A kiosk device was paired'));
+
+        $target = $setting->kiosk_token ? route('kiosk', ['token' => $setting->kiosk_token]) : route('kiosk');
+
+        // 10-year cookie identifies this device on every future request
+        return redirect($target)->withCookie(cookie('kiosk_device', $secret, 60 * 24 * 365 * 10));
+    }
+
+    /** Employees scoped to the kiosk's site (all sites when none is selected) */
+    private function scopedEmployees(Request $request)
+    {
+        return Employee::where('is_active', true)
+            ->when($request->session()->get('kiosk_site'), fn ($q, $siteId) => $q->where('site_id', $siteId));
     }
 
     /** Returns the descriptors of every enrolled employee (matching happens in the browser) */
-    public function descriptors()
+    public function descriptors(Request $request)
     {
-        $employees = Employee::where('is_active', true)
+        $employees = $this->scopedEmployees($request)
             ->whereNotNull('face_descriptor')
             ->get(['id', 'first_name', 'last_name', 'face_descriptor']);
 
         return response()->json([
-            'version' => $this->descriptorsVersion(),
+            'version' => $this->descriptorsVersion($request),
             'employees' => $employees->map(function ($employee) {
                 $data = json_decode($employee->face_descriptor, true);
                 // Compatibility: old format = one flat vector; new = list of vectors
@@ -51,16 +107,16 @@ class KioskController extends Controller
      * Tiny endpoint (~60 bytes) the kiosk polls every few minutes: the full
      * descriptor list is only re-downloaded when this fingerprint changes.
      */
-    public function version()
+    public function version(Request $request)
     {
-        return response()->json(['version' => $this->descriptorsVersion()]);
+        return response()->json(['version' => $this->descriptorsVersion($request)]);
     }
 
-    private function descriptorsVersion(): string
+    private function descriptorsVersion(Request $request): string
     {
-        $enrolled = Employee::where('is_active', true)->whereNotNull('face_descriptor');
+        $enrolled = $this->scopedEmployees($request)->whereNotNull('face_descriptor');
 
-        return md5($enrolled->count().'|'.($enrolled->max('updated_at') ?? ''));
+        return md5(($request->session()->get('kiosk_site') ?? 'all').'|'.$enrolled->count().'|'.($enrolled->max('updated_at') ?? ''));
     }
 
     /** Records a check-in or check-out after a facial match */
@@ -91,8 +147,7 @@ class KioskController extends Controller
             'photo' => ['nullable', 'string', 'max:1500000'], // base64 JPEG snapshot
         ]);
 
-        $employee = Employee::with('schedule')
-            ->where('is_active', true)
+        $employee = $this->scopedEmployees($request)->with('schedule')
             ->where('document_number', $data['document_number'])
             ->first();
 

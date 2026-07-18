@@ -302,6 +302,15 @@ class ReportController extends Controller
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->get();
 
-        return view('reports.sheet', compact('employee', 'setting', 'attendances', 'summary', 'vacations', 'justifications', 'from', 'to', 'selectedMonth'));
+        $data = compact('employee', 'setting', 'attendances', 'summary', 'vacations', 'justifications', 'from', 'to', 'selectedMonth');
+
+        // Server-side PDF (identical to the printable view, no browser needed)
+        if ($request->input('format') === 'pdf') {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.sheet', $data + ['pdf' => true])
+                ->setPaper('a4')
+                ->download('ficha_'.$employee->document_number.'_'.$from->format('Ymd').'-'.$to->format('Ymd').'.pdf');
+        }
+
+        return view('reports.sheet', $data);
     }
 }

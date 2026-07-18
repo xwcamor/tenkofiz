@@ -86,6 +86,9 @@
 <body>
 <div class="container py-3 py-md-4 text-center">
     <h1 class="title"><i class="fas fa-id-badge"></i> {{ strtoupper(__('Attendance Marking Kiosk')) }}</h1>
+    @isset($site)
+        <div class="mb-1"><span class="badge" style="background:#2e75b6"><i class="fas fa-map-marker-alt"></i> {{ $site->name }}</span></div>
+    @endisset
     <div id="clock">--:--:--</div>
     <p class="text-secondary" id="date"></p>
 

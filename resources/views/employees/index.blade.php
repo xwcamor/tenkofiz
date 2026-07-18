@@ -116,6 +116,14 @@ async function linkUser(id, name) {
                     <option value="{{ $area->id }}" @selected(request('area_id') == $area->id)>{{ $area->name }}</option>
                 @endforeach
             </select>
+            @if($sites->isNotEmpty())
+            <select name="site_id" class="form-control form-control-sm mr-2">
+                <option value="">{{ __('All sites') }}</option>
+                @foreach($sites as $site)
+                    <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                @endforeach
+            </select>
+            @endif
             <select name="face" class="form-control form-control-sm mr-2">
                 <option value="">{{ __('Face: all') }}</option>
                 <option value="enrolled" @selected(request('face') === 'enrolled')>{{ __('Enrolled') }}</option>

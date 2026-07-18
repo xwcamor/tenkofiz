@@ -71,6 +71,16 @@
                             <input type="number" name="vacation_days_per_year" value="{{ old('vacation_days_per_year', $employee->vacation_days_per_year ?? 30) }}" class="form-control @error('vacation_days_per_year') is-invalid @enderror" min="0" max="60" required>
                             @error('vacation_days_per_year')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
+                        <div class="col-md-4 form-group">
+                            <label>{{ __('Site') }}</label>
+                            <select name="site_id" class="form-control @error('site_id') is-invalid @enderror">
+                                <option value="">— {{ __('No site') }} —</option>
+                                @foreach($sites as $site)
+                                    <option value="{{ $site->id }}" @selected(old('site_id', $employee->site_id) == $site->id)>{{ $site->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        </div>
                         <div class="col-md-6 form-group">
                             <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
                             <select name="schedule_id" class="form-control @error('schedule_id') is-invalid @enderror" required>

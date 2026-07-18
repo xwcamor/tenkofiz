@@ -99,10 +99,15 @@ class JustificationController extends Controller
 
         $justification->load(['employee.area', 'employee.position', 'reviewer']);
 
-        return view('justifications.print', [
-            'justification' => $justification,
-            'setting' => app_setting(),
-        ]);
+        $data = ['justification' => $justification, 'setting' => app_setting()];
+
+        if ($request->input('format') === 'pdf') {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('justifications.print', $data + ['pdf' => true])
+                ->setPaper('a4')
+                ->download('justificacion_'.$justification->employee->document_number.'_'.$justification->id.'.pdf');
+        }
+
+        return view('justifications.print', $data);
     }
 
     /** A reviewer accepts or rejects; accepting marks the day as EXCUSED in attendances */

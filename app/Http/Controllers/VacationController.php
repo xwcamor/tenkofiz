@@ -108,10 +108,15 @@ class VacationController extends Controller
 
         $vacation->load(['employee.area', 'employee.position', 'approver']);
 
-        return view('vacations.print', [
-            'vacation' => $vacation,
-            'setting' => app_setting(),
-        ]);
+        $data = ['vacation' => $vacation, 'setting' => app_setting()];
+
+        if ($request->input('format') === 'pdf') {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('vacations.print', $data + ['pdf' => true])
+                ->setPaper('a4')
+                ->download('vacaciones_'.$vacation->employee->document_number.'_'.$vacation->id.'.pdf');
+        }
+
+        return view('vacations.print', $data);
     }
 
     public function changeStatus(Request $request, Vacation $vacation)

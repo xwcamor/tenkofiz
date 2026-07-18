@@ -62,9 +62,27 @@ Cada marca guarda auditoría del dispositivo: IP y user-agent (`attendances.ip`,
 `attendances.user_agent`).
 
 ### 1.4 Seguridad del kiosco
-- La URL `/kiosk` exige un **token de dispositivo** (`?token=...`, configurado en
-  Ajustes) validado por el middleware `VerifyKioskToken`; después del primer acceso
-  queda en sesión. Sin token válido → 403.
+Dos capas (`app/Http/Middleware/VerifyKioskToken.php`):
+- **Vinculación de dispositivo** (más fuerte): un admin genera un **código de un
+  solo uso** en Ajustes (`SettingController::generatePairCode`, vence en 15 min).
+  En la tablet se abre `/kiosk/pair` y se ingresa; el servidor guarda el hash de
+  un secreto de dispositivo (`settings.kiosk_device_hash`) y entrega una **cookie
+  de 10 años** (`KioskController::pair`). Desde entonces solo esa tablet (que
+  lleva la cookie) abre el kiosco; una URL copiada en otro dispositivo → 403.
+  "Desvincular" (`unpairDevice`) limpia el hash para volver a emparejar.
+- **Token de dispositivo** (respaldo, cuando NO hay dispositivo vinculado): la URL
+  `/kiosk?token=...` (configurado en Ajustes) queda en sesión tras el primer
+  acceso. Sin token válido → 403. Si no hay ni dispositivo ni token, el kiosco
+  queda abierto (se avisa al admin en Ajustes).
+
+### 1.5 Multi-sede (sedes)
+- Cada empleado puede pertenecer a una **sede** (`employees.site_id`). Las sedes se
+  administran en el módulo `settings` (`SiteController`).
+- El enlace de kiosco de una sede es `/kiosk?token=<global>&site=<id>`. Al entrar,
+  la sede queda en sesión (`kiosk_site`) y el kiosco **solo reconoce y marca** a
+  los empleados de esa sede (`KioskController::scopedEmployees`, aplica a
+  descriptores faciales y marcado por DNI). Sin `site`, el kiosco ve a todos.
+- Empleados y reportes se pueden filtrar por sede.
 - El **auto-enrolamiento** desde el kiosco está protegido por PIN
   (`settings.kiosk_enroll_pin`); el PIN desbloquea el modo por 15 minutos
   (`KioskController::ENROLL_SESSION_MINUTES`) y exige aceptar el consentimiento

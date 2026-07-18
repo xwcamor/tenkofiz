@@ -35,6 +35,11 @@ Route::middleware('guest')->group(function () {
 });
 
 // ---------- Facial marking kiosk (public screen on an authorized device) ----------
+// Device pairing (no device cookie yet, so it lives OUTSIDE the kiosk.token gate;
+// the one-time code is the secret that authorizes the pairing)
+Route::get('/kiosk/pair', [KioskController::class, 'showPair'])->name('kiosk.pair');
+Route::post('/kiosk/pair', [KioskController::class, 'pair'])->name('kiosk.pair.submit');
+
 Route::middleware('kiosk.token')->group(function () {
     Route::get('/kiosk', [KioskController::class, 'index'])->name('kiosk');
     Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
@@ -78,6 +83,11 @@ Route::middleware('auth')->group(function () {
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
         Route::post('settings/kiosk-token', [SettingController::class, 'regenerateKioskToken'])->name('settings.kioskToken');
         Route::delete('settings/kiosk-token', [SettingController::class, 'clearKioskToken'])->name('settings.kioskToken.clear');
+        // Kiosk device binding: generate a one-time pairing code / unpair the device
+        Route::post('settings/kiosk-pair-code', [SettingController::class, 'generatePairCode'])->name('settings.kioskPair');
+        Route::delete('settings/kiosk-device', [SettingController::class, 'unpairDevice'])->name('settings.kioskUnpair');
+        // Sites (sedes)
+        Route::resource('sites', \App\Http\Controllers\SiteController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 
     Route::middleware('module:employees')->group(function () {

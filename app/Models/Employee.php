@@ -17,7 +17,7 @@ class Employee extends Model
     ];
 
     protected $fillable = [
-        'user_id', 'schedule_id', 'area_id', 'position_id', 'document_type', 'document_number',
+        'user_id', 'schedule_id', 'area_id', 'position_id', 'site_id', 'document_type', 'document_number',
         'first_name', 'last_name', 'hire_date', 'vacation_days_per_year', 'face_descriptor',
         'biometric_consent_at', 'is_active', 'delete_reason',
     ];
@@ -46,6 +46,11 @@ class Employee extends Model
     public function position()
     {
         return $this->belongsTo(Position::class);
+    }
+
+    public function site()
+    {
+        return $this->belongsTo(Site::class);
     }
 
     public function attendances()
