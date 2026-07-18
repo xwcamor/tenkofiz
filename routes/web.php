@@ -73,6 +73,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:holidays')->group(function () {
         Route::resource('holidays', HolidayController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('holidays-generate', [HolidayController::class, 'generate'])->name('holidays.generate');
+        // Recurring holiday templates per country (drive "Generate year")
+        Route::post('holiday-templates', [HolidayController::class, 'storeTemplate'])->name('holidays.templates.store');
+        Route::put('holiday-templates/{template}', [HolidayController::class, 'updateTemplate'])->name('holidays.templates.update');
+        Route::delete('holiday-templates/{template}', [HolidayController::class, 'destroyTemplate'])->name('holidays.templates.destroy');
+        Route::post('holiday-templates-restore', [HolidayController::class, 'restoreTemplates'])->name('holidays.templates.restore');
     });
 
     Route::middleware('module:audit_logs')->group(function () {

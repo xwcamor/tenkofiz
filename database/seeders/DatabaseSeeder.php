@@ -73,23 +73,23 @@ class DatabaseSeeder extends Seeder
             Position::firstOrCreate(['name' => $position]);
         }
 
-        // Fixed-date national holidays (Peru)
+        // Recurring holiday templates per country (PE + CL presets). "Generate year"
+        // turns these into concrete dates, so companies customize their own country.
+        foreach (array_keys(\App\Models\HolidayTemplate::COUNTRIES) as $country) {
+            foreach (\App\Models\HolidayTemplate::presets($country) as [$month, $day, $offset, $name]) {
+                \App\Models\HolidayTemplate::firstOrCreate(
+                    ['country' => $country, 'month' => $month, 'day' => $day, 'easter_offset' => $offset, 'name' => $name]
+                );
+            }
+        }
+
+        // Generate the CURRENT year's holidays from the default country's templates,
+        // so the module opens with a complete, consistent set (no half-filled list).
         $year = now()->year;
-        $holidays = [
-            ["$year-01-01", 'Año Nuevo'],
-            ["$year-05-01", 'Día del Trabajo'],
-            ["$year-06-29", 'San Pedro y San Pablo'],
-            ["$year-07-28", 'Fiestas Patrias'],
-            ["$year-07-29", 'Fiestas Patrias'],
-            ["$year-08-30", 'Santa Rosa de Lima'],
-            ["$year-10-08", 'Combate de Angamos'],
-            ["$year-11-01", 'Todos los Santos'],
-            ["$year-12-08", 'Inmaculada Concepción'],
-            ["$year-12-09", 'Batalla de Ayacucho'],
-            ["$year-12-25", 'Navidad'],
-        ];
-        foreach ($holidays as [$date, $name]) {
-            Holiday::firstOrCreate(['date' => $date], ['name' => $name]);
+        foreach (\App\Models\HolidayTemplate::where('country', 'PE')->get() as $template) {
+            if ($date = $template->dateForYear($year)) {
+                Holiday::firstOrCreate(['date' => $date], ['name' => $template->name]);
+            }
         }
 
         if (!Setting::query()->exists()) {

@@ -39,6 +39,16 @@
                         <small class="text-muted">{{ __('The server runs in UTC. Kiosk marks, tardiness rules and absence generation use this timezone. Each user can pick their own display timezone in My account.') }}</small>
                     </div>
                     <div class="form-group">
+                        <label>{{ __('Country') }}</label>
+                        <select name="country" class="form-control @error('country') is-invalid @enderror" required>
+                            @foreach(\App\Models\HolidayTemplate::COUNTRIES as $code => $label)
+                                <option value="{{ $code }}" @selected(old('country', $setting->country ?? 'PE') === $code)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('country')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        <small class="text-muted">{{ __('Sets the default country for the "Generate year" of holidays. You can still edit the recurring holiday templates per country.') }}</small>
+                    </div>
+                    <div class="form-group">
                         <label>{{ __('Payroll cut-off day') }}</label>
                         <select name="cutoff_day" class="form-control @error('cutoff_day') is-invalid @enderror">
                             <option value="">{{ __('Calendar month (1st to last day)') }}</option>

@@ -24,6 +24,7 @@ class SettingController extends Controller
             'address' => ['nullable', 'string', 'max:200'],
             'phone' => ['nullable', 'string', 'max:20'],
             'timezone' => ['required', 'timezone:all'],
+            'country' => ['required', \Illuminate\Validation\Rule::in(array_keys(\App\Models\HolidayTemplate::COUNTRIES))],
             'cutoff_day' => ['nullable', 'integer', 'min:1', 'max:28'],
             'early_check_in_minutes' => ['nullable', 'integer', 'min:0', 'max:720'],
             'early_departure_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
