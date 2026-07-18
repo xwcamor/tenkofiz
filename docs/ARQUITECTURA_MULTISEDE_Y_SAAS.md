@@ -1,5 +1,13 @@
 # Arquitectura multi-sede y camino a SaaS — decisiones y dilemas
 
+> **Estado (Fase 1 IMPLEMENTADA).** Ya existe multi-empresa real: tabla `companies`,
+> `company_id` en todas las tablas de negocio, aislamiento por `CompanyScope`,
+> super-admin (`users.is_super_admin`) que crea y administra workspaces, y settings
+> por empresa. Se sembró **Empresa 1 (SENATI)** con sus zonales y **Empresa Demo**
+> con los datos previos. Ver §4 al final para el detalle de lo implementado. Lo que
+> sigue (facturación, límites por plan, registro self-service, subdominios) es Fase 2+.
+
+
 Este documento explica **los dilemas** que aparecieron al crecer el sistema con
 sedes, tokens y cookies, **qué se decidió** (ya implementado) y **qué se recomienda**
 para el siguiente salto: convertirlo en un SaaS con un administrador de sistema y
@@ -157,3 +165,49 @@ su gente.
   correcto**, y aquí queda el plano para hacerlo por fases y con seguridad, sin arriesgar
   los datos que ya tienes. El patrón de *scoping* que ya montamos para sedes es
   justamente el que se reutiliza para empresas — subido un nivel.
+
+---
+
+## 4. Fase 1 — lo que YA está implementado
+
+Modelo de datos y aislamiento:
+- Tabla **`companies`** (workspaces). Cada tabla de negocio lleva `company_id`:
+  `users, sites, employees, settings, schedules, areas, positions, holidays,
+  holiday_templates` (asistencias/vacaciones/justificaciones heredan la empresa vía
+  el empleado). Migración `2026_01_13_000001` crea todo y **mueve los datos previos
+  a una empresa por defecto ("Empresa Demo")** — no se pierde nada.
+- **`App\Models\Scopes\CompanyScope`**: global scope que aísla cada modelo a la
+  empresa actual. La empresa actual sale de: `users.company_id` (usuario normal); la
+  empresa que el super-admin **entró** (`session('acting_company_id')`, null = ver
+  todas); o la empresa de la sede para el kiosco (invitado). Consola/seeders usan
+  `CompanyScope::actingAs()`. El trait `BelongsToCompany` asigna la empresa al crear.
+- **Unicidad por empresa** (`2026_01_13_000002`): dos workspaces pueden repetir
+  nombres de sede/área/cargo/horario y los mismos feriados/documentos.
+- **Ojo (auth):** el modelo `User` **no** lleva el global scope (el guard consulta
+  usuarios al resolver el login y un scope que lea `auth()` haría recursión). `User`
+  se filtra explícito con `scopeInCompany()` (lista de usuarios, notificaciones).
+
+Super-admin y workspaces:
+- **`users.is_super_admin`**: dueño de todos los workspaces; pasa cualquier chequeo de
+  módulo. Cuenta sembrada: `super@test.com` / `123456`.
+- Consola en **`/admin/companies`** (middleware `super_admin`): lista workspaces con
+  conteos, **crea** un workspace (empresa + settings + plantillas de feriados + primer
+  admin), edita y **entra/sale** de un workspace. Al entrar, todo queda scopeado a esa
+  empresa; un banner muestra "Administrando: X" con botón Salir.
+- Settings **por empresa**: `app_setting()` resuelve la fila de la empresa actual
+  (reportes/branding/kiosco por workspace).
+
+Datos sembrados:
+- **Empresa Demo**: los usuarios de prueba (`admin/aprobador/empleado@test.com`),
+  su sede, catálogos y feriados.
+- **Empresa 1 (SENATI)**: settings propios + 10 zonales (Central Independencia,
+  Lima-Callao, Arequipa, La Libertad, Áncash, Junín, Lambayeque, Piura, Cusco, Ica).
+  Direcciones aproximadas — ajústalas en la pantalla Sedes.
+
+Pruebas: `CompanyIsolationTest` (empresa A no ve a empresa B, mismo documento en dos
+empresas, entrar/salir del super-admin, creación de workspace) + `SiteScopingTest`.
+
+Límites conocidos de la Fase 1 (para fases siguientes): los **perfiles** siguen siendo
+globales (plantillas de permisos compartidas); el acceso directo por ID a un usuario de
+otra empresa no está bloqueado (las listas sí están aisladas); falta facturación,
+límites por plan, registro self-service y resolución por subdominio.
