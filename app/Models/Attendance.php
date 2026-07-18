@@ -13,7 +13,10 @@ class Attendance extends Model
         'status', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo',
     ];
 
-    protected $casts = ['date' => 'date'];
+    // 'date:Y-m-d' stores a pure date string (no time). Without the explicit
+    // format the value is serialized as 'Y-m-d 00:00:00', which breaks
+    // firstOrNew(['date' => 'Y-m-d']) lookups on SQLite (MySQL coerces it).
+    protected $casts = ['date' => 'date:Y-m-d'];
 
     public function employee()
     {

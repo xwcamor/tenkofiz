@@ -53,6 +53,20 @@
                             <br><strong>{{ __('Current period') }}:</strong> {{ $periodStart->format('d/m/Y') }} – {{ $periodEnd->format('d/m/Y') }}
                         </small>
                     </div>
+                    <div class="form-row">
+                        <div class="col-md-6 form-group">
+                            <label>{{ __('Early check-in window') }} <small class="text-muted">({{ __('minutes; 0 = no limit') }})</small></label>
+                            <input type="number" name="early_check_in_minutes" min="0" max="720" value="{{ old('early_check_in_minutes', $setting->early_check_in_minutes) }}" class="form-control @error('early_check_in_minutes') is-invalid @enderror">
+                            @error('early_check_in_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                            <small class="text-muted">{{ __('How many minutes before their scheduled start an employee may check in. E.g. 60: someone on an 08:00 shift can mark from 07:00; earlier marks are rejected. 0 = mark at any time (no restriction).') }}</small>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>{{ __('Early departure alert') }} <small class="text-muted">({{ __('minutes; 0 = disabled') }})</small></label>
+                            <input type="number" name="early_departure_minutes" min="0" max="480" value="{{ old('early_departure_minutes', $setting->early_departure_minutes) }}" class="form-control @error('early_departure_minutes') is-invalid @enderror">
+                            @error('early_departure_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                            <small class="text-muted">{{ __('If the check-out happens more than this many minutes before the scheduled end, the mark is kept but flagged with an automatic note for the supervisor. It never blocks the check-out. 0 = disabled.') }}</small>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>{{ __('Kiosk enrollment PIN') }} <small class="text-muted">({{ __('4-8 digits; empty = enrollment mode disabled') }})</small></label>
                         <input name="kiosk_enroll_pin" value="{{ old('kiosk_enroll_pin', $setting->kiosk_enroll_pin) }}" class="form-control @error('kiosk_enroll_pin') is-invalid @enderror" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off">

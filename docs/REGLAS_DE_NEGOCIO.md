@@ -43,13 +43,19 @@ Se evalúan en este orden:
    - Se busca el horario del día de la semana actual (`Schedule::worksOn(weekday)`).
    - `TARDANZA` si hora actual > hora de inicio + `tolerance_minutes` del horario.
    - `PUNTUAL` en caso contrario (también si hoy no es día laborable para él).
-   - **Hoy NO existe restricción de hora mínima para marcar entrada** (se puede
-     marcar a cualquier hora; solo cambia el estado). Si se implementa una ventana
-     de marcado anticipado, este es el punto donde agregarla.
-5. **Segunda marca = SALIDA**, con una regla dura: deben pasar al menos
-   **30 minutos** desde la entrada (`KioskController::MIN_MINUTES_BEFORE_CHECKOUT`)
-   para evitar dobles marcas accidentales. No hay restricción por marcar salida
-   antes o después de la hora de fin del horario: se registra la **hora real**.
+   - **Ventana de marcado anticipado** (`settings.early_check_in_minutes`): si es
+     > 0, se rechaza la marca hecha más de X minutos antes de la hora de inicio
+     (mensaje: "entra a las 08:00, puede marcar desde las 07:00"). **0 = sin
+     restricción** (marca a cualquier hora). Configurable en Ajustes.
+5. **Segunda marca = SALIDA**, con dos reglas:
+   - **Regla dura**: deben pasar al menos **30 minutos** desde la entrada
+     (`KioskController::MIN_MINUTES_BEFORE_CHECKOUT`) para evitar dobles marcas.
+   - **Aviso de salida anticipada** (`settings.early_departure_minutes`): si es
+     > 0 y la salida ocurre más de X minutos antes de la hora de fin, la marca se
+     guarda igual pero con una observación automática ("Salida anticipada (N min
+     antes del fin de turno)") para el supervisor. **Nunca bloquea la salida**;
+     **0 = desactivado** (`KioskController::earlyDepartureNote`). Se registra
+     siempre la **hora real** de salida.
 6. **Tercera marca en adelante** → rechazada ("ya registró entrada y salida hoy").
 
 Cada marca guarda auditoría del dispositivo: IP y user-agent (`attendances.ip`,

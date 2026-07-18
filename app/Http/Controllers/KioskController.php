@@ -112,6 +112,7 @@ class KioskController extends Controller
         $now = company_now();
         $today = $now->toDateString();
         $currentTime = $now->format('H:i:s');
+        $setting = app_setting();
 
         // Blocked on holidays
         if ($holiday = Holiday::onDate($today)) {
@@ -144,7 +145,11 @@ class KioskController extends Controller
                 ->first();
 
             if ($openOvernight) {
-                $openOvernight->update(['check_out' => $currentTime] + $device);
+                // Overnight shift end lands on today's date (it crossed midnight)
+                $scheduledEnd = \Carbon\Carbon::parse($today.' '.$yesterdayShift->end_time, company_timezone());
+                $earlyNote = $this->earlyDepartureNote($setting, $openOvernight->note, $scheduledEnd, $now);
+
+                $openOvernight->update(['check_out' => $currentTime] + $earlyNote + $device);
 
                 return response()->json([
                     'ok' => true,
@@ -164,9 +169,24 @@ class KioskController extends Controller
             $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
             $status = 'ON_TIME';
             if ($todayShift) {
-                $limit = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone())
-                    ->addMinutes($employee->schedule->tolerance_minutes);
-                if ($now->greaterThan($limit)) {
+                $start = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone());
+
+                // Early check-in window: reject marks made too long before the shift starts
+                if ($setting->early_check_in_minutes > 0) {
+                    $earliest = $start->copy()->subMinutes($setting->early_check_in_minutes);
+                    if ($now->lessThan($earliest)) {
+                        return response()->json([
+                            'ok' => false,
+                            'message' => __(':name starts at :start. You can check in from :earliest.', [
+                                'name' => $employee->full_name,
+                                'start' => $start->format('h:i a'),
+                                'earliest' => $earliest->format('h:i a'),
+                            ]),
+                        ], 422);
+                    }
+                }
+
+                if ($now->greaterThan($start->copy()->addMinutes($employee->schedule->tolerance_minutes))) {
                     $status = 'LATE';
                 }
             }
@@ -202,8 +222,16 @@ class KioskController extends Controller
                 ], 422);
             }
 
+            // Early-departure flag if leaving well before the scheduled end
+            $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
+            $earlyNote = [];
+            if ($todayShift) {
+                $scheduledEnd = \Carbon\Carbon::parse($today.' '.$todayShift->end_time, company_timezone());
+                $earlyNote = $this->earlyDepartureNote($setting, $attendance->note, $scheduledEnd, $now);
+            }
+
             // Second mark = CHECK-OUT (keep the check-in evidence if it exists)
-            $attendance->update(['check_out' => $currentTime] + array_filter($extra) + $device);
+            $attendance->update(['check_out' => $currentTime] + $earlyNote + array_filter($extra) + $device);
 
             return response()->json([
                 'ok' => true,
@@ -219,6 +247,24 @@ class KioskController extends Controller
             'ok' => false,
             'message' => __(':name already checked in and out today.', ['name' => $employee->full_name]),
         ], 422);
+    }
+
+    /**
+     * Returns ['note' => ...] when the check-out happens more than
+     * early_departure_minutes before the scheduled end, otherwise []. The mark
+     * is never blocked: this only leaves an audit note for the supervisor.
+     */
+    private function earlyDepartureNote($setting, ?string $existingNote, \Carbon\Carbon $scheduledEnd, \Carbon\Carbon $now): array
+    {
+        $grace = (int) $setting->early_departure_minutes;
+        if ($grace <= 0 || $now->greaterThanOrEqualTo($scheduledEnd->copy()->subMinutes($grace))) {
+            return [];
+        }
+
+        $minutesEarly = (int) round($now->diffInMinutes($scheduledEnd));
+        $note = __('Early departure (:minutes min before the scheduled end)', ['minutes' => $minutesEarly]);
+
+        return ['note' => $existingNote ? $existingNote.' — '.$note : $note];
     }
 
     /** Persists the base64 snapshot sent with DNI marks (evidence for supervisors) */
