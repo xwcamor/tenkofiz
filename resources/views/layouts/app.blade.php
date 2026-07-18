@@ -195,11 +195,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('reports.mySheet') }}" target="_blank" class="nav-link">
-                            <i class="nav-icon fas fa-file-pdf"></i><p>{{ __('My sheet (PDF)') }}</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a href="{{ route('account.edit') }}" class="nav-link {{ request()->routeIs('account.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-user-cog"></i><p>{{ __('My account') }}</p>
                         </a>
