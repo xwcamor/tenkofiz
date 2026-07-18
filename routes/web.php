@@ -44,6 +44,7 @@ Route::middleware('kiosk.token')->group(function () {
     Route::get('/kiosk', [KioskController::class, 'index'])->name('kiosk');
     Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
     Route::get('/kiosk/version', [KioskController::class, 'version'])->name('kiosk.version');
+    Route::get('/kiosk/face/{document}', [KioskController::class, 'personFace'])->name('kiosk.face');
     Route::post('/kiosk/mark', [KioskController::class, 'mark'])->name('kiosk.mark');
     Route::post('/kiosk/mark-dni', [KioskController::class, 'markByDni'])->name('kiosk.markDni');
     Route::post('/kiosk/enroll/unlock', [KioskController::class, 'enrollUnlock'])->name('kiosk.enroll.unlock');

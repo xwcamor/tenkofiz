@@ -30,6 +30,7 @@ class SettingController extends Controller
             'early_check_in_minutes' => ['nullable', 'integer', 'min:0', 'max:720'],
             'early_departure_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'kiosk_enroll_pin' => ['nullable', 'digits_between:4,8'],
+            'kiosk_face_threshold' => ['required', 'numeric', 'min:0.35', 'max:0.65'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
         ]);
 
@@ -37,6 +38,8 @@ class SettingController extends Controller
         $data['cutoff_day'] = $data['cutoff_day'] ?? null;
         $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 0;
         $data['early_departure_minutes'] = $data['early_departure_minutes'] ?? 0;
+        $data['kiosk_fast_mode'] = $request->boolean('kiosk_fast_mode');
+        $data['kiosk_liveness'] = $request->boolean('kiosk_liveness');
 
         if ($request->hasFile('logo')) {
             $dir = public_path('uploads');

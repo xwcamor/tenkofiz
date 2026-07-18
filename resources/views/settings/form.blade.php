@@ -73,6 +73,23 @@
                         @error('kiosk_enroll_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         <small class="text-muted">{{ __('With this PIN, a supervisor unlocks the self-enrollment mode on the kiosk: the employee types their document, accepts the consent and captures their face — no admin needed per person.') }}</small>
                     </div>
+                    {{-- Facial recognition (kiosk) --}}
+                    <hr>
+                    <h6 class="font-weight-bold"><i class="fas fa-user-check"></i> {{ __('Facial recognition (kiosk)') }}</h6>
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="kiosk_liveness" value="1" class="custom-control-input" id="kioskLiveness" @checked(old('kiosk_liveness', $setting->kiosk_liveness))>
+                        <label class="custom-control-label" for="kioskLiveness">{{ __('Require a blink (liveness) — blocks marking with a photo') }}</label>
+                    </div>
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="kiosk_fast_mode" value="1" class="custom-control-input" id="kioskFast" @checked(old('kiosk_fast_mode', $setting->kiosk_fast_mode))>
+                        <label class="custom-control-label" for="kioskFast">{{ __('Fast mode (auto-scan): recognize the face without typing the document') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('Default (fast mode OFF): the employee types their document and the camera confirms it is really them (1:1) — the most reliable, no confusion between similar faces. Fast mode ON: the camera recognizes anyone standing in front (1:N) — faster but can confuse look-alikes.') }}</small>
+                    <div class="form-group">
+                        <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
+                        <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" value="{{ old('kiosk_face_threshold', $setting->kiosk_face_threshold ?? 0.50) }}" class="form-control @error('kiosk_face_threshold') is-invalid @enderror" style="max-width:140px">
+                        @error('kiosk_face_threshold')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                    </div>
                     <div class="form-group">
                         <label>{{ __('Logo') }} <small class="text-muted">({{ __('PNG/JPG, max. 2MB') }})</small></label>
                         <input type="file" name="logo" class="form-control-file @error('logo') is-invalid @enderror" accept="image/png,image/jpeg">

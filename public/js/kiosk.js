@@ -1,15 +1,16 @@
 /**
- * Facial marking kiosk - robust version
- * State machine: LOADING -> SCANNING -> PROCESSING -> PAUSED -> SCANNING
- * ('UI' phase while an overlay panel is open: scanning is suspended)
+ * Facial marking kiosk - two modes (configured in Settings → Facial):
  *
- * Extras:
- *  - DNI fallback marking with an evidence snapshot
- *  - Supervisor-unlocked self-enrollment mode (PIN + consent + 3 samples)
- *  - Smart descriptor refresh: polls a tiny /version endpoint and only
- *    re-downloads the face list when it actually changed in the database.
+ *  · VERIFY mode (default): the employee types their document, then the camera
+ *    confirms it is really them (1:1). No confusion between similar faces; the
+ *    threshold can be strict. If the face can't be confirmed (or the person has
+ *    no enrolled face), it marks by document and saves an evidence photo.
  *
- * UI strings come from window.KIOSK_I18N (injected by the Blade view).
+ *  · FAST mode (auto-scan): the old 1:N flow — stand in front and be recognized.
+ *
+ * Extras: liveness (blink) check, evidence photo on facial marks, DNI fallback,
+ * PIN-unlocked self-enrollment, smart descriptor refresh (fast mode only).
+ * UI strings come from window.KIOSK_I18N.
  */
 const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
@@ -19,17 +20,22 @@ const I18N = window.KIOSK_I18N || {};
 const MODELS_URL = '/models';
 const PAUSE_AFTER_MARK_MS = 5000;
 const COOLDOWN_MS = 60000;
-const THRESHOLD = 0.55; // must match KioskController::THRESHOLD
-const VERSION_POLL_MS = 5 * 60 * 1000; // tiny request; full list only when changed
+const THRESHOLD = Number(window.KIOSK_THRESHOLD) || 0.5; // match strictness (lower = stricter)
+const FAST_MODE = !!window.KIOSK_FAST_MODE;
+const LIVENESS = !!window.KIOSK_LIVENESS;
+const VERIFY_WINDOW_MS = 7000;   // how long the 1:1 verification tries before giving up
+const EAR_OPEN = 0.25;           // eye-aspect-ratio thresholds for the blink detector
+const EAR_CLOSED = 0.18;
+const VERSION_POLL_MS = 5 * 60 * 1000;
 const KIOSK_DETECTOR_OPTIONS = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
 
-let phase = 'LOADING';          // LOADING | SCANNING | PROCESSING | PAUSED | UI
-let matcher = null;
+let phase = 'LOADING';          // LOADING | SCANNING | PROCESSING | PAUSED | UI | VERIFYING | IDLE
+let matcher = null;             // only built in FAST mode
 let descriptorsVersion = null;
 const lastAttempt = {};
 let slowTimer = null;
 
-/* Clock (shown in the company timezone) */
+/* Clock (company timezone) */
 setInterval(() => {
     const now = new Date();
     const timeZone = window.KIOSK_TZ || undefined;
@@ -41,24 +47,18 @@ function show(type, html) {
     statusBox.className = `alert alert-${type} d-inline-block px-4 px-md-5`;
     statusBox.innerHTML = html;
 }
-
-function clearOverlay() {
-    overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-}
-
+const spinner = '<span class="spinner-border spinner-border-sm me-1"></span> ';
+function clearOverlay() { overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height); }
 function drawBox(box, color) {
     const ctx = overlay.getContext('2d');
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = color; ctx.lineWidth = 4;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 }
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-/** Warns when something takes too long: switches the message after 3 seconds */
 function warnIfSlow(slowMessage) {
     clearTimeout(slowTimer);
-    slowTimer = setTimeout(() => {
-        show('info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + slowMessage);
-    }, 3000);
+    slowTimer = setTimeout(() => show('info', spinner + slowMessage), 3000);
 }
 
 async function postJson(url, payload) {
@@ -70,128 +70,68 @@ async function postJson(url, payload) {
     return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
-/** Downloads the descriptor list and rebuilds the in-memory matcher */
+/** Captures the current camera frame as a small JPEG (evidence) */
+function captureSnapshot() {
+    if (!video.videoWidth) return null;
+    const canvas = document.createElement('canvas');
+    const width = 480;
+    canvas.width = width;
+    canvas.height = Math.round(video.videoHeight * (width / video.videoWidth));
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+/* ---------- blink / liveness ---------- */
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function eyeRatio(eye) { return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * dist(eye[0], eye[3])); }
+function eyeAspectRatio(landmarks) { return (eyeRatio(landmarks.getLeftEye()) + eyeRatio(landmarks.getRightEye())) / 2; }
+
+/* =====================================================================
+   FAST mode: 1:N auto-scan (download all descriptors, recognize anyone)
+   ===================================================================== */
 async function loadDescriptors() {
     const res = await fetch(window.DESCRIPTORS_URL, { headers: { Accept: 'application/json' } });
     const payload = await res.json();
     descriptorsVersion = payload.version;
-
-    if (!payload.employees.length) {
-        matcher = null;
-        return 0;
-    }
-
-    // Each employee may have SEVERAL samples: the matcher compares against all of them
-    const labeled = payload.employees.map(employee =>
-        new faceapi.LabeledFaceDescriptors(
-            String(employee.id) + '|' + employee.name,
-            employee.descriptors.map(descriptor => new Float32Array(descriptor))
-        )
-    );
+    if (!payload.employees.length) { matcher = null; return 0; }
+    const labeled = payload.employees.map(e =>
+        new faceapi.LabeledFaceDescriptors(String(e.id) + '|' + e.name, e.descriptors.map(d => new Float32Array(d))));
     matcher = new faceapi.FaceMatcher(labeled, THRESHOLD);
     return payload.employees.length;
 }
 
-/**
- * Smart refresh: compares a tiny fingerprint against the database instead of
- * blindly re-downloading everything. New enrollments show up within minutes
- * without reloading the page.
- */
 async function pollVersion() {
     try {
         const res = await fetch(window.VERSION_URL, { headers: { Accept: 'application/json' } });
         const { version } = await res.json();
-        if (version && version !== descriptorsVersion) {
-            await loadDescriptors();
-            console.info('Kiosk: face list refreshed');
-        }
-    } catch (e) {
-        /* offline blip: retry on the next poll */
-    }
-}
-
-async function start() {
-    try {
-        show('secondary', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.loadingModels1);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
-        show('secondary', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.loadingModels2);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
-        show('secondary', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.loadingModels3);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
-
-        show('secondary', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.loadingEmployees);
-        const count = await loadDescriptors();
-        if (count === 0) {
-            show('warning', I18N.noEmployees);
-            // Keep going: the camera is still needed for DNI evidence and enrollment
-        }
-
-        show('secondary', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.startingCamera);
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
-        video.srcObject = stream;
-
-        video.addEventListener('playing', () => {
-            overlay.width = video.videoWidth;
-            overlay.height = video.videoHeight;
-            phase = 'SCANNING';
-            show('secondary', I18N.waitingFace);
-            setInterval(detectionCycle, 1300);
-            setInterval(pollVersion, VERSION_POLL_MS);
-        });
-    } catch (e) {
-        show('danger', I18N.startError + ' ' + e.message + '<br><small>' + I18N.startErrorHint + '</small>');
-    }
+        if (version && version !== descriptorsVersion) { await loadDescriptors(); }
+    } catch (e) { /* offline blip */ }
 }
 
 async function detectionCycle() {
-    // Only scan while in SCANNING phase; don't touch the screen in PROCESSING/PAUSED/UI
     if (phase !== 'SCANNING' || !matcher) return;
-
     let detection;
     try {
-        detection = await faceapi
-            .detectSingleFace(video, KIOSK_DETECTOR_OPTIONS())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-    } catch (e) {
-        return; // transient detection failure: retry on the next cycle
-    }
-
-    if (phase !== 'SCANNING') return; // it may have changed while detecting
-
+        detection = await faceapi.detectSingleFace(video, KIOSK_DETECTOR_OPTIONS()).withFaceLandmarks().withFaceDescriptor();
+    } catch (e) { return; }
+    if (phase !== 'SCANNING') return;
     clearOverlay();
-
-    // No face: ALWAYS reset the message (fixes the stuck-message bug)
-    if (!detection) {
-        show('secondary', I18N.waitingFace);
-        return;
-    }
+    if (!detection) { show('secondary', I18N.waitingFace); return; }
 
     const match = matcher.findBestMatch(detection.descriptor);
     const recognized = match.label !== 'unknown';
-
     drawBox(detection.detection.box, recognized ? '#28a745' : '#dc3545');
-
-    if (!recognized) {
-        show('danger', '<i class="fas fa-times-circle"></i> ' + I18N.notRecognized);
-        return; // keep scanning: leaving the frame resets to "Waiting for a face..."
-    }
+    if (!recognized) { show('danger', '<i class="fas fa-times-circle"></i> ' + I18N.notRecognized); return; }
 
     const [id, name] = match.label.split('|');
-
-    // Per-person cooldown
-    if (lastAttempt[id] && Date.now() - lastAttempt[id] < COOLDOWN_MS) {
-        return;
-    }
+    if (lastAttempt[id] && Date.now() - lastAttempt[id] < COOLDOWN_MS) return;
     lastAttempt[id] = Date.now();
 
-    // ===== PROCESSING =====
     phase = 'PROCESSING';
-    show('info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.verifying.replace(':name', name));
+    show('info', spinner + I18N.verifying.replace(':name', name));
     warnIfSlow(I18N.savingSlow);
-
     try {
-        const { data } = await postJson(window.MARK_URL, { employee_id: Number(id), distance: match.distance.toFixed(4) });
+        const { data } = await postJson(window.MARK_URL, { employee_id: Number(id), distance: match.distance.toFixed(4), photo: captureSnapshot() });
         clearTimeout(slowTimer);
         showMarkResult(data);
     } catch (e) {
@@ -202,6 +142,99 @@ async function detectionCycle() {
     }
 }
 
+/* =====================================================================
+   VERIFY mode: type DNI -> 1:1 face confirmation -> mark (or DNI + photo)
+   ===================================================================== */
+async function verifyAndMark(dni) {
+    document.getElementById('dniPanel').classList.remove('open');
+    phase = 'VERIFYING';
+    show('info', spinner + I18N.marking);
+
+    // 1) fetch just this person's face
+    let person;
+    try {
+        const res = await fetch(window.FACE_URL_BASE + '/' + encodeURIComponent(dni), { headers: { Accept: 'application/json' } });
+        if (res.status === 404) return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+        person = await res.json();
+        if (!person.ok) return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+    } catch (e) {
+        return markByDniWithPhoto(dni, I18N.verifyFailedPhoto);
+    }
+
+    // 2) confirm it is really them (1:1) within the time window
+    const refs = person.descriptors.map(d => new Float32Array(d));
+    let blinked = !LIVENESS, sawOpen = false, bestDistance = 1;
+    const deadline = Date.now() + VERIFY_WINDOW_MS;
+
+    while (Date.now() < deadline) {
+        let det;
+        try {
+            det = await faceapi.detectSingleFace(video, KIOSK_DETECTOR_OPTIONS()).withFaceLandmarks().withFaceDescriptor();
+        } catch (e) { det = null; }
+
+        if (det) {
+            clearOverlay();
+            const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
+            bestDistance = Math.min(bestDistance, d);
+            const ok = d <= THRESHOLD;
+            drawBox(det.detection.box, ok ? '#28a745' : '#ffc107');
+
+            if (LIVENESS && !blinked) {
+                const ear = eyeAspectRatio(det.landmarks);
+                if (ear > EAR_OPEN) sawOpen = true;
+                if (sawOpen && ear < EAR_CLOSED) blinked = true;
+                show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', person.name) : I18N.blinkNow));
+            } else {
+                show('info', spinner + I18N.lookAtCamera.replace(':name', person.name));
+            }
+
+            if (ok && blinked) return commitFacial(person, d);
+        }
+        await wait(300);
+    }
+
+    // 3) could not confirm -> mark by document with evidence photo (flagged)
+    return markByDniWithPhoto(dni, I18N.verifyFailedPhoto);
+}
+
+async function commitFacial(person, distance) {
+    show('info', spinner + I18N.savingSlow);
+    try {
+        const { data } = await postJson(window.MARK_URL, {
+            employee_id: Number(person.id),
+            distance: distance.toFixed(4),
+            photo: captureSnapshot(),
+        });
+        showMarkResult(data);
+    } catch (e) {
+        show('danger', I18N.connectionError);
+    }
+    resumeIdleOrScan();
+}
+
+async function markByDniWithPhoto(dni, note) {
+    try {
+        const { data } = await postJson(window.MARK_DNI_URL, { document_number: dni, photo: captureSnapshot() });
+        if (data.ok) {
+            showMarkResult(data);
+            if (note) statusBox.innerHTML += `<br><small>${note}</small>`;
+        } else {
+            show('warning', data.message || I18N.couldNotRecord);
+        }
+    } catch (e) {
+        show('danger', I18N.connectionError);
+    }
+    resumeIdleOrScan();
+}
+
+function resumeIdleOrScan() {
+    clearOverlay();
+    if (FAST_MODE) { pauseThenScan(); return; }
+    phase = 'PAUSED';
+    setTimeout(() => { if (phase === 'PAUSED') { phase = 'IDLE'; show('secondary', I18N.typeDocument); } }, PAUSE_AFTER_MARK_MS);
+}
+
+/* ---------- shared result / pause ---------- */
 function showMarkResult(data) {
     if (data.ok) {
         const color = data.status === 'LATE' ? 'warning' : 'success';
@@ -213,29 +246,57 @@ function showMarkResult(data) {
 }
 
 function pauseThenScan() {
-    // ===== PAUSED then GUARANTEED return to scanning (fixes the stuck-state bug) =====
     phase = 'PAUSED';
     setTimeout(() => {
-        if (phase !== 'PAUSED') return; // a panel may have opened meanwhile
+        if (phase !== 'PAUSED') return;
         clearOverlay();
-        show('secondary', I18N.waitingFace);
-        phase = 'SCANNING';
+        show('secondary', FAST_MODE ? I18N.waitingFace : I18N.typeDocument);
+        phase = FAST_MODE ? 'SCANNING' : 'IDLE';
     }, PAUSE_AFTER_MARK_MS);
 }
 
-/** Captures the current camera frame as a small JPEG (evidence for DNI marks) */
-function captureSnapshot() {
-    if (!video.videoWidth) return null;
-    const canvas = document.createElement('canvas');
-    const width = 480;
-    canvas.width = width;
-    canvas.height = Math.round(video.videoHeight * (width / video.videoWidth));
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.8);
+/* =====================================================================
+   Startup
+   ===================================================================== */
+async function start() {
+    try {
+        show('secondary', spinner + I18N.loadingModels1);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
+        show('secondary', spinner + I18N.loadingModels2);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
+        show('secondary', spinner + I18N.loadingModels3);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
+
+        if (FAST_MODE) {
+            show('secondary', spinner + I18N.loadingEmployees);
+            const count = await loadDescriptors();
+            if (count === 0) show('warning', I18N.noEmployees);
+        }
+
+        show('secondary', spinner + I18N.startingCamera);
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+        video.srcObject = stream;
+
+        video.addEventListener('playing', () => {
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+            if (FAST_MODE) {
+                phase = 'SCANNING';
+                show('secondary', I18N.waitingFace);
+                setInterval(detectionCycle, 1300);
+                setInterval(pollVersion, VERSION_POLL_MS);
+            } else {
+                phase = 'IDLE';
+                show('secondary', I18N.typeDocument);
+            }
+        });
+    } catch (e) {
+        show('danger', I18N.startError + ' ' + e.message + '<br><small>' + I18N.startErrorHint + '</small>');
+    }
 }
 
 /* =====================================================================
-   DNI fallback marking
+   DNI panel (entry point in VERIFY mode; fallback button in FAST mode)
    ===================================================================== */
 let dniValue = '';
 
@@ -246,43 +307,21 @@ function openDniPanel() {
     setPanelMessage('dniMessage', '', '');
     document.getElementById('dniPanel').classList.add('open');
 }
-
 function closeDniPanel() {
     document.getElementById('dniPanel').classList.remove('open');
     resumeScanning();
 }
-
 function resumeScanning() {
     clearOverlay();
-    show('secondary', I18N.waitingFace);
-    phase = 'SCANNING';
+    if (FAST_MODE) { show('secondary', I18N.waitingFace); phase = 'SCANNING'; }
+    else { show('secondary', I18N.typeDocument); phase = 'IDLE'; }
 }
-
-function renderDni() {
-    document.getElementById('dniDisplay').textContent = dniValue || ' ';
-}
-
-function dniKey(digit) {
-    if (dniValue.length < 12) {
-        dniValue += digit;
-        renderDni();
-    }
-}
-
-function dniBackspace() {
-    dniValue = dniValue.slice(0, -1);
-    renderDni();
-}
-
-function dniClear() {
-    dniValue = '';
-    renderDni();
-}
-
+function renderDni() { document.getElementById('dniDisplay').textContent = dniValue || ' '; }
+function dniKey(d) { if (dniValue.length < 12) { dniValue += d; renderDni(); } }
+function dniBackspace() { dniValue = dniValue.slice(0, -1); renderDni(); }
+function dniClear() { dniValue = ''; renderDni(); }
 function setPanelMessage(id, type, html) {
-    document.getElementById(id).innerHTML = html
-        ? `<div class="alert alert-${type} py-2 small mb-0">${html}</div>`
-        : '';
+    document.getElementById(id).innerHTML = html ? `<div class="alert alert-${type} py-2 small mb-0">${html}</div>` : '';
 }
 
 async function submitDniMark() {
@@ -290,21 +329,21 @@ async function submitDniMark() {
         setPanelMessage('dniMessage', 'warning', I18N.dniIncomplete);
         return;
     }
-
+    // VERIFY mode: confirm the face 1:1 on the main screen
+    if (!FAST_MODE) {
+        const dni = dniValue;
+        return verifyAndMark(dni);
+    }
+    // FAST mode: the DNI button is the fallback -> mark by document + evidence photo
     const btn = document.getElementById('dniSubmitBtn');
     btn.disabled = true;
-    setPanelMessage('dniMessage', 'info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.marking);
-
+    setPanelMessage('dniMessage', 'info', spinner + I18N.marking);
     try {
-        const { data } = await postJson(window.MARK_DNI_URL, {
-            document_number: dniValue,
-            photo: captureSnapshot(),
-        });
-
+        const { data } = await postJson(window.MARK_DNI_URL, { document_number: dniValue, photo: captureSnapshot() });
         if (data.ok) {
             document.getElementById('dniPanel').classList.remove('open');
             showMarkResult(data);
-            phase = 'PROCESSING'; // showMarkResult stays on screen during the pause
+            phase = 'PROCESSING';
             pauseThenScan();
         } else {
             setPanelMessage('dniMessage', 'warning', data.message || I18N.couldNotRecord);
@@ -331,22 +370,14 @@ function openEnrollPanel() {
     setPanelMessage('enrollPinMessage', '', '');
     document.getElementById('enrollPanel').classList.add('open');
 }
-
 function closeEnrollPanel() {
-    const panel = document.getElementById('enrollPanel');
-    panel.classList.remove('open', 'capturing');
+    document.getElementById('enrollPanel').classList.remove('open', 'capturing');
     resumeScanning();
 }
-
 async function enrollUnlock() {
     const pin = document.getElementById('enrollPin').value.trim();
-    if (!pin) {
-        setPanelMessage('enrollPinMessage', 'warning', I18N.pinRequired);
-        return;
-    }
-
-    setPanelMessage('enrollPinMessage', 'info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.unlocking);
-
+    if (!pin) { setPanelMessage('enrollPinMessage', 'warning', I18N.pinRequired); return; }
+    setPanelMessage('enrollPinMessage', 'info', spinner + I18N.unlocking);
     try {
         const { data } = await postJson(window.ENROLL_UNLOCK_URL, { pin });
         if (data.ok) {
@@ -357,20 +388,12 @@ async function enrollUnlock() {
         } else {
             setPanelMessage('enrollPinMessage', 'danger', data.message || I18N.couldNotRecord);
         }
-    } catch (e) {
-        setPanelMessage('enrollPinMessage', 'danger', I18N.connectionError);
-    }
+    } catch (e) { setPanelMessage('enrollPinMessage', 'danger', I18N.connectionError); }
 }
-
 async function enrollLookup() {
     const documentNumber = document.getElementById('enrollDni').value.trim();
-    if (!/^\d{8,12}$/.test(documentNumber)) {
-        setPanelMessage('enrollLookupMessage', 'warning', I18N.dniIncomplete);
-        return;
-    }
-
-    setPanelMessage('enrollLookupMessage', 'info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.searching);
-
+    if (!/^\d{8,12}$/.test(documentNumber)) { setPanelMessage('enrollLookupMessage', 'warning', I18N.dniIncomplete); return; }
+    setPanelMessage('enrollLookupMessage', 'info', spinner + I18N.searching);
     try {
         const { data } = await postJson(window.ENROLL_LOOKUP_URL, { document_number: documentNumber });
         if (data.ok) {
@@ -384,64 +407,32 @@ async function enrollLookup() {
         } else {
             setPanelMessage('enrollLookupMessage', 'warning', data.message || I18N.couldNotRecord);
         }
-    } catch (e) {
-        setPanelMessage('enrollLookupMessage', 'danger', I18N.connectionError);
-    }
+    } catch (e) { setPanelMessage('enrollLookupMessage', 'danger', I18N.connectionError); }
 }
-
-function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
 async function enrollCapture() {
-    if (!document.getElementById('enrollConsent').checked) {
-        setPanelMessage('enrollCaptureMessage', 'warning', I18N.consentRequired);
-        return;
-    }
-
+    if (!document.getElementById('enrollConsent').checked) { setPanelMessage('enrollCaptureMessage', 'warning', I18N.consentRequired); return; }
     const btn = document.getElementById('enrollCaptureBtn');
     btn.disabled = true;
-    document.getElementById('enrollPanel').classList.add('capturing'); // let the person see the camera
+    document.getElementById('enrollPanel').classList.add('capturing');
     const SAMPLES = 3;
     const descriptors = [];
-
-    // The panel covers the video, but the stream keeps running underneath
     for (let i = 1; i <= SAMPLES; i++) {
-        setPanelMessage('enrollCaptureMessage', 'info',
-            '<span class="spinner-border spinner-border-sm me-1"></span> ' +
-            I18N.capturingSample.replace(':current', `<strong>${i}</strong>`).replace(':total', SAMPLES));
-
+        setPanelMessage('enrollCaptureMessage', 'info', spinner + I18N.capturingSample.replace(':current', `<strong>${i}</strong>`).replace(':total', SAMPLES));
         let detection = null;
         for (let attempt = 0; attempt < 5 && !detection; attempt++) {
-            try {
-                detection = await faceapi
-                    .detectSingleFace(video, KIOSK_DETECTOR_OPTIONS())
-                    .withFaceLandmarks()
-                    .withFaceDescriptor();
-            } catch (e) { /* retry */ }
+            try { detection = await faceapi.detectSingleFace(video, KIOSK_DETECTOR_OPTIONS()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { /* retry */ }
             if (!detection) await wait(500);
         }
-
-        if (!detection) {
-            setPanelMessage('enrollCaptureMessage', 'warning', I18N.noFaceInSample.replace(':current', i));
-            btn.disabled = false;
-            return;
-        }
-
+        if (!detection) { setPanelMessage('enrollCaptureMessage', 'warning', I18N.noFaceInSample.replace(':current', i)); btn.disabled = false; return; }
         descriptors.push(Array.from(detection.descriptor));
         await wait(900);
     }
-
-    setPanelMessage('enrollCaptureMessage', 'info', '<span class="spinner-border spinner-border-sm me-1"></span> ' + I18N.saving);
-
+    setPanelMessage('enrollCaptureMessage', 'info', spinner + I18N.saving);
     try {
-        const { data } = await postJson(window.ENROLL_DESCRIPTOR_URL, {
-            employee_id: enrollEmployeeId,
-            consent: true,
-            descriptors,
-        });
-
+        const { data } = await postJson(window.ENROLL_DESCRIPTOR_URL, { employee_id: enrollEmployeeId, consent: true, descriptors });
         if (data.ok) {
             setPanelMessage('enrollCaptureMessage', 'success', '<i class="fas fa-check-circle"></i> ' + I18N.enrolled);
-            await loadDescriptors(); // recognize the new face immediately
+            if (FAST_MODE) await loadDescriptors();
             setTimeout(closeEnrollPanel, 2500);
         } else {
             setPanelMessage('enrollCaptureMessage', 'danger', data.message || I18N.couldNotRecord);

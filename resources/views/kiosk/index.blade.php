@@ -101,13 +101,18 @@
         <div id="status" class="alert alert-secondary d-inline-block px-4 px-md-5">{{ __('Loading models...') }}</div>
     </div>
 
+    @php $fastMode = (bool) app_setting()->kiosk_fast_mode; @endphp
     <div class="mb-3">
-        <button id="dniBtn" class="btn btn-outline-light btn-lg px-4" onclick="openDniPanel()">
-            <i class="fas fa-keyboard"></i> {{ __('Mark with document number') }}
+        <button id="dniBtn" class="btn btn-lg px-4 {{ $fastMode ? 'btn-outline-light' : 'btn-primary' }}" onclick="openDniPanel()">
+            <i class="fas fa-keyboard"></i> {{ $fastMode ? __('Mark with document number') : __('Mark attendance') }}
         </button>
     </div>
 
-    <p class="kiosk-help small px-2 mb-1">{{ __('Stand in front of the camera. The system will recognize you and record your check-in or check-out automatically.') }}</p>
+    @if($fastMode)
+        <p class="kiosk-help small px-2 mb-1">{{ __('Stand in front of the camera. The system will recognize you and record your check-in or check-out automatically.') }}</p>
+    @else
+        <p class="kiosk-help small px-2 mb-1">{{ __('Tap the button, type your document number and look at the camera to confirm it is you.') }}</p>
+    @endif
     <p class="kiosk-help px-2 mb-3" style="font-size:.72rem"><i class="fas fa-user-shield"></i> {{ __('Privacy: the camera image is processed on this device; only the match result, time, IP and device are stored. Marking by document number saves an evidence snapshot.') }}</p>
     <button class="btn btn-sm btn-outline-light enroll-link" onclick="openEnrollPanel(); return false;"><i class="fas fa-user-plus"></i> {{ __('Enroll a face (supervisor)') }}</button>
 </div>
@@ -190,9 +195,15 @@
     window.ENROLL_UNLOCK_URL = "{{ route('kiosk.enroll.unlock') }}";
     window.ENROLL_LOOKUP_URL = "{{ route('kiosk.enroll.lookup') }}";
     window.ENROLL_DESCRIPTOR_URL = "{{ route('kiosk.enroll.descriptor') }}";
+    window.MARK_URL = "{{ route('kiosk.mark') }}";
+    window.FACE_URL_BASE = "{{ url('kiosk/face') }}";
     window.CSRF = "{{ csrf_token() }}";
     window.KIOSK_LOCALE = @json(app()->getLocale() === 'es' ? 'es-PE' : 'en-US');
     window.KIOSK_TZ = @json(company_timezone());
+    // Facial config (Settings → Facial)
+    window.KIOSK_FAST_MODE = @json((bool) app_setting()->kiosk_fast_mode);
+    window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
+    window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_I18N = {
         loadingModels1: @json(__('Loading recognition models (1/3)...')),
         loadingModels2: @json(__('Loading facial landmarks (2/3)...')),
@@ -222,6 +233,11 @@
         noFaceInSample: @json(__('No face was detected in sample :current. Move closer, improve the lighting and try again.')),
         saving: @json(__('Saving to the database...')),
         enrolled: @json(__('Enrolled! The kiosk will recognize this face from now on.')),
+        typeDocument: @json(__('Type your document number and mark')),
+        lookAtCamera: @json(__('Look at the camera, :name...')),
+        blinkNow: @json(__('Blink to confirm you are present')),
+        notEnrolledPhoto: @json(__('You have no enrolled face: marked by document, an evidence photo was saved.')),
+        verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
     };
 </script>
 <script defer src="{{ asset('js/kiosk.js') }}?v={{ @filemtime(public_path('js/kiosk.js')) ?: 1 }}"></script>

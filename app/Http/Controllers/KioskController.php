@@ -119,21 +119,54 @@ class KioskController extends Controller
         return md5(($request->session()->get('kiosk_site') ?? 'all').'|'.$enrolled->count().'|'.($enrolled->max('updated_at') ?? ''));
     }
 
-    /** Records a check-in or check-out after a facial match */
+    /** Face descriptors of ONE person (for 1:1 verification after typing the DNI) */
+    public function personFace(Request $request, string $document)
+    {
+        $employee = $this->scopedEmployees($request)
+            ->whereNotNull('face_descriptor')
+            ->where('document_number', strtoupper(trim($document)))
+            ->first(['id', 'first_name', 'last_name', 'face_descriptor']);
+
+        if (!$employee) {
+            // 404 = "not enrolled / not here": the browser falls back to DNI + photo
+            return response()->json(['ok' => false], 404);
+        }
+
+        $data = json_decode($employee->face_descriptor, true);
+        $descriptors = is_array($data) && isset($data[0]) && is_array($data[0]) ? $data : [$data];
+
+        return response()->json([
+            'ok' => true,
+            'id' => $employee->id,
+            'name' => $employee->full_name,
+            'descriptors' => $descriptors,
+        ]);
+    }
+
+    /** Records a check-in or check-out after a facial match (evidence photo optional) */
     public function mark(Request $request)
     {
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'distance' => ['required', 'numeric', 'min:0', 'max:1'],
+            'photo' => ['nullable', 'string', 'max:1500000'], // evidence snapshot of the facial mark
         ]);
 
-        if ($data['distance'] > self::THRESHOLD) {
+        if ($data['distance'] > (float) (app_setting()->kiosk_face_threshold ?: self::THRESHOLD)) {
             return response()->json(['ok' => false, 'message' => __('Face not recognized with enough confidence.')], 422);
         }
 
-        $employee = Employee::with('schedule')->findOrFail($data['employee_id']);
+        $employee = $this->scopedEmployees($request)->with('schedule')->find($data['employee_id']);
+        if (!$employee) {
+            return response()->json(['ok' => false, 'message' => __('No active employee found with that document number.')], 422);
+        }
 
-        return $this->performMark($request, $employee, 'FACIAL', ['similarity' => $data['distance']]);
+        $evidencePath = $this->storeEvidencePhoto($data['photo'] ?? null);
+
+        return $this->performMark($request, $employee, 'FACIAL', array_filter([
+            'similarity' => $data['distance'],
+            'evidence_photo' => $evidencePath,
+        ]));
     }
 
     /**
