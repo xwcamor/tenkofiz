@@ -218,7 +218,7 @@ class ReportController extends Controller
             return redirect()->route('dashboard')->with('error', __('Your user is not linked to an employee.'));
         }
 
-        return redirect()->route('reports.sheet', ['employee' => $employee->id] + $request->only(['from', 'to']));
+        return redirect()->route('reports.sheet', ['employee' => $employee->id] + $request->only(['from', 'to', 'month']));
     }
 
     /** Printable formal sheet (PDF via browser): managers see anyone, employees only their own */
@@ -229,7 +229,15 @@ class ReportController extends Controller
             abort(403, __('You can only view your own sheet.'));
         }
 
-        [$from, $to] = $this->range($request);
+        // A month picker (YYYY-MM) takes priority; otherwise use from/to or the cut-off period
+        if ($request->filled('month')) {
+            $month = \Carbon\Carbon::parse($request->input('month').'-01');
+            $from = $month->copy()->startOfMonth();
+            $to = $month->copy()->endOfMonth()->min(company_now());
+        } else {
+            [$from, $to] = $this->range($request);
+        }
+        $selectedMonth = $from->format('Y-m');
 
         $setting = app_setting();
 
@@ -280,6 +288,6 @@ class ReportController extends Controller
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->get();
 
-        return view('reports.sheet', compact('employee', 'setting', 'attendances', 'summary', 'vacations', 'justifications', 'from', 'to'));
+        return view('reports.sheet', compact('employee', 'setting', 'attendances', 'summary', 'vacations', 'justifications', 'from', 'to', 'selectedMonth'));
     }
 }

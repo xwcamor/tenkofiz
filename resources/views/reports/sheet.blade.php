@@ -19,14 +19,22 @@
         .summary td { text-align: center; font-weight: bold; font-size: 13px; }
         .signatures { display: flex; justify-content: space-around; margin-top: 70px; text-align: center; }
         .signatures div { border-top: 1px solid #333; width: 220px; padding-top: 5px; font-size: 11px; }
-        .no-print { text-align: center; margin-bottom: 18px; }
+        .no-print { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
         .no-print button { background: #1f4e79; color: #fff; border: 0; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .no-print .picker { display: flex; gap: 8px; align-items: center; background: #f1f4f9; padding: 8px 12px; border-radius: 8px; }
+        .no-print .picker input { padding: 7px 9px; border: 1px solid #c4cfdd; border-radius: 6px; font-size: 14px; }
+        .no-print .picker button { background: #2e75b6; padding: 8px 16px; }
         @media print { .no-print { display: none; } body { margin: 10px 15px; } }
         .badge { padding: 2px 6px; border-radius: 4px; color: #fff; font-size: 10px; }
     </style>
 </head>
 <body>
 <div class="no-print">
+    <form method="GET" action="{{ route('reports.sheet', $employee) }}" class="picker">
+        <label style="font-weight:bold; color:#1f4e79">{{ __('Month') }}:</label>
+        <input type="month" name="month" value="{{ $selectedMonth }}" max="{{ company_now()->format('Y-m') }}">
+        <button type="submit">{{ __('View') }}</button>
+    </form>
     <button onclick="window.print()">🖨 {{ __('Print / Save as PDF') }}</button>
 </div>
 

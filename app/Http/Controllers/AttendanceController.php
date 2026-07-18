@@ -131,15 +131,45 @@ class AttendanceController extends Controller
         return back()->with('ok', __('Attendance restored.'));
     }
 
-    /** The employee's own history */
+    /** The employee's own history, filtered by month (bounded: max 31 rows) */
     public function mine(Request $request)
     {
         $employee = $request->user()->employee;
 
-        $attendances = $employee
-            ? $employee->attendances()->orderByDesc('date')->paginate(31)->withQueryString()
-            : null;
+        $month = $request->filled('month')
+            ? \Carbon\Carbon::parse($request->input('month').'-01')
+            : company_now();
+        $selectedMonth = $month->format('Y-m');
 
-        return view('attendances.mine', compact('attendances', 'employee'));
+        $attendances = collect();
+        $summary = ['days' => 0, 'late' => 0, 'absent' => 0, 'hours' => '0:00'];
+
+        if ($employee) {
+            $attendances = $employee->attendances()
+                ->whereBetween('date', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+                ->orderByDesc('date')
+                ->get();
+
+            $minutes = 0;
+            foreach ($attendances as $attendance) {
+                if ($attendance->check_in && $attendance->check_out) {
+                    $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
+                    $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
+                    if ($end->lessThan($start)) {
+                        $end->addDay();
+                    }
+                    $minutes += (int) $start->diffInMinutes($end);
+                }
+            }
+
+            $summary = [
+                'days' => $attendances->whereIn('status', ['ON_TIME', 'LATE'])->count(),
+                'late' => $attendances->where('status', 'LATE')->count(),
+                'absent' => $attendances->where('status', 'ABSENT')->count(),
+                'hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
+            ];
+        }
+
+        return view('attendances.mine', compact('attendances', 'employee', 'selectedMonth', 'summary'));
     }
 }
