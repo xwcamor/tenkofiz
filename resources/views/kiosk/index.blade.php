@@ -39,20 +39,20 @@
         .video-frame canvas { position: absolute; top: 0; left: 0; }
         #result { min-height: 100px; }
 
-        /* Overlay panels (the kiosk page has no Bootstrap JS: plain show/hide) */
+        /* Overlay panels (the kiosk page has no Bootstrap JS: plain show/hide).
+           display:flex + margin:auto on the card centres it AND lets it scroll
+           when it is taller than the screen (tablets), instead of being clipped. */
         .kiosk-panel {
             display: none;
             position: fixed; inset: 0;
             background: rgba(6, 10, 16, .92);
             z-index: 50;
-            align-items: center; justify-content: center;
-            padding: 1rem;
+            overflow-y: auto;
+            padding: 1.5rem 1rem;
         }
         .kiosk-panel.open { display: flex; }
-        /* While capturing samples the person must see themselves on camera */
-        .kiosk-panel.capturing { background: rgba(6, 10, 16, .25); align-items: flex-end; }
-        .kiosk-panel.capturing .panel-card { background: rgba(22, 32, 46, .95); }
         .kiosk-panel .panel-card {
+            margin: auto;
             background: #16202e;
             border: 1px solid #2b3a4e;
             border-radius: 18px;
@@ -60,6 +60,10 @@
             width: 100%; max-width: 420px;
             text-align: center;
         }
+        /* While capturing samples the person must see themselves on the camera:
+           dim the backdrop and drop the card near the bottom (still scrollable). */
+        .kiosk-panel.capturing { background: rgba(6, 10, 16, .25); }
+        .kiosk-panel.capturing .panel-card { margin: auto auto 1rem; background: rgba(22, 32, 46, .96); }
         .dni-display {
             background: #0d141d;
             border: 1px solid #2b3a4e;
@@ -166,9 +170,9 @@
                 <label class="form-check-label small" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
             </div>
             <div id="enrollCaptureMessage"></div>
-            <div class="d-flex gap-2 justify-content-center mt-2">
-                <button class="btn btn-secondary px-4" onclick="closeEnrollPanel()">{{ __('Cancel') }}</button>
-                <button class="btn btn-success px-4" id="enrollCaptureBtn" onclick="enrollCapture()"><i class="fas fa-camera"></i> {{ __('Capture (3 samples)') }}</button>
+            <div class="d-grid gap-2 mt-2">
+                <button class="btn btn-success btn-lg" id="enrollCaptureBtn" onclick="enrollCapture()"><i class="fas fa-camera"></i> {{ __('Capture (3 samples)') }}</button>
+                <button class="btn btn-secondary" onclick="closeEnrollPanel()">{{ __('Cancel') }}</button>
             </div>
         </div>
     </div>
