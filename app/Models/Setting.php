@@ -10,7 +10,7 @@ class Setting extends Model
         'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'cutoff_day', 'kiosk_token', 'kiosk_enroll_pin',
         'early_check_in_minutes', 'early_departure_minutes',
         'kiosk_device_hash', 'kiosk_pair_code', 'kiosk_pair_expires_at',
-        'kiosk_fast_mode', 'kiosk_liveness', 'kiosk_face_threshold',
+        'kiosk_fast_mode', 'kiosk_liveness', 'kiosk_require_face', 'kiosk_face_threshold',
     ];
 
     protected $casts = [
@@ -19,6 +19,7 @@ class Setting extends Model
         'kiosk_pair_expires_at' => 'datetime',
         'kiosk_fast_mode' => 'boolean',
         'kiosk_liveness' => 'boolean',
+        'kiosk_require_face' => 'boolean',
         'kiosk_face_threshold' => 'float',
     ];
 

@@ -40,6 +40,7 @@ class SettingController extends Controller
         $data['early_departure_minutes'] = $data['early_departure_minutes'] ?? 0;
         $data['kiosk_fast_mode'] = $request->boolean('kiosk_fast_mode');
         $data['kiosk_liveness'] = $request->boolean('kiosk_liveness');
+        $data['kiosk_require_face'] = $request->boolean('kiosk_require_face');
 
         if ($request->hasFile('logo')) {
             $dir = public_path('uploads');

@@ -77,6 +77,11 @@
                     <hr>
                     <h6 class="font-weight-bold"><i class="fas fa-user-check"></i> {{ __('Facial recognition (kiosk)') }}</h6>
                     <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="kiosk_require_face" value="1" class="custom-control-input" id="kioskRequireFace" @checked(old('kiosk_require_face', $setting->kiosk_require_face))>
+                        <label class="custom-control-label" for="kioskRequireFace">{{ __('Require a detected face before marking — no face, no mark and no photo') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('Recommended ON: the kiosk will not mark (nor save a photo) unless it actually sees a face in front of the camera. The person is asked to show their face and try again.') }}</small>
+                    <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="kiosk_liveness" value="1" class="custom-control-input" id="kioskLiveness" @checked(old('kiosk_liveness', $setting->kiosk_liveness))>
                         <label class="custom-control-label" for="kioskLiveness">{{ __('Require a blink (liveness) — blocks marking with a photo') }}</label>
                     </div>

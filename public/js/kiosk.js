@@ -23,6 +23,7 @@ const COOLDOWN_MS = 60000;
 const THRESHOLD = Number(window.KIOSK_THRESHOLD) || 0.5; // match strictness (lower = stricter)
 const FAST_MODE = !!window.KIOSK_FAST_MODE;
 const LIVENESS = !!window.KIOSK_LIVENESS;
+const REQUIRE_FACE = window.KIOSK_REQUIRE_FACE !== false; // default on: never mark without seeing a face
 const VERIFY_WINDOW_MS = 7000;   // how long the 1:1 verification tries before giving up
 const EAR_OPEN = 0.25;           // eye-aspect-ratio thresholds for the blink detector
 const EAR_CLOSED = 0.18;
@@ -199,15 +200,54 @@ async function verifyAndMark(dni) {
         await wait(300);
     }
 
-    // 3) time up without a confident match -> mark by document, flagged with a photo
-    return markByDniWithPhoto(dni, sawFace ? I18N.verifyFailedPhoto : I18N.noFaceSeenPhoto);
+    // 3) time up. A real face was seen but not confidently matched -> mark by
+    //    document with an evidence photo (the photo is meaningful for review).
+    if (sawFace) return markByDniWithPhoto(dni, I18N.verifyFailedPhoto);
+
+    // No face was ever detected. With require-face on we do NOT mark and do NOT
+    // save a photo — we ask the person to actually show their face.
+    if (REQUIRE_FACE) return noFaceRetry();
+    return markByDniWithPhoto(dni, I18N.noFaceSeenPhoto);
 }
 
-/** The typed document has no enrolled face: say so (not a silent instant mark), then mark by document */
+/** The typed document has no enrolled face. Still require a real face on camera
+ *  (when the setting is on) before marking by document + evidence photo. */
 async function noFaceRegistered(dni) {
     show('warning', '<i class="fas fa-id-card"></i> ' + I18N.noFaceRegistered);
+    if (REQUIRE_FACE) {
+        const seen = await waitForAnyFace();
+        if (!seen) return noFaceRetry();
+        return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+    }
     await wait(1800);
     return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+}
+
+/** Runs the camera for up to VERIFY_WINDOW_MS looking for ANY face (no identity
+ *  match). Returns true as soon as a face is seen, drawing a live box + guidance. */
+async function waitForAnyFace() {
+    const deadline = Date.now() + VERIFY_WINDOW_MS;
+    while (Date.now() < deadline) {
+        let det;
+        try {
+            det = await faceapi.detectSingleFace(video, KIOSK_DETECTOR_OPTIONS()).withFaceLandmarks();
+        } catch (e) { det = null; }
+        clearOverlay();
+        if (det) { drawBox(det.detection.box, '#28a745'); return true; }
+        show('info', spinner + I18N.showYourFace.replace(':name', ''));
+        await wait(300);
+    }
+    return false;
+}
+
+/** No face was ever seen: tell the person to show their face, record nothing, and
+ *  bring the keypad back so they can try again. */
+async function noFaceRetry() {
+    clearOverlay();
+    show('warning', '<i class="fas fa-exclamation-triangle"></i> ' + I18N.noFaceRetry);
+    await wait(2600);
+    if (FAST_MODE) { pauseThenScan(); return; }
+    openDniPanel(); // bring the keypad back right away for another try
 }
 
 async function commitFacial(person, distance) {
@@ -432,6 +472,9 @@ async function enrollCapture() {
     const btn = document.getElementById('enrollCaptureBtn');
     btn.disabled = true;
     document.getElementById('enrollPanel').classList.add('capturing');
+    // Bring the live camera into view: the backdrop is now transparent, so make
+    // sure the video (top of the page) is what the person actually sees.
+    document.querySelector('.video-frame')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const SAMPLES = 3;
     const descriptors = [];
     for (let i = 1; i <= SAMPLES; i++) {

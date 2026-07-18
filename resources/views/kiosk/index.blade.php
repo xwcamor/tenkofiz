@@ -60,10 +60,31 @@
             width: 100%; max-width: 420px;
             text-align: center;
         }
-        /* While capturing samples the person must see themselves on the camera:
-           dim the backdrop and drop the card near the bottom (still scrollable). */
-        .kiosk-panel.capturing { background: rgba(6, 10, 16, .25); }
-        .kiosk-panel.capturing .panel-card { margin: auto auto 1rem; background: rgba(22, 32, 46, .96); }
+        /* While capturing samples the person MUST see themselves on the camera.
+           The full-screen backdrop disappears (transparent + click-through) and
+           only a compact bar stays pinned to the bottom, so the live video at the
+           top of the page is completely unobstructed. */
+        .kiosk-panel.capturing {
+            background: transparent;
+            pointer-events: none;
+            align-items: flex-end;
+            padding: 0 0 1rem;
+        }
+        .kiosk-panel.capturing .panel-card {
+            margin: 0 auto;
+            max-width: 380px;
+            padding: .85rem 1rem;
+            background: rgba(15, 22, 32, .92);
+            box-shadow: 0 -6px 30px rgba(0, 0, 0, .5);
+            pointer-events: auto;
+        }
+        /* Hide everything except the live status + Cancel while capturing, so the
+           card stays small and never grows back over the camera. */
+        .kiosk-panel.capturing #enrollName,
+        .kiosk-panel.capturing #enrollHasFaceWarning,
+        .kiosk-panel.capturing #enrollConsentText,
+        .kiosk-panel.capturing #enrollStepCapture .form-check,
+        .kiosk-panel.capturing #enrollCaptureBtn { display: none !important; }
         .dni-display {
             background: #0d141d;
             border: 1px solid #2b3a4e;
@@ -203,6 +224,7 @@
     // Facial config (Settings → Facial)
     window.KIOSK_FAST_MODE = @json((bool) app_setting()->kiosk_fast_mode);
     window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
+    window.KIOSK_REQUIRE_FACE = @json((bool) app_setting()->kiosk_require_face);
     window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_I18N = {
         loadingModels1: @json(__('Loading recognition models (1/3)...')),
@@ -242,6 +264,8 @@
         noFaceSeenPhoto: @json(__('No face was detected. Marked by document — an evidence photo was saved for review.')),
         notEnrolledPhoto: @json(__('You have no enrolled face: marked by document, an evidence photo was saved.')),
         verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
+        noFaceRetry: @json(__('No face detected. Show your face to the camera and try again — nothing was recorded.')),
+        showYourFace: @json(__('Show your face to the camera, :name...')),
     };
 </script>
 <script defer src="{{ asset('js/kiosk.js') }}?v={{ @filemtime(public_path('js/kiosk.js')) ?: 1 }}"></script>
