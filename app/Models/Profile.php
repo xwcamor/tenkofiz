@@ -19,6 +19,7 @@ class Profile extends Model
         'holidays' => 'Holidays',
         'audit_logs' => 'Audit log',
         'settings' => 'System settings',
+        'kiosk' => 'Marking kiosk',
     ];
 
     protected $fillable = ['name', 'description', 'permissions', 'is_active'];

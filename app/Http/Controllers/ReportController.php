@@ -65,6 +65,86 @@ class ReportController extends Controller
             ->deleteFileAfterSend(true);
     }
 
+    /**
+     * Detailed Excel: one row per employee per day, with check-in, check-out,
+     * worked hours and status — plus a worked-hours total per employee.
+     */
+    public function exportDetail(Request $request)
+    {
+        [$from, $to] = $this->range($request);
+
+        $employees = Employee::with([
+            'area', 'position', 'schedule.days',
+            'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date'),
+        ])->where('is_active', true)->orderBy('last_name')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(__('Detail'));
+
+        $headers = [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out'), __('Worked hours'), __('Status')];
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 1], $header);
+        }
+        $sheet->getStyle('A1:G1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
+        ]);
+        $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
+            'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
+        ]));
+        $sheet->mergeCells('A2:G2');
+
+        $rowIndex = 3;
+        foreach ($employees as $employee) {
+            $employeeMinutes = 0;
+
+            foreach ($employee->attendances as $attendance) {
+                $dayMinutes = 0;
+                if ($attendance->check_in && $attendance->check_out) {
+                    $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
+                    $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
+                    if ($end->lessThan($start)) {
+                        $end->addDay(); // overnight shift
+                    }
+                    $dayMinutes = (int) $start->diffInMinutes($end);
+                    $employeeMinutes += $dayMinutes;
+                }
+
+                $sheet->fromArray([
+                    $employee->full_name,
+                    $employee->document_number,
+                    $attendance->date->format('d/m/Y'),
+                    $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
+                    $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
+                    $dayMinutes ? sprintf('%d:%02d', intdiv($dayMinutes, 60), $dayMinutes % 60) : '—',
+                    __($attendance->status),
+                ], null, 'A'.$rowIndex++);
+            }
+
+            // Worked-hours subtotal for the employee
+            if ($employee->attendances->isNotEmpty()) {
+                $sheet->setCellValue('E'.$rowIndex, __('Total'));
+                $sheet->setCellValue('F'.$rowIndex, sprintf('%d:%02d', intdiv($employeeMinutes, 60), $employeeMinutes % 60));
+                $sheet->getStyle('A'.$rowIndex.':G'.$rowIndex)->applyFromArray([
+                    'font' => ['bold' => true],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EEF2F8']],
+                ]);
+                $rowIndex++;
+            }
+        }
+
+        foreach (range('A', 'G') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $file = tempnam(sys_get_temp_dir(), 'report_detail');
+        (new Xlsx($spreadsheet))->save($file);
+
+        return response()->download($file, 'attendance_detail_'.$from->format('Ymd').'_'.$to->format('Ymd').'.xlsx')
+            ->deleteFileAfterSend(true);
+    }
+
     /** Default range = current payroll cut-off period (configured in Settings) */
     private function range(Request $request): array
     {

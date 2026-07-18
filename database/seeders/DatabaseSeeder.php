@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
 
         $supervisor = Profile::firstOrCreate(['name' => 'Supervisor'], [
             'description' => 'Manages attendance and approves requests',
-            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage'],
+            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
         ]);
 
         $employeeProfile = Profile::firstOrCreate(['name' => 'Employee'], [

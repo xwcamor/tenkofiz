@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:reports')->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
+        Route::get('reports/export-detail', [ReportController::class, 'exportDetail'])->name('reports.exportDetail');
     });
 
     Route::middleware('module:vacations_manage')->group(function () {

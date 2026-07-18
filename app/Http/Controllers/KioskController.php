@@ -212,12 +212,12 @@ class KioskController extends Controller
             $elapsedMinutes = (int) $checkIn->diffInMinutes($now);
 
             if ($elapsedMinutes < self::MIN_MINUTES_BEFORE_CHECKOUT) {
+                // Do not reveal the exact wait time (internal rule against double marking)
                 return response()->json([
                     'ok' => false,
-                    'message' => __(':name: your check-in was already recorded at :time. You can check out in :minutes minute(s).', [
+                    'message' => __(':name, your check-in was already recorded at :time. Try again later to record your check-out.', [
                         'name' => $employee->full_name,
                         'time' => $checkIn->format('h:i a'),
-                        'minutes' => self::MIN_MINUTES_BEFORE_CHECKOUT - $elapsedMinutes,
                     ]),
                 ], 422);
             }

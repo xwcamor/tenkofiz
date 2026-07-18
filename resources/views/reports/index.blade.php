@@ -9,7 +9,8 @@
             <label class="mr-2">{{ __('To') }}</label>
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
-            <a href="{{ route('reports.export', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Export Excel') }}</a>
+            <a href="{{ route('reports.export', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Summary (Excel)') }}</a>
+            <a href="{{ route('reports.exportDetail', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-outline-success ml-1" title="{{ __('One row per employee per day, with times and worked hours') }}"><i class="fas fa-list"></i> {{ __('Detail (Excel)') }}</a>
             @if(app_setting()->cutoff_day)
                 @php [$periodStart, $periodEnd] = current_period(); @endphp
                 <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">

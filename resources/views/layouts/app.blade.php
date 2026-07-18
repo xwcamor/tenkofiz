@@ -251,7 +251,7 @@
                         @endif
                     @endif
 
-                    @if($currentUser->hasModule('settings'))
+                    @if($currentUser->hasModule('kiosk'))
                         <li class="nav-header">{{ __('KIOSK') }}</li>
                         <li class="nav-item">
                             <a href="{{ route('kiosk', app_setting()->kiosk_token ? ['token' => app_setting()->kiosk_token] : []) }}" target="_blank" class="nav-link">

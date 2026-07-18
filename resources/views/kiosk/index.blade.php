@@ -7,13 +7,24 @@
     <link href="{{ vendor_asset('vendor/bootstrap5/bootstrap.min.css', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ vendor_asset('vendor/fontawesome/css/all.min.css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css') }}">
     <style>
-        body { background: #101820; color: #fff; min-height: 100vh; }
-        #clock { font-size: clamp(1.6rem, 6vw, 2.4rem); font-weight: 700; letter-spacing: 2px; }
-        h1.title { font-size: clamp(1rem, 4vw, 1.6rem); }
+        body {
+            background: radial-gradient(1200px 600px at 50% -12%, #17324f 0%, transparent 55%), #0d1420;
+            color: #e8eef6;
+            min-height: 100vh;
+        }
+        #clock { font-size: clamp(1.9rem, 6vw, 2.7rem); font-weight: 700; letter-spacing: 3px; color: #f4f8fd; }
+        #date { color: #94a6bd; }
+        #date::first-letter { text-transform: uppercase; }
+        h1.title { font-size: clamp(1rem, 4vw, 1.5rem); color: #cdd9e8; letter-spacing: 1px; font-weight: 600; }
+        h1.title i { color: #4a90e2; }
+        .kiosk-help { color: #8fa2b8; }
+        .enroll-link { opacity: .75; }
+        .enroll-link:hover { opacity: 1; }
         /* Fully responsive video container: adapts to phone, tablet and PC */
         .video-frame {
-            border: 4px solid #2e75b6;
-            border-radius: 16px;
+            border: 3px solid #2e75b6;
+            border-radius: 18px;
+            box-shadow: 0 14px 48px rgba(0, 0, 0, .45);
             overflow: hidden;
             width: 100%;
             max-width: 560px;
@@ -89,11 +100,9 @@
         </button>
     </div>
 
-    <p class="text-secondary small px-2">{{ __('Stand in front of the camera. The system will recognize you and record your check-in or check-out automatically.') }}</p>
-    <p class="text-secondary small px-2 mb-1"><i class="fas fa-user-shield"></i> {{ __('Privacy: the camera image is processed on this device; only the match result, time, IP and device are stored. Marking by document number saves an evidence snapshot.') }}</p>
-    <a href="{{ route('login') }}" class="text-secondary small">{{ __('Go to the system') }} <i class="fas fa-sign-in-alt"></i></a>
-    <span class="text-secondary small mx-2">·</span>
-    <a href="#" class="text-secondary small" onclick="openEnrollPanel(); return false;"><i class="fas fa-user-plus"></i> {{ __('Enroll (supervisor)') }}</a>
+    <p class="kiosk-help small px-2 mb-1">{{ __('Stand in front of the camera. The system will recognize you and record your check-in or check-out automatically.') }}</p>
+    <p class="kiosk-help px-2 mb-3" style="font-size:.72rem"><i class="fas fa-user-shield"></i> {{ __('Privacy: the camera image is processed on this device; only the match result, time, IP and device are stored. Marking by document number saves an evidence snapshot.') }}</p>
+    <button class="btn btn-sm btn-outline-light enroll-link" onclick="openEnrollPanel(); return false;"><i class="fas fa-user-plus"></i> {{ __('Enroll a face (supervisor)') }}</button>
 </div>
 
 {{-- ---------- DNI keypad panel (marking fallback) ---------- --}}

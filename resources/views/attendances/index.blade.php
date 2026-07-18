@@ -18,6 +18,19 @@
         'ABSENT' => 'danger',
         default => 'info',
     };
+    // Worked hours for a single row: (check-out − check-in), handling overnight shifts
+    $workedHours = function ($attendance) {
+        if (!$attendance->check_in || !$attendance->check_out) {
+            return '—';
+        }
+        $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
+        $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
+        if ($end->lessThan($start)) {
+            $end->addDay();
+        }
+        $minutes = (int) $start->diffInMinutes($end);
+        return sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60);
+    };
 @endphp
 
 <div class="card card-primary card-outline">
@@ -47,14 +60,15 @@
     </div>
     <div class="card-body">
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:60px">{{ __('Edit') }}</th></tr></thead>
+            <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:60px">{{ __('Edit') }}</th></tr></thead>
             <tbody>
             @forelse($attendances as $attendance)
                 <tr>
                     <td>{{ $attendance->date->format('d/m/Y') }}</td>
                     <td>{{ $attendance->employee->full_name }}</td>
-                    <td>{{ $attendance->check_in ?? '—' }}</td>
-                    <td>{{ $attendance->check_out ?? '—' }}</td>
+                    <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}</td>
+                    <td>{{ $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—' }}</td>
+                    <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
                     <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                     <td>
                         @if($attendance->method === 'DNI')
@@ -83,7 +97,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="8" class="text-center text-muted py-4">{{ __('No records in the period') }}</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-4">{{ __('No records in the period') }}</td></tr>
             @endforelse
             </tbody>
         </table>
