@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Position extends Model
 {
-    protected $fillable = ['name', 'is_active'];
+    use BelongsToCompany;
+
+    protected $fillable = ['company_id', 'name', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

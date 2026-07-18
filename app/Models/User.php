@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -9,10 +10,10 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use BelongsToCompany, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'password', 'profile_id', 'site_id', 'is_active',
+        'name', 'email', 'password', 'profile_id', 'company_id', 'site_id', 'is_super_admin', 'is_active',
         'must_change_password', 'timezone', 'locale', 'photo', 'delete_reason',
     ];
 
@@ -25,7 +26,14 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
+            'is_super_admin' => 'boolean',
         ];
+    }
+
+    /** The super-admin owns every workspace and bypasses per-module permissions */
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
     }
 
     public function profile()
@@ -53,6 +61,10 @@ class User extends Authenticatable
     /** Whether the user's profile grants access to the given module */
     public function hasModule(string $module): bool
     {
+        if ($this->isSuperAdmin()) {
+            return true; // super-admin sees every module of the workspace they entered
+        }
+
         return $this->profile !== null
             && $this->profile->is_active
             && in_array($module, $this->profile->permissions ?? [], true);
@@ -72,7 +84,8 @@ class User extends Authenticatable
     /** Managers see company-wide data (dashboard, everyone's requests, calendars) */
     public function isManager(): bool
     {
-        return $this->hasAnyModule('employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage');
+        return $this->isSuperAdmin()
+            || $this->hasAnyModule('employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage');
     }
 
     /** Timezone used to display dates for this user (falls back to the company timezone) */

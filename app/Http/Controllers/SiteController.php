@@ -92,7 +92,7 @@ class SiteController extends Controller
     private function validated(Request $request, ?Site $site = null): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('sites')->ignore($site)],
+            'name' => ['required', 'string', 'max:100', Rule::unique('sites')->ignore($site)->where('company_id', current_company_id())],
             'address' => ['nullable', 'string', 'max:200'],
             'timezone' => ['nullable', 'timezone:all'],
         ], [

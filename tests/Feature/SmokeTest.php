@@ -90,14 +90,13 @@ class SmokeTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $site = \App\Models\Site::first(); // single seeded site
 
-        $this->get('/kiosk')->assertOk(); // no token configured: open
+        $this->get('/kiosk?site='.$site->id)->assertOk(); // no token configured: open
 
         $site->update(['kiosk_token' => 'secret-token-123']);
 
-        // A single-site company resolves the site even without ?site
-        $this->get('/kiosk')->assertForbidden();
-        $this->get('/kiosk?token=wrong')->assertForbidden();
-        $this->get('/kiosk?token=secret-token-123')->assertOk();
+        $this->get('/kiosk?site='.$site->id)->assertForbidden();
+        $this->get('/kiosk?site='.$site->id.'&token=wrong')->assertForbidden();
+        $this->get('/kiosk?site='.$site->id.'&token=secret-token-123')->assertOk();
         // token remembered in session afterwards
         $this->get('/kiosk/descriptors')->assertOk();
     }

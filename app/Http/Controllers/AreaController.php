@@ -11,7 +11,7 @@ class AreaController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:areas,name'],
+            'name' => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('areas', 'name')->where('company_id', current_company_id())],
         ], [
             'name.unique' => __('That area already exists.'),
         ]);

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class HolidayTemplate extends Model
 {
-    protected $fillable = ['country', 'month', 'day', 'easter_offset', 'name'];
+    use BelongsToCompany;
+
+    protected $fillable = ['company_id', 'country', 'month', 'day', 'easter_offset', 'name'];
 
     protected $casts = [
         'month' => 'integer',

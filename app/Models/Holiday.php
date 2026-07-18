@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Holiday extends Model
 {
-    protected $fillable = ['date', 'name'];
+    use BelongsToCompany;
+
+    protected $fillable = ['company_id', 'date', 'name'];
 
     // 'date:Y-m-d' stores a pure date string. Without the explicit format the value
     // serializes as 'Y-m-d 00:00:00', which breaks firstOrCreate(['date' => ...]) on

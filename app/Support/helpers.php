@@ -3,13 +3,28 @@
 use App\Models\Setting;
 use App\Models\User;
 
+if (!function_exists('current_company_id')) {
+    /** The workspace (company) the current request operates in (null = all/none) */
+    function current_company_id(): ?int
+    {
+        try {
+            return \App\Models\Scopes\CompanyScope::currentCompanyId();
+        } catch (\Throwable) {
+            return null; // DB not migrated yet
+        }
+    }
+}
+
 if (!function_exists('app_setting')) {
-    /** Cached-per-request singleton of the system settings row */
+    /** Settings row of the current company, cached per company for the request */
     function app_setting(): Setting
     {
-        return app()->bound('app.setting')
-            ? app('app.setting')
-            : tap(Setting::instance(), fn ($s) => app()->instance('app.setting', $s));
+        $companyId = current_company_id();
+        $key = 'app.setting.'.($companyId ?? 'global');
+
+        return app()->bound($key)
+            ? app($key)
+            : tap(Setting::forCompany($companyId), fn ($s) => app()->instance($key, $s));
     }
 }
 

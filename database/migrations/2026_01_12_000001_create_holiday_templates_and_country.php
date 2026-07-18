@@ -27,12 +27,17 @@ return new class extends Migration
         });
 
         // Populate the built-in presets so existing installs get the templates from
-        // `migrate` alone (no need to re-seed). Idempotent via firstOrCreate.
+        // `migrate` alone (no need to re-seed). Raw inserts here because company_id
+        // does not exist yet (a later migration adds and backfills it).
         foreach (array_keys(\App\Models\HolidayTemplate::COUNTRIES) as $country) {
+            if (\Illuminate\Support\Facades\DB::table('holiday_templates')->where('country', $country)->exists()) {
+                continue;
+            }
             foreach (\App\Models\HolidayTemplate::presets($country) as [$month, $day, $offset, $name]) {
-                \App\Models\HolidayTemplate::firstOrCreate(
-                    ['country' => $country, 'month' => $month, 'day' => $day, 'easter_offset' => $offset, 'name' => $name]
-                );
+                \Illuminate\Support\Facades\DB::table('holiday_templates')->insert([
+                    'country' => $country, 'month' => $month, 'day' => $day, 'easter_offset' => $offset, 'name' => $name,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
             }
         }
     }

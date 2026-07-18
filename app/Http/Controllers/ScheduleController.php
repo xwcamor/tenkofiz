@@ -56,7 +56,7 @@ class ScheduleController extends Controller
     private function validated(Request $request, ?Schedule $schedule = null): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)],
+            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())],
             'tolerance_minutes' => ['required', 'integer', 'min:0', 'max:60'],
             'days' => ['required', 'array'],
             'days.*.on' => ['nullable', 'boolean'],

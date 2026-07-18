@@ -322,7 +322,7 @@ class EmployeeController extends Controller
 
         return $request->validate([
             'document_type' => ['required', Rule::in(array_keys(Employee::DOCUMENT_TYPES))],
-            'document_number' => [...$documentRule, Rule::unique('employees')->ignore($employee)->withoutTrashed()],
+            'document_number' => [...$documentRule, Rule::unique('employees')->ignore($employee)->withoutTrashed()->where('company_id', current_company_id())],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'area_id' => ['nullable', 'exists:areas,id'],

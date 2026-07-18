@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Setting extends Model
 {
     protected $fillable = [
+        'company_id',
         'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'country', 'cutoff_day', 'kiosk_token', 'kiosk_enroll_pin',
         'early_check_in_minutes', 'early_departure_minutes',
         'kiosk_device_hash', 'kiosk_pair_code', 'kiosk_pair_expires_at',
@@ -23,9 +24,24 @@ class Setting extends Model
         'kiosk_face_threshold' => 'float',
     ];
 
-    /** Returns the single settings row (creates it if missing) */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /** Current company's settings row (kept for backward compatibility) */
     public static function instance(): self
     {
-        return static::firstOrCreate(['id' => 1]);
+        return static::forCompany(current_company_id());
+    }
+
+    /** Settings row for a company (or the legacy single row when company is null) */
+    public static function forCompany(?int $companyId): self
+    {
+        if ($companyId) {
+            return static::firstOrCreate(['company_id' => $companyId]);
+        }
+
+        return static::query()->orderBy('id')->first() ?? static::create([]);
     }
 }

@@ -11,7 +11,7 @@ class PositionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:positions,name'],
+            'name' => ['required', 'string', 'max:100', \Illuminate\Validation\Rule::unique('positions', 'name')->where('company_id', current_company_id())],
         ], [
             'name.unique' => __('That position already exists.'),
         ]);

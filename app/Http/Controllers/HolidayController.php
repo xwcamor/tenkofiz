@@ -133,7 +133,7 @@ class HolidayController extends Controller
     private function validated(Request $request, ?Holiday $holiday = null): array
     {
         return $request->validate([
-            'date' => ['required', 'date', Rule::unique('holidays')->ignore($holiday)],
+            'date' => ['required', 'date', Rule::unique('holidays')->ignore($holiday)->where('company_id', current_company_id())],
             'name' => ['required', 'string', 'max:150'],
         ], [
             'date.unique' => __('A holiday is already registered on that date.'),

@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class Site extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
-        'name', 'address', 'timezone', 'is_active',
+        'company_id', 'name', 'address', 'timezone', 'is_active',
         'kiosk_token', 'kiosk_device_hash', 'kiosk_pair_code', 'kiosk_pair_expires_at',
     ];
 
