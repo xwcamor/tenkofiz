@@ -48,6 +48,6 @@ class SiteController extends Controller
             'timezone' => ['nullable', 'timezone:all'],
         ], [
             'name.unique' => __('A site with that name already exists.'),
-        ]) + ['is_active' => $request->boolean('is_active', true)];
+        ]) + ['is_active' => $site ? $request->boolean('is_active') : true];
     }
 }

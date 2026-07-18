@@ -334,6 +334,6 @@ class EmployeeController extends Controller
         ], [
             'document_number.unique' => __('That document number is already registered to another employee.'),
             'schedule_id.required' => __('You must assign a schedule to the employee (needed to compute tardiness).'),
-        ]) + ['is_active' => $request->boolean('is_active')];
+        ]) + ['is_active' => $employee ? $request->boolean('is_active') : true];
     }
 }

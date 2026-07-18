@@ -90,7 +90,7 @@ class ScheduleController extends Controller
             [
                 'name' => $data['name'],
                 'tolerance_minutes' => $data['tolerance_minutes'],
-                'is_active' => $request->boolean('is_active'),
+                'is_active' => $schedule ? $request->boolean('is_active') : true,
             ],
             $days,
         ];

@@ -80,7 +80,7 @@
                     <small class="text-muted">{{ __('Without checked modules, the user only sees their own information (self-service).') }}</small>
                     @error('permissions.*')<span class="text-danger d-block">{{ $message }}</span>@enderror
                 </div>
-                <div class="custom-control custom-switch">
+                <div class="custom-control custom-switch" id="profileActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="profileActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="profileActive">{{ __('Active') }}</label>
                 </div>
@@ -106,6 +106,7 @@ function openProfileModal(data = null) {
     document.getElementById('profileName').value = data ? data.name : '';
     document.getElementById('profileDescription').value = data ? (data.description || '') : '';
     document.getElementById('profileActive').checked = data ? !!data.is_active : true;
+    document.getElementById('profileActiveRow').style.display = data ? '' : 'none';
     document.querySelectorAll('.profile-permission').forEach(box => {
         box.checked = data ? data.permissions.includes(box.value) : false;
     });

@@ -95,10 +95,12 @@
                     @if($employee->exists && $employee->user)
                         <p class="text-muted mb-2"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
                     @endif
-                    <div class="custom-control custom-switch">
-                        <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active ?? true))>
-                        <label class="custom-control-label" for="employeeActive">{{ __('Active') }}</label>
-                    </div>
+                    @if($employee->exists)
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active))>
+                            <label class="custom-control-label" for="employeeActive">{{ __('Active') }} <small class="text-muted">({{ __('turn off to mark as terminated') }})</small></label>
+                        </div>
+                    @endif
                 </div>
                 <div class="card-footer">
                     <button class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Save') }}</button>

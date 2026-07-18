@@ -86,7 +86,7 @@
                     <label>{{ __('Tardiness tolerance (minutes)') }}</label>
                     <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 10) }}" class="form-control" min="0" max="60" required>
                 </div>
-                <div class="custom-control custom-switch">
+                <div class="custom-control custom-switch" id="scheduleActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="scheduleActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="scheduleActive">{{ __('Active') }}</label>
                 </div>
@@ -112,6 +112,7 @@ function openScheduleModal(data = null) {
     document.getElementById('scheduleName').value = data ? data.name : '';
     document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 10;
     document.getElementById('scheduleActive').checked = data ? !!data.is_active : true;
+    document.getElementById('scheduleActiveRow').style.display = data ? '' : 'none';
 
     for (let weekday = 0; weekday <= 6; weekday++) {
         const dayData = data && data.days ? data.days[weekday] : null;

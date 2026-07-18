@@ -47,7 +47,7 @@ class UserController extends Controller
             'is_active' => ['boolean'],
         ]);
 
-        $data['is_active'] = $request->boolean('is_active');
+        $data['is_active'] = true; // new users are always active (toggle only on edit)
         $data['photo'] = $this->storePhoto($request);
         $user = User::create($data);
 

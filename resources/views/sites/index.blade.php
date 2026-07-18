@@ -79,7 +79,7 @@
                     </select>
                     @error('timezone')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-                <div class="custom-control custom-switch">
+                <div class="custom-control custom-switch" id="siteActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="siteActive" checked>
                     <label class="custom-control-label" for="siteActive">{{ __('Active') }}</label>
                 </div>
@@ -105,6 +105,7 @@ function openSiteModal(data = null) {
     document.getElementById('siteAddress').value = data ? (data.address || '') : '';
     document.getElementById('siteTimezone').value = data ? (data.timezone || '') : '';
     document.getElementById('siteActive').checked = data ? !!data.is_active : true;
+    document.getElementById('siteActiveRow').style.display = data ? '' : 'none';
     $('#siteModal').modal('show');
 }
 @if($errors->any())

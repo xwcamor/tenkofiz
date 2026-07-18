@@ -56,7 +56,8 @@ class ProfileController extends Controller
         ]);
 
         $data['permissions'] = array_values($data['permissions'] ?? []);
-        $data['is_active'] = $request->boolean('is_active');
+        // New records are always active; the toggle only appears when editing
+        $data['is_active'] = $profile ? $request->boolean('is_active') : true;
 
         return $data;
     }

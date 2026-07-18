@@ -168,7 +168,7 @@
                     @error('photo')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                     <small class="text-muted" id="userPhotoHint" style="display:none">{{ __('Uploading a new photo replaces the current one.') }}</small>
                 </div>
-                <div class="custom-control custom-switch">
+                <div class="custom-control custom-switch" id="userActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="userActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="userActive">{{ __('Active') }}</label>
                 </div>
@@ -195,6 +195,8 @@ function openUserModal(data = null) {
     document.getElementById('userEmail').value = data ? data.email : '';
     document.getElementById('userProfile').value = data ? (data.profile_id || '') : '';
     document.getElementById('userActive').checked = data ? !!data.is_active : true;
+    // The Active toggle only makes sense when editing (new users are always active)
+    document.getElementById('userActiveRow').style.display = data ? '' : 'none';
     const password = document.getElementById('userPassword');
     password.value = '';
     password.required = !data;
