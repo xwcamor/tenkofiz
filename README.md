@@ -41,6 +41,7 @@ cloned the repository or are setting up a new server:
 | [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | **Post-install checklist**: every `.env` variable (incl. `DECOLECTA_API_TOKEN`), in-app Settings, face models, cron, kiosk hardening, file permissions |
 | [docs/CORREO.md](docs/CORREO.md) | SMTP setup (Gmail app passwords, Mailtrap, log driver), which emails the system sends, how to test |
 | [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md) | Switching between SQLite and MySQL/MariaDB, `DB_*` parameters, backups, useful artisan commands |
+| [docs/REGLAS_DE_NEGOCIO.md](docs/REGLAS_DE_NEGOCIO.md) | **Developer reference**: every business rule (kiosk marking, lateness, overnight shifts, automatic absences, vacation balance, soft deletes, permissions, timezones) and where it lives in the code |
 
 ## Quick setup (short version)
 
