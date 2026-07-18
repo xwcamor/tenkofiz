@@ -12,49 +12,50 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * Idempotent seeder: safe to run again on an already-populated database
+ * (e.g. `php artisan migrate --seed` after an update). Existing rows are
+ * left untouched; only missing base records are created.
+ */
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = Profile::create([
-            'name' => 'Administrator',
+        $admin = Profile::firstOrCreate(['name' => 'Administrator'], [
             'description' => 'Full access to the system',
             'permissions' => array_keys(Profile::MODULES),
         ]);
 
-        Profile::create([
-            'name' => 'Supervisor',
+        Profile::firstOrCreate(['name' => 'Supervisor'], [
             'description' => 'Manages attendance and approves requests',
             'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage'],
         ]);
 
-        Profile::create([
-            'name' => 'Employee',
+        Profile::firstOrCreate(['name' => 'Employee'], [
             'description' => 'Views their attendance and requests vacations',
             'permissions' => [],
         ]);
 
-        User::create([
+        User::firstOrCreate(['email' => 'admin@sistema.test'], [
             'name' => 'Carlos Alberto Morales Larrañaga',
-            'email' => 'admin@sistema.test',
             'password' => Hash::make('admin123'),
             'profile_id' => $admin->id,
         ]);
 
         // Working days Monday-Saturday; Sunday off
-        $morning = Schedule::create(['name' => 'Morning Shift', 'tolerance_minutes' => 10]);
-        $evening = Schedule::create(['name' => 'Evening Shift', 'tolerance_minutes' => 10]);
+        $morning = Schedule::firstOrCreate(['name' => 'Morning Shift'], ['tolerance_minutes' => 10]);
+        $evening = Schedule::firstOrCreate(['name' => 'Evening Shift'], ['tolerance_minutes' => 10]);
         foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
-            $morning->days()->create(['weekday' => $weekday, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
-            $evening->days()->create(['weekday' => $weekday, 'start_time' => '14:00:00', 'end_time' => '22:00:00']);
+            $morning->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '08:00:00', 'end_time' => '17:00:00']);
+            $evening->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '14:00:00', 'end_time' => '22:00:00']);
         }
 
         foreach (['Administration', 'Information Technology', 'Human Resources', 'Accounting', 'Operations'] as $area) {
-            Area::create(['name' => $area]);
+            Area::firstOrCreate(['name' => $area]);
         }
 
         foreach (['Instructor', 'Administrative Assistant', 'Analyst', 'Coordinator', 'Support Technician'] as $position) {
-            Position::create(['name' => $position]);
+            Position::firstOrCreate(['name' => $position]);
         }
 
         // Fixed-date national holidays (Peru)
@@ -73,15 +74,17 @@ class DatabaseSeeder extends Seeder
             ["$year-12-25", 'Navidad'],
         ];
         foreach ($holidays as [$date, $name]) {
-            Holiday::create(['date' => $date, 'name' => $name]);
+            Holiday::firstOrCreate(['date' => $date], ['name' => $name]);
         }
 
-        Setting::create([
-            'company_name' => 'MI EMPRESA S.A.C.',
-            'tax_id' => '20000000001',
-            'address' => 'Av. Principal 123, Lima',
-            'phone' => '(01) 000-0000',
-            'timezone' => 'America/Lima',
-        ]);
+        if (!Setting::query()->exists()) {
+            Setting::create([
+                'company_name' => 'MI EMPRESA S.A.C.',
+                'tax_id' => '20000000001',
+                'address' => 'Av. Principal 123, Lima',
+                'phone' => '(01) 000-0000',
+                'timezone' => 'America/Lima',
+            ]);
+        }
     }
 }
