@@ -21,6 +21,9 @@ class KioskController extends Controller
     /** How long the enrollment mode stays unlocked after entering the PIN */
     public const ENROLL_SESSION_MINUTES = 15;
 
+    /** How long the person picked on the keypad stays valid for the camera step */
+    public const VERIFY_SESSION_SECONDS = 180;
+
     public function index(Request $request)
     {
         // Multi-site: a site kiosk link carries ?site=ID; remember it for this device
@@ -32,6 +35,72 @@ class KioskController extends Controller
         $site = $request->session()->get('kiosk_site') ? Site::find($request->session()->get('kiosk_site')) : null;
 
         return view('kiosk.index', ['site' => $site]);
+    }
+
+    /**
+     * Step 1 of the marking flow (document-first): validate the typed document
+     * against this site's active employees. Only when it exists does the kiosk
+     * move on to the camera page — the document filters BEFORE any camera opens.
+     */
+    public function lookup(Request $request)
+    {
+        $data = $request->validate(['document_number' => ['required', 'regex:/^\d{8,12}$/']]);
+
+        $employee = $this->scopedEmployees($request)
+            ->where('document_number', $data['document_number'])
+            ->first();
+
+        if (!$employee) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('That document does not belong to an active employee of this site. Check the number or contact your supervisor.'),
+            ], 404);
+        }
+
+        $request->session()->put('kiosk_verify_doc', $employee->document_number);
+        $request->session()->put('kiosk_verify_until', now()->addSeconds(self::VERIFY_SESSION_SECONDS)->timestamp);
+
+        return response()->json(['ok' => true, 'redirect' => route('kiosk.verify')]);
+    }
+
+    /**
+     * Step 2: the camera page for the person validated on the keypad. If they have
+     * an enrolled face it verifies 1:1; if not, they can enroll right here (consent
+     * + supervisor PIN when configured) so the next mark is already facial.
+     */
+    public function verifyPage(Request $request)
+    {
+        $document = $request->session()->get('kiosk_verify_doc');
+        $until = (int) $request->session()->get('kiosk_verify_until', 0);
+
+        if (!$document || $until < now()->timestamp) {
+            return redirect()->route('kiosk'); // expired or direct access: back to the keypad
+        }
+
+        $employee = $this->scopedEmployees($request)->where('document_number', $document)->first();
+        if (!$employee) {
+            return redirect()->route('kiosk');
+        }
+
+        $site = $request->session()->get('kiosk_site') ? Site::find($request->session()->get('kiosk_site')) : null;
+
+        return view('kiosk.verify', [
+            'employee' => $employee,
+            'site' => $site,
+            'enrollPinConfigured' => (bool) app_setting()->kiosk_enroll_pin,
+            'enrollUnlocked' => $this->enrollUnlocked($request),
+        ]);
+    }
+
+    /** Supervisor enrollment as its own page (no stacked modals over the camera) */
+    public function enrollPage(Request $request)
+    {
+        $site = $request->session()->get('kiosk_site') ? Site::find($request->session()->get('kiosk_site')) : null;
+
+        return view('kiosk.enroll', [
+            'site' => $site,
+            'enrollUnlocked' => $this->enrollUnlocked($request),
+        ]);
     }
 
     /** Device pairing page (outside the kiosk gate; the one-time code is the secret) */

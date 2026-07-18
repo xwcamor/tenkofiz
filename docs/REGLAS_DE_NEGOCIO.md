@@ -12,41 +12,56 @@ comportamiento del sistema, empieza aquí en lugar de leer los controladores com
 
 Flujo completo en `app/Http/Controllers/KioskController.php`.
 
-### 1.1 Dos modos de kiosco (configurables en Ajustes → Reconocimiento facial)
-- **Modo VERIFICAR (por defecto)**: la persona teclea su documento y la cámara
-  confirma 1:1 que es realmente ella (`public/js/kiosk.js` → `verifyAndMark`). Es el
-  más confiable: no confunde rostros parecidos y el umbral puede ser estricto.
-- **Modo RÁPIDO (`kiosk_fast_mode`)**: auto-escaneo 1:N — la cámara reconoce a
-  cualquiera que se pare enfrente (`detectionCycle`). Más rápido, pero puede
-  confundir personas parecidas.
+### 1.1 Flujo por páginas (documento primero, luego cámara)
+El kiosco funciona en **páginas separadas** (nada de modales encima de la cámara):
+
+1. **`/kiosk` (teclado)**: solo el reloj y el teclado numérico. La persona digita su
+   documento y `POST /kiosk/lookup` lo valida contra los empleados activos **de esa
+   sede**. Documento inválido → mensaje, sin cámara. Válido → la persona queda en
+   sesión 3 minutos (`kiosk_verify_doc`) y pasa a la página de cámara.
+2. **`/kiosk/verify` (cámara)**: muestra el nombre de la persona y abre la cámara.
+   - **Con rostro enrolado**: verificación 1:1 durante `kiosk_verify_seconds`
+     segundos (Ajustes, 5–60, por defecto **15**) con barra de progreso. Coincide →
+     marca y vuelve al teclado en 4 s.
+   - **Se agotó el tiempo**: NADA ocurre solo — la persona elige con botones:
+     **Reintentar** / **Marcar por documento (foto de evidencia)** / **Cancelar**.
+   - **Sin rostro enrolado**: puede **enrolarse ahí mismo** (consentimiento + 3
+     muestras; con PIN de supervisor si está configurado) y marcar de inmediato, o
+     marcar por documento con foto.
+   - **Sin cámara disponible**: se permite marcar por documento (sin foto) para no
+     bloquear la asistencia.
+3. **`/kiosk/enroll` (supervisor)**: página propia de enrolamiento (PIN → documento
+   → consentimiento → captura), con la cámara siempre visible arriba.
+
 - **Umbral de similitud** configurable en Ajustes (`settings.kiosk_face_threshold`,
   0.35–0.65; 0.50 recomendado). Menor = más estricto.
 - **Vivacidad / parpadeo (`kiosk_liveness`)**: si está activo, exige un parpadeo
   (EAR, *eye aspect ratio*) para evitar marcar con una foto.
-- En modo rápido, la lista de descriptores se refresca sola: el kiosco consulta
-  `/kiosk/version` cada 5 minutos y solo re-descarga si cambió.
+- El antiguo "modo rápido" 1:N fue retirado de la interfaz: el flujo es siempre
+  documento → confirmación 1:1 (filtra antes de abrir la cámara). Los endpoints
+  `/kiosk/descriptors` y `/kiosk/version` se conservan por compatibilidad.
+- JS: `public/js/kiosk-home.js`, `kiosk-verify.js`, `kiosk-enroll.js`.
 
 ### 1.2 Exigir rostro detectado (`kiosk_require_face`, por defecto ACTIVO)
 Regla clave de negocio: **sin rostro no hay marca ni foto.**
-- Si durante la ventana de verificación (7 s) la cámara **nunca detecta un rostro**,
-  el kiosco **no marca y no guarda ninguna foto**: muestra "No se detectó ningún
-  rostro…" y devuelve al teclado para reintentar (`kiosk.js` → `noFaceRetry`).
-- Aplica también a documentos **sin rostro enrolado**: primero se exige que haya un
-  rostro frente a la cámara (`waitForAnyFace`) antes del respaldo por documento.
-- **Si se vio un rostro pero no coincidió** con el enrolado, sí se marca por
-  documento y se guarda la foto de evidencia (la foto es útil para revisión).
-- Con la opción desactivada se conserva el comportamiento anterior (marca por
-  documento aunque no se haya visto rostro).
+- Si al agotarse la ventana de verificación la cámara **nunca detectó un rostro**,
+  el botón "Marcar por documento" **no se ofrece**: solo Reintentar/Cancelar, y no
+  se guarda nada (`kiosk-verify.js` → `runVerify`).
+- Aplica también al respaldo por documento: antes de guardar la foto de evidencia
+  se exige un rostro en cámara (5 s de gracia, `waitForAnyFace`); sin rostro no se
+  marca.
+- **Si se vio un rostro pero no coincidió** con el enrolado, la persona puede marcar
+  por documento y la foto de evidencia queda para revisión del supervisor.
+- Con la opción desactivada, el marcado por documento se ofrece siempre.
 
 ### 1.3 Marcado por DNI (respaldo)
-- Cuando corresponde (ver §1.2), el empleado teclea su documento
-  (`KioskController::markByDni`). Se guarda una **foto de evidencia** del momento
-  en `public/uploads/kiosk_evidence/` y la marca queda con método `DNI` para que
-  un supervisor la verifique en Asistencias (badge amarillo + foto).
+- Cuando corresponde (ver §1.2), la marca sale por `KioskController::markByDni` con
+  una **foto de evidencia** en `public/uploads/kiosk_evidence/` y método `DNI` para
+  que un supervisor la verifique en Asistencias (badge amarillo + foto).
 - Las evidencias se purgan a los 90 días (`kiosk:purge-evidence`, ver §6).
-- **Auto-enrolamiento visible**: durante la captura de muestras, el panel se
-  vuelve transparente y se reduce a una barra inferior para que la persona **se vea
-  en la cámara** mientras se captura (clase `.capturing` en `kiosk.js`).
+- **Enrolamiento sin tapar la cámara**: tanto el auto-enrolamiento en `/kiosk/verify`
+  como el modo supervisor en `/kiosk/enroll` son páginas con la cámara fija arriba y
+  los pasos debajo — no hay modales encima del video.
 
 ### 1.4 Reglas comunes a toda marca (`KioskController::performMark`)
 Se evalúan en este orden:

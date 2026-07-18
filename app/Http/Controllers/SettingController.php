@@ -30,6 +30,7 @@ class SettingController extends Controller
             'early_departure_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'kiosk_enroll_pin' => ['nullable', 'digits_between:4,8'],
             'kiosk_face_threshold' => ['required', 'numeric', 'min:0.35', 'max:0.65'],
+            'kiosk_verify_seconds' => ['required', 'integer', 'min:5', 'max:60'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
         ]);
 

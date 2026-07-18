@@ -5,7 +5,16 @@
 > super-admin (`users.is_super_admin`) que crea y administra workspaces, y settings
 > por empresa. Se sembró **Empresa 1 (SENATI)** con sus zonales y **Empresa Demo**
 > con los datos previos. Ver §4 al final para el detalle de lo implementado. Lo que
-> sigue (facturación, límites por plan, registro self-service, subdominios) es Fase 2+.
+> sigue (facturación, registro self-service, subdominios) es Fase 3+.
+>
+> **Fase 2 IMPLEMENTADA:** controles comerciales del super-admin — **suspender** un
+> workspace (ej. falta de pago: usuarios desconectados al instante y kioscos
+> bloqueados, datos intactos), **eliminarlo** (borrado lógico con motivo,
+> restaurable), **plan por workspace** (módulos contratados + límite de empleados y
+> sedes; acceso efectivo = plan ∧ perfil), y **auditoría de seguridad global**:
+> cada inicio de sesión (y cada intento fallido) queda registrado con dispositivo,
+> IP y ubicación GPS real si la persona da permiso al navegador (enlace al mapa);
+> `audit_logs` quedó aislado por empresa y el super ve el registro global.
 
 
 Este documento explica **los dilemas** que aparecieron al crecer el sistema con

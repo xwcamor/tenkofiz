@@ -42,6 +42,10 @@ Route::post('/kiosk/pair', [KioskController::class, 'pair'])->name('kiosk.pair.s
 
 Route::middleware('kiosk.token')->group(function () {
     Route::get('/kiosk', [KioskController::class, 'index'])->name('kiosk');
+    // Document-first flow: keypad validates the person, THEN the camera page opens
+    Route::post('/kiosk/lookup', [KioskController::class, 'lookup'])->name('kiosk.lookup');
+    Route::get('/kiosk/verify', [KioskController::class, 'verifyPage'])->name('kiosk.verify');
+    Route::get('/kiosk/enroll', [KioskController::class, 'enrollPage'])->name('kiosk.enrollPage');
     Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
     Route::get('/kiosk/version', [KioskController::class, 'version'])->name('kiosk.version');
     Route::get('/kiosk/face/{document}', [KioskController::class, 'personFace'])->name('kiosk.face');
