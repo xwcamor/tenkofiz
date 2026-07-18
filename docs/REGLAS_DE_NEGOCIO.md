@@ -339,3 +339,23 @@ verdad.
 
 *Si cambias una regla, actualiza este documento y el test correspondiente en
 `tests/Feature/`. La suite completa corre con `php artisan test`.*
+
+---
+
+## 15. Términos y condiciones (deslinde legal)
+
+- Todo usuario autenticado debe **aceptar los términos y condiciones** antes de usar
+  el sistema (`EnsureTermsAccepted`): sin aceptación, cualquier pantalla redirige a
+  `/terms` (solo se permite ver los términos, cambiar idioma y cerrar sesión).
+- La aceptación queda **registrada como evidencia legal**: fecha/hora
+  (`users.terms_accepted_at`), **IP** (`users.terms_ip`) y **versión** aceptada
+  (`users.terms_version`), más una entrada en el log de auditoría.
+- La versión vigente vive en `User::TERMS_VERSION`. **Subir la versión obliga a todos
+  a re-aceptar** (la aceptación de una versión vieja no cuenta).
+- El texto (es/en) cubre el deslinde: la **empresa** es la responsable del banco de
+  datos (Ley 29733: consentimientos, derechos ARCO); la plataforma es solo la
+  herramienta de tratamiento; sistema "tal cual", sin garantía de disponibilidad ni
+  responsabilidad por decisiones laborales tomadas con los reportes; el
+  reconocimiento facial es apoyo y las marcas en disputa se revisan con la evidencia.
+- La exigencia se controla con `config('terms.enforced')` (`TERMS_ENFORCED`); la
+  suite de tests la desactiva globalmente y `TermsAcceptanceTest` la prueba aparte.

@@ -13,7 +13,8 @@ class ForcePasswordChange
     {
         $user = $request->user();
 
-        if ($user && $user->must_change_password && !$request->routeIs('account.*', 'logout', 'locale.switch')) {
+        // terms.* is excluded so the terms gate can run first without a redirect loop
+        if ($user && $user->must_change_password && !$request->routeIs('account.*', 'logout', 'locale.switch', 'terms.*')) {
             return redirect()->route('account.edit')
                 ->with('error', __('For security reasons, you must change your initial password before continuing.'));
         }

@@ -56,6 +56,10 @@ Route::middleware('kiosk.token')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Terms and conditions: mandatory acceptance before using the system
+    Route::get('terms', [\App\Http\Controllers\TermsController::class, 'show'])->name('terms.show');
+    Route::post('terms', [\App\Http\Controllers\TermsController::class, 'accept'])->name('terms.accept');
+
     // Super-admin: workspace (company) management, above all tenants
     Route::middleware('super_admin')->prefix('admin')->group(function () {
         Route::get('companies', [\App\Http\Controllers\CompanyController::class, 'index'])->name('admin.companies.index');

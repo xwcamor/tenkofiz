@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\NoCache::class,
+            \App\Http\Middleware\EnsureTermsAccepted::class,
             \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })

@@ -40,7 +40,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'profile_id', 'company_id', 'site_id', 'is_super_admin', 'is_active',
         'must_change_password', 'timezone', 'locale', 'photo', 'delete_reason',
+        'terms_accepted_at', 'terms_version', 'terms_ip',
     ];
+
+    /** Current version of the terms; bumping it forces everyone to re-accept */
+    public const TERMS_VERSION = '1.0';
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -52,7 +56,14 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'is_super_admin' => 'boolean',
+            'terms_accepted_at' => 'datetime',
         ];
+    }
+
+    /** Whether this user accepted the CURRENT version of the terms and conditions */
+    public function hasAcceptedTerms(): bool
+    {
+        return $this->terms_accepted_at !== null && $this->terms_version === self::TERMS_VERSION;
     }
 
     /** The super-admin owns every workspace and bypasses per-module permissions */
