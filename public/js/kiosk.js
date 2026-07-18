@@ -230,8 +230,9 @@ async function markByDniWithPhoto(dni, note) {
 function resumeIdleOrScan() {
     clearOverlay();
     if (FAST_MODE) { pauseThenScan(); return; }
+    // VERIFY mode: show the result for a moment, then bring the keypad back for the next person
     phase = 'PAUSED';
-    setTimeout(() => { if (phase === 'PAUSED') { phase = 'IDLE'; show('secondary', I18N.typeDocument); } }, PAUSE_AFTER_MARK_MS);
+    setTimeout(() => { if (phase === 'PAUSED') { openDniPanel(); } }, PAUSE_AFTER_MARK_MS);
 }
 
 /* ---------- shared result / pause ---------- */
@@ -286,12 +287,16 @@ async function start() {
                 setInterval(detectionCycle, 1300);
                 setInterval(pollVersion, VERSION_POLL_MS);
             } else {
+                // VERIFY mode: show the DNI keypad right away (type first, camera confirms next)
                 phase = 'IDLE';
                 show('secondary', I18N.typeDocument);
+                openDniPanel();
             }
         });
     } catch (e) {
         show('danger', I18N.startError + ' ' + e.message + '<br><small>' + I18N.startErrorHint + '</small>');
+        // VERIFY mode still works without a camera: mark by document (no face confirmation)
+        if (!FAST_MODE) { phase = 'IDLE'; openDniPanel(); }
     }
 }
 
@@ -444,5 +449,14 @@ async function enrollCapture() {
     }
     btn.disabled = false;
 }
+
+// Physical keyboard support while the DNI keypad is open (numeric keypads / testing)
+document.addEventListener('keydown', (e) => {
+    const panel = document.getElementById('dniPanel');
+    if (!panel || !panel.classList.contains('open')) return;
+    if (e.key >= '0' && e.key <= '9') { dniKey(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { dniBackspace(); e.preventDefault(); }
+    else if (e.key === 'Enter') { submitDniMark(); e.preventDefault(); }
+});
 
 document.addEventListener('DOMContentLoaded', start);
