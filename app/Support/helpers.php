@@ -160,7 +160,8 @@ if (!function_exists('notify_module_users')) {
     /** Emails every active user whose profile grants the given module (approval notifications) */
     function notify_module_users(string $module, string $subject, string $body): void
     {
-        User::where('is_active', true)
+        User::inCompany()
+            ->where('is_active', true)
             ->whereHas('profile', fn ($q) => $q->where('is_active', true))
             ->with('profile')
             ->get()

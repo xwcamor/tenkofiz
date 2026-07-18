@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'module' => \App\Http\Middleware\CheckModule::class,
             'kiosk.token' => \App\Http\Middleware\VerifyKioskToken::class,
+            'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,

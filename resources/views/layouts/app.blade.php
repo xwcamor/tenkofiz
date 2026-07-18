@@ -138,6 +138,14 @@
         <div class="sidebar">
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                    @if($currentUser->isSuperAdmin())
+                        <li class="nav-header">{{ __('SUPER-ADMIN') }}</li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.companies.index') }}" class="nav-link {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-layer-group"></i><p>{{ __('Workspaces') }}</p>
+                            </a>
+                        </li>
+                    @endif
                     <li class="nav-item">
                         <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-tachometer-alt"></i><p>{{ __('Dashboard') }}</p>
@@ -280,6 +288,18 @@
         </section>
         <section class="content">
             <div class="container-fluid">
+                @if($currentUser->isSuperAdmin() && session('acting_company_id'))
+                    @php $actingCompany = \App\Models\Company::find(session('acting_company_id')); @endphp
+                    @if($actingCompany)
+                        <div class="alert alert-dark d-flex justify-content-between align-items-center py-2">
+                            <span><i class="fas fa-layer-group"></i> {{ __('You are administering the workspace') }}: <strong>{{ $actingCompany->name }}</strong></span>
+                            <form method="POST" action="{{ route('admin.companies.leave') }}">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-light"><i class="fas fa-sign-out-alt"></i> {{ __('Leave workspace') }}</button>
+                            </form>
+                        </div>
+                    @endif
+                @endif
                 @yield('content')
             </div>
         </section>

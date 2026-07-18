@@ -56,6 +56,15 @@ Route::middleware('kiosk.token')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Super-admin: workspace (company) management, above all tenants
+    Route::middleware('super_admin')->prefix('admin')->group(function () {
+        Route::get('companies', [\App\Http\Controllers\CompanyController::class, 'index'])->name('admin.companies.index');
+        Route::post('companies', [\App\Http\Controllers\CompanyController::class, 'store'])->name('admin.companies.store');
+        Route::put('companies/{company}', [\App\Http\Controllers\CompanyController::class, 'update'])->name('admin.companies.update');
+        Route::post('companies/{company}/enter', [\App\Http\Controllers\CompanyController::class, 'enter'])->name('admin.companies.enter');
+        Route::post('companies/leave', [\App\Http\Controllers\CompanyController::class, 'leave'])->name('admin.companies.leave');
+    });
+
     // Access is granted per module according to the profile's permissions
     Route::middleware('module:users')->group(function () {
         Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);

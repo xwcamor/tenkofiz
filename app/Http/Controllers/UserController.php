@@ -21,6 +21,7 @@ class UserController extends Controller
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
         $users = User::with(['profile', 'employee', 'site'])
+            ->inCompany()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';

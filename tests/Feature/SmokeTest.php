@@ -16,7 +16,7 @@ class SmokeTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        return User::first();
+        return User::where('email', 'admin@test.com')->first();
     }
 
     public function test_login_page_renders(): void

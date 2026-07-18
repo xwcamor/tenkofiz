@@ -14,6 +14,11 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        // A super-admin who hasn't entered a workspace goes to the workspaces console
+        if ($user->isSuperAdmin() && !session('acting_company_id')) {
+            return redirect()->route('admin.companies.index');
+        }
+
         // Managers see the global dashboard; everyone else sees their own info
         if ($user->isManager()) {
             return $this->managerDashboard();

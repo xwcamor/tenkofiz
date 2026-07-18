@@ -49,7 +49,7 @@ class EmployeeController extends Controller
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'sites' => Site::where('is_active', true)->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
-            'availableUsers' => User::whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
+            'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 

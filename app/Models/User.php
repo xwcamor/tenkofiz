@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToCompany;
+use App\Models\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,7 +10,32 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use BelongsToCompany, HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes;
+
+    /**
+     * The User model is deliberately NOT globally company-scoped: the auth guard
+     * queries users while resolving the current user, and a scope that reads
+     * auth() would recurse. Instead, user listings scope explicitly with
+     * scopeInCompany(), and new users inherit the current company on create.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->company_id) && !$user->is_super_admin && ($companyId = CompanyScope::currentCompanyId())) {
+                $user->company_id = $companyId;
+            }
+        });
+    }
+
+    /** Restrict a user query to the current workspace (no-op for super-admin/console) */
+    public function scopeInCompany($query)
+    {
+        if ($companyId = CompanyScope::currentCompanyId()) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query;
+    }
 
     protected $fillable = [
         'name', 'email', 'password', 'profile_id', 'company_id', 'site_id', 'is_super_admin', 'is_active',
@@ -39,6 +64,12 @@ class User extends Authenticatable
     public function profile()
     {
         return $this->belongsTo(Profile::class);
+    }
+
+    /** The workspace (company) this user belongs to */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 
     /** The site this user is bound to (NULL = company-wide access) */
