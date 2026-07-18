@@ -148,22 +148,23 @@ async function detectionCycle() {
 async function verifyAndMark(dni) {
     document.getElementById('dniPanel').classList.remove('open');
     phase = 'VERIFYING';
-    show('info', spinner + I18N.marking);
+    clearOverlay();
+    show('info', spinner + I18N.searchingFace);
 
-    // 1) fetch just this person's face
+    // 1) fetch just this person's enrolled face
     let person;
     try {
         const res = await fetch(window.FACE_URL_BASE + '/' + encodeURIComponent(dni), { headers: { Accept: 'application/json' } });
-        if (res.status === 404) return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+        if (res.status === 404) return noFaceRegistered(dni);   // this document has no enrolled face
         person = await res.json();
-        if (!person.ok) return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
+        if (!person.ok) return noFaceRegistered(dni);
     } catch (e) {
         return markByDniWithPhoto(dni, I18N.verifyFailedPhoto);
     }
 
-    // 2) confirm it is really them (1:1) within the time window
+    // 2) confirm it is really them (1:1), showing the camera the whole time
     const refs = person.descriptors.map(d => new Float32Array(d));
-    let blinked = !LIVENESS, sawOpen = false, bestDistance = 1;
+    let blinked = !LIVENESS, sawOpen = false, sawFace = false;
     const deadline = Date.now() + VERIFY_WINDOW_MS;
 
     while (Date.now() < deadline) {
@@ -172,29 +173,41 @@ async function verifyAndMark(dni) {
             det = await faceapi.detectSingleFace(video, KIOSK_DETECTOR_OPTIONS()).withFaceLandmarks().withFaceDescriptor();
         } catch (e) { det = null; }
 
-        if (det) {
-            clearOverlay();
-            const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
-            bestDistance = Math.min(bestDistance, d);
-            const ok = d <= THRESHOLD;
-            drawBox(det.detection.box, ok ? '#28a745' : '#ffc107');
-
-            if (LIVENESS && !blinked) {
-                const ear = eyeAspectRatio(det.landmarks);
-                if (ear > EAR_OPEN) sawOpen = true;
-                if (sawOpen && ear < EAR_CLOSED) blinked = true;
-                show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', person.name) : I18N.blinkNow));
-            } else {
-                show('info', spinner + I18N.lookAtCamera.replace(':name', person.name));
-            }
-
-            if (ok && blinked) return commitFacial(person, d);
+        clearOverlay();
+        if (!det) {
+            // camera is on but no face yet: guide the person instead of failing silently
+            show('info', spinner + I18N.comeCloser.replace(':name', person.name));
+            await wait(300);
+            continue;
         }
+        sawFace = true;
+
+        const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
+        const ok = d <= THRESHOLD;
+        drawBox(det.detection.box, ok ? '#28a745' : '#ffc107');
+
+        if (LIVENESS && !blinked) {
+            const ear = eyeAspectRatio(det.landmarks);
+            if (ear > EAR_OPEN) sawOpen = true;
+            if (sawOpen && ear < EAR_CLOSED) blinked = true;
+            show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', person.name) : I18N.blinkNow));
+        } else {
+            show('info', spinner + I18N.lookAtCamera.replace(':name', person.name));
+        }
+
+        if (ok && blinked) return commitFacial(person, d);
         await wait(300);
     }
 
-    // 3) could not confirm -> mark by document with evidence photo (flagged)
-    return markByDniWithPhoto(dni, I18N.verifyFailedPhoto);
+    // 3) time up without a confident match -> mark by document, flagged with a photo
+    return markByDniWithPhoto(dni, sawFace ? I18N.verifyFailedPhoto : I18N.noFaceSeenPhoto);
+}
+
+/** The typed document has no enrolled face: say so (not a silent instant mark), then mark by document */
+async function noFaceRegistered(dni) {
+    show('warning', '<i class="fas fa-id-card"></i> ' + I18N.noFaceRegistered);
+    await wait(1800);
+    return markByDniWithPhoto(dni, I18N.notEnrolledPhoto);
 }
 
 async function commitFacial(person, distance) {

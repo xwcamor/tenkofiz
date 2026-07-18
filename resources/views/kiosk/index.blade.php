@@ -234,8 +234,12 @@
         saving: @json(__('Saving to the database...')),
         enrolled: @json(__('Enrolled! The kiosk will recognize this face from now on.')),
         typeDocument: @json(__('Type your document number and mark')),
-        lookAtCamera: @json(__('Look at the camera, :name...')),
+        searchingFace: @json(__('Look at the camera to confirm it is you...')),
+        comeCloser: @json(__('Move closer and look at the camera, :name...')),
+        lookAtCamera: @json(__('Confirming it is you, :name...')),
         blinkNow: @json(__('Blink to confirm you are present')),
+        noFaceRegistered: @json(__('This document has no enrolled face. Marking by document with an evidence photo...')),
+        noFaceSeenPhoto: @json(__('No face was detected. Marked by document — an evidence photo was saved for review.')),
         notEnrolledPhoto: @json(__('You have no enrolled face: marked by document, an evidence photo was saved.')),
         verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
     };
