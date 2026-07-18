@@ -3,14 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
 {
+    use SoftDeletes;
+
     public const STATUSES = ['ON_TIME', 'LATE', 'ABSENT', 'EXCUSED'];
 
     protected $fillable = [
         'employee_id', 'date', 'check_in', 'check_out',
-        'status', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo',
+        'status', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
     ];
 
     // 'date:Y-m-d' stores a pure date string (no time). Without the explicit

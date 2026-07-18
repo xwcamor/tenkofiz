@@ -16,8 +16,12 @@ class AttendanceController extends Controller
         $from = $request->date('from') ?? $periodStart;
         $to = $request->date('to') ?? $periodEnd->min(company_now());
 
+        // Deleted-records view: restricted to administrators (settings module)
+        $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
+
         // Server-side pagination: this table grows without bounds
         $attendances = Attendance::with('employee')
+            ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
@@ -31,7 +35,7 @@ class AttendanceController extends Controller
         $selectedEmployee = $request->filled('employee_id') ? Employee::find($request->integer('employee_id')) : null;
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to'));
+        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to', 'showDeleted'));
     }
 
     /** Manual entry (e.g. corrections) by managers */
@@ -88,6 +92,43 @@ class AttendanceController extends Controller
             ['before' => $before, 'after' => $attendance->fresh()->toArray()]);
 
         return redirect()->route('attendances.index')->with('ok', __('Attendance updated (the change is recorded in the audit log).'));
+    }
+
+    public function destroy(Request $request, Attendance $attendance)
+    {
+        $data = $request->validate(['delete_reason' => ['required', 'string', 'max:300']],
+            ['delete_reason.required' => __('The deletion reason is required.')]);
+
+        // Soft delete: recoverable by an administrator from "View deleted"
+        $attendance->update(['delete_reason' => $data['delete_reason']]);
+        $attendance->delete();
+
+        AuditLog::record('DELETE', 'Attendances',
+            __('Attendance of :name on :date was deleted. Reason: :reason', [
+                'name' => $attendance->employee->full_name,
+                'date' => $attendance->date->format('d/m/Y'),
+                'reason' => $data['delete_reason'],
+            ]),
+            $attendance->toArray());
+
+        return back()->with('ok', __('Attendance deleted. An administrator can restore it from "View deleted".'));
+    }
+
+    /** Brings a soft-deleted attendance back (administrators only) */
+    public function restore(Request $request, Attendance $attendance)
+    {
+        abort_unless($request->user()->hasModule('settings'), 403);
+
+        $attendance->restore();
+        $attendance->update(['delete_reason' => null]);
+
+        AuditLog::record('UPDATE', 'Attendances',
+            __('Attendance of :name on :date was restored', [
+                'name' => $attendance->employee->full_name,
+                'date' => $attendance->date->format('d/m/Y'),
+            ]));
+
+        return back()->with('ok', __('Attendance restored.'));
     }
 
     /** The employee's own history */

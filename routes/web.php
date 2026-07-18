@@ -99,6 +99,8 @@ Route::middleware('auth')->group(function () {
         Route::get('attendances', [AttendanceController::class, 'index'])->name('attendances.index');
         Route::post('attendances', [AttendanceController::class, 'store'])->name('attendances.store');
         Route::put('attendances/{attendance}', [AttendanceController::class, 'update'])->name('attendances.update');
+        Route::delete('attendances/{attendance}', [AttendanceController::class, 'destroy'])->name('attendances.destroy');
+        Route::post('attendances/{attendance}/restore', [AttendanceController::class, 'restore'])->name('attendances.restore')->withTrashed();
         Route::post('attendances-mark-absences', [AttendanceController::class, 'markAbsences'])->name('attendances.markAbsences');
     });
 

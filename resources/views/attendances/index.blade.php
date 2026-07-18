@@ -2,12 +2,21 @@
 @section('title', __('Attendance'))
 @section('header-button')
     <div class="d-flex">
-        <form method="POST" action="{{ route('attendances.markAbsences') }}" class="form-inline mr-2">
-            @csrf
-            <input type="date" name="date" value="{{ company_now()->toDateString() }}" max="{{ company_now()->toDateString() }}" class="form-control form-control-sm mr-1" required>
-            <button class="btn btn-danger btn-sm" title="{{ __('Marks ABSENT everyone without an attendance record that day (skips holidays, non-working days, vacations)') }}"><i class="fas fa-user-times"></i> {{ __('Generate absences') }}</button>
-        </form>
-        <button class="btn btn-outline-primary btn-sm" onclick="openManualModal()"><i class="fas fa-plus"></i> {{ __('Manual entry') }}</button>
+        @if(auth()->user()->hasModule('settings'))
+            @if($showDeleted)
+                <a href="{{ route('attendances.index', request()->except('deleted')) }}" class="btn btn-outline-secondary btn-sm mr-2"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
+            @else
+                <a href="{{ route('attendances.index', ['deleted' => 1] + request()->query()) }}" class="btn btn-outline-secondary btn-sm mr-2" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
+            @endif
+        @endif
+        @unless($showDeleted)
+            <form method="POST" action="{{ route('attendances.markAbsences') }}" class="form-inline mr-2">
+                @csrf
+                <input type="date" name="date" value="{{ company_now()->toDateString() }}" max="{{ company_now()->toDateString() }}" class="form-control form-control-sm mr-1" required>
+                <button class="btn btn-danger btn-sm" title="{{ __('Marks ABSENT everyone without an attendance record that day (skips holidays, non-working days, vacations)') }}"><i class="fas fa-user-times"></i> {{ __('Generate absences') }}</button>
+            </form>
+            <button class="btn btn-outline-primary btn-sm" onclick="openManualModal()"><i class="fas fa-plus"></i> {{ __('Manual entry') }}</button>
+        @endunless
     </div>
 @endsection
 @section('content')
@@ -59,45 +68,72 @@
         </form>
     </div>
     <div class="card-body">
+        @if($showDeleted)
+            <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
+        @endif
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:60px">{{ __('Edit') }}</th></tr></thead>
+            @if($showDeleted)
+                <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Status') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:120px">{{ __('Actions') }}</th></tr></thead>
+            @else
+                <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:90px">{{ __('Actions') }}</th></tr></thead>
+            @endif
             <tbody>
             @forelse($attendances as $attendance)
-                <tr>
-                    <td>{{ $attendance->date->format('d/m/Y') }}</td>
-                    <td>{{ $attendance->employee->full_name }}</td>
-                    <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}</td>
-                    <td>{{ $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—' }}</td>
-                    <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
-                    <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
-                    <td>
-                        @if($attendance->method === 'DNI')
-                            <span class="badge badge-warning" title="{{ __('Marked by typing the document number: verify with the evidence photo') }}"><i class="fas fa-keyboard"></i> DNI</span>
-                        @else
-                            <i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}
-                        @endif
-                        @if($attendance->evidence_photo)
-                            <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1 file-preview" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
-                        @endif
-                    </td>
-                    <td class="text-muted">{{ $attendance->note }}</td>
-                    <td class="text-center">
-                        @php
-                            $payload = json_encode([
-                                'action' => route('attendances.update', $attendance),
-                                'employee' => $attendance->employee->full_name,
-                                'date' => $attendance->date->format('d/m/Y'),
-                                'check_in' => $attendance->check_in ? substr($attendance->check_in, 0, 5) : '',
-                                'check_out' => $attendance->check_out ? substr($attendance->check_out, 0, 5) : '',
-                                'status' => $attendance->status,
-                                'note' => $attendance->note,
-                            ]);
-                        @endphp
-                        <button class="btn btn-sm btn-info" title="{{ __('Edit times/status') }}" data-payload="{{ $payload }}" onclick="openEditModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
-                    </td>
-                </tr>
+                @if($showDeleted)
+                    <tr>
+                        <td>{{ $attendance->date->format('d/m/Y') }}</td>
+                        <td>{{ $attendance->employee->full_name }}</td>
+                        <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
+                        <td>{{ to_user_tz($attendance->deleted_at)->format('d/m/Y H:i') }}</td>
+                        <td>{{ $attendance->delete_reason ?? '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('attendances.restore', $attendance->id) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                @else
+                    <tr>
+                        <td>{{ $attendance->date->format('d/m/Y') }}</td>
+                        <td>{{ $attendance->employee->full_name }}</td>
+                        <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}</td>
+                        <td>{{ $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—' }}</td>
+                        <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
+                        <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
+                        <td>
+                            @if($attendance->method === 'DNI')
+                                <span class="badge badge-warning" title="{{ __('Marked by typing the document number: verify with the evidence photo') }}"><i class="fas fa-keyboard"></i> DNI</span>
+                            @else
+                                <i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}
+                            @endif
+                            @if($attendance->evidence_photo)
+                                <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1 file-preview" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
+                            @endif
+                        </td>
+                        <td class="text-muted">{{ $attendance->note }}</td>
+                        <td class="text-center text-nowrap">
+                            @php
+                                $payload = json_encode([
+                                    'action' => route('attendances.update', $attendance),
+                                    'employee' => $attendance->employee->full_name,
+                                    'date' => $attendance->date->format('d/m/Y'),
+                                    'check_in' => $attendance->check_in ? substr($attendance->check_in, 0, 5) : '',
+                                    'check_out' => $attendance->check_out ? substr($attendance->check_out, 0, 5) : '',
+                                    'status' => $attendance->status,
+                                    'note' => $attendance->note,
+                                ]);
+                            @endphp
+                            <button class="btn btn-sm btn-info" title="{{ __('Edit times/status') }}" data-payload="{{ $payload }}" onclick="openEditModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                            <form method="POST" action="{{ route('attendances.destroy', $attendance) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                @endif
             @empty
-                <tr><td colspan="9" class="text-center text-muted py-4">{{ __('No records in the period') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 6 : 9 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No records in the period') }}</td></tr>
             @endforelse
             </tbody>
         </table>
