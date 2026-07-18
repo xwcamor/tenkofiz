@@ -82,13 +82,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:settings')->group(function () {
         Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
-        Route::post('settings/kiosk-token', [SettingController::class, 'regenerateKioskToken'])->name('settings.kioskToken');
-        Route::delete('settings/kiosk-token', [SettingController::class, 'clearKioskToken'])->name('settings.kioskToken.clear');
-        // Kiosk device binding: generate a one-time pairing code / unpair the device
-        Route::post('settings/kiosk-pair-code', [SettingController::class, 'generatePairCode'])->name('settings.kioskPair');
-        Route::delete('settings/kiosk-device', [SettingController::class, 'unpairDevice'])->name('settings.kioskUnpair');
-        // Sites (sedes)
+        // Sites (sedes) + per-site kiosk security (token + device binding)
         Route::resource('sites', \App\Http\Controllers\SiteController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('sites/{site}/kiosk-token', [\App\Http\Controllers\SiteController::class, 'regenerateToken'])->name('sites.kioskToken');
+        Route::delete('sites/{site}/kiosk-token', [\App\Http\Controllers\SiteController::class, 'clearToken'])->name('sites.kioskToken.clear');
+        Route::post('sites/{site}/kiosk-pair-code', [\App\Http\Controllers\SiteController::class, 'generatePairCode'])->name('sites.kioskPair');
+        Route::delete('sites/{site}/kiosk-device', [\App\Http\Controllers\SiteController::class, 'unpairDevice'])->name('sites.kioskUnpair');
     });
 
     Route::middleware('module:employees')->group(function () {

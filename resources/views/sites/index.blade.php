@@ -4,12 +4,11 @@
     <button class="btn btn-primary btn-sm" onclick="openSiteModal()"><i class="fas fa-plus"></i> {{ __('New site') }}</button>
 @endsection
 @section('content')
-@php $kioskToken = app_setting()->kiosk_token; @endphp
-<div class="alert alert-info"><i class="fas fa-info-circle"></i> {!! __('Each site has its own kiosk link. A kiosk opened with a site link only recognizes and marks the employees of <strong>that site</strong>.') !!}</div>
+<div class="alert alert-info"><i class="fas fa-info-circle"></i> {!! __('Each site has its own kiosk link, token and paired tablet. A kiosk opened with a site link only recognizes and marks the employees of <strong>that site</strong>.') !!}</div>
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Address') }}</th><th>{{ __('Timezone') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Status') }}</th><th>{{ __('Kiosk link') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Address') }}</th><th>{{ __('Timezone') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Status') }}</th><th>{{ __('Kiosk') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
             @foreach($sites as $site)
                 <tr>
@@ -19,13 +18,14 @@
                     <td class="text-center">{{ $site->employees_count }}</td>
                     <td><span class="badge badge-{{ $site->is_active ? 'success' : 'secondary' }}">{{ $site->is_active ? __('Active') : __('Inactive') }}</span></td>
                     <td>
-                        @php $link = url('kiosk').'?'.http_build_query(array_filter(['token' => $kioskToken, 'site' => $site->id])); @endphp
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" value="{{ $link }}" readonly onclick="this.select()" style="font-size:.72rem">
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" onclick="navigator.clipboard.writeText('{{ $link }}'); Swal.fire({toast:true,position:'top-end',icon:'success',title:@json(__('Link copied')),showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
-                            </div>
-                        </div>
+                        @if($site->kiosk_device_hash)
+                            <span class="badge badge-success" title="{{ __('A tablet is paired to this site') }}"><i class="fas fa-fingerprint"></i> {{ __('Device paired') }}</span>
+                        @elseif($site->kiosk_token)
+                            <span class="badge badge-info" title="{{ __('Restricted by token') }}"><i class="fas fa-lock"></i> {{ __('Token') }}</span>
+                        @else
+                            <span class="badge badge-warning" title="{{ __('Anyone with the URL can open it') }}"><i class="fas fa-lock-open"></i> {{ __('Open') }}</span>
+                        @endif
+                        <a href="#kiosk-site-{{ $site->id }}" class="btn btn-xs btn-outline-secondary ml-1"><i class="fas fa-cog"></i> {{ __('Manage') }}</a>
                     </td>
                     <td>
                         @php
@@ -46,6 +46,70 @@
         </table>
     </div>
 </div>
+
+{{-- ---------- Per-site kiosk security (token + device binding) ---------- --}}
+@if($sites->isNotEmpty())
+    <h5 class="mt-4 mb-2"><i class="fas fa-tablet-alt"></i> {{ __('Kiosk (tablet) security per site') }}</h5>
+    <div class="row">
+        @foreach($sites as $site)
+            <div class="col-md-6">
+                <div class="card card-warning card-outline" id="kiosk-site-{{ $site->id }}">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-map-marker-alt"></i> {{ $site->name }}</h3></div>
+                    <div class="card-body">
+                        {{-- Authorized link --}}
+                        <label class="text-sm mb-1">{{ __('Authorized kiosk link (open it once on this site\'s tablet):') }}</label>
+                        <div class="input-group input-group-sm mb-3">
+                            <input type="text" class="form-control" value="{{ $site->kioskLink() }}" readonly onclick="this.select()" style="font-size:.72rem">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" onclick="navigator.clipboard.writeText('{{ $site->kioskLink() }}'); Swal.fire({toast:true,position:'top-end',icon:'success',title:@json(__('Link copied')),showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
+                            </div>
+                        </div>
+
+                        {{-- Token --}}
+                        @if($site->kiosk_token)
+                            <p class="text-sm mb-1"><i class="fas fa-lock text-success"></i> {{ __('Restricted: only devices that opened the authorized link can use it.') }}</p>
+                        @else
+                            <div class="alert alert-warning py-2 mb-2"><i class="fas fa-exclamation-triangle"></i> {{ __('Open: anyone with the URL could open it. Generate a token to restrict it.') }}</div>
+                        @endif
+                        <form method="POST" action="{{ route('sites.kioskToken', $site) }}" class="d-inline">
+                            @csrf
+                            <button class="btn btn-warning btn-sm"><i class="fas fa-sync-alt"></i> {{ $site->kiosk_token ? __('Rotate token') : __('Generate token') }}</button>
+                        </form>
+                        @if($site->kiosk_token)
+                            <form method="POST" action="{{ route('sites.kioskToken.clear', $site) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlock"></i> {{ __('Remove token') }}</button>
+                            </form>
+                        @endif
+
+                        <hr>
+                        {{-- Device binding --}}
+                        <h6 class="font-weight-bold"><i class="fas fa-fingerprint"></i> {{ __('Device binding (recommended)') }}</h6>
+                        @if($site->kiosk_device_hash)
+                            <p class="text-sm mb-2"><i class="fas fa-check-circle text-success"></i> {{ __('A tablet is paired. Only that device can open this site\'s kiosk; a copied URL elsewhere is rejected.') }}</p>
+                            <form method="POST" action="{{ route('sites.kioskUnpair', $site) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlink"></i> {{ __('Unpair device') }}</button>
+                            </form>
+                        @else
+                            <p class="text-sm text-muted mb-2">{{ __('Bind this site to one tablet: generate a one-time code, open the pairing page on that tablet and enter it.') }}</p>
+                            @if(session('pair_code') && session('pair_site') == $site->id)
+                                <div class="alert alert-success py-2">
+                                    {{ __('Pairing code (valid 15 min):') }} <span class="h4 font-weight-bold">{{ session('pair_code') }}</span><br>
+                                    <span class="text-sm">{{ __('On the tablet open:') }} <a href="{{ route('kiosk.pair') }}" target="_blank">{{ route('kiosk.pair') }}</a></span>
+                                </div>
+                            @endif
+                            <form method="POST" action="{{ route('sites.kioskPair', $site) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-primary btn-sm"><i class="fas fa-key"></i> {{ __('Generate pairing code') }}</button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@endif
 
 {{-- Create / edit modal --}}
 <div class="modal fade" id="siteModal" tabindex="-1">
@@ -110,6 +174,10 @@ function openSiteModal(data = null) {
 }
 @if($errors->any())
     $('#siteModal').modal('show');
+@endif
+// After generating a pairing code, jump to that site's card
+@if(session('pair_site'))
+    document.getElementById('kiosk-site-{{ session('pair_site') }}')?.scrollIntoView({behavior:'smooth', block:'center'});
 @endif
 </script>
 @endpush

@@ -252,9 +252,15 @@
                     @endif
 
                     @if($currentUser->hasModule('kiosk'))
+                        @php
+                            // Per-site kiosk: use the user's own site, else the first active site.
+                            $kioskSite = $currentUser->site_id
+                                ? \App\Models\Site::find($currentUser->site_id)
+                                : \App\Models\Site::where('is_active', true)->orderBy('id')->first();
+                        @endphp
                         <li class="nav-header">{{ __('KIOSK') }}</li>
                         <li class="nav-item">
-                            <a href="{{ route('kiosk', app_setting()->kiosk_token ? ['token' => app_setting()->kiosk_token] : []) }}" target="_blank" class="nav-link">
+                            <a href="{{ $kioskSite ? $kioskSite->kioskLink() : route('kiosk') }}" target="_blank" class="nav-link">
                                 <i class="nav-icon fas fa-camera"></i><p>{{ __('Marking kiosk') }}</p>
                             </a>
                         </li>

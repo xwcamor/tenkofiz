@@ -114,50 +114,9 @@
         <div class="card card-warning card-outline">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-tablet-alt"></i> {{ __('Kiosk security') }}</h3></div>
             <div class="card-body">
-                @if($setting->kiosk_token)
-                    <p><i class="fas fa-lock text-success"></i> {{ __('The kiosk is restricted: only devices that opened the authorized link can use it.') }}</p>
-                    <label class="text-sm">{{ __('Authorized kiosk link (open it once on the tablet):') }}</label>
-                    <div class="input-group mb-3">
-                        <input type="text" readonly class="form-control text-sm" id="kioskUrl" value="{{ route('kiosk', ['token' => $setting->kiosk_token]) }}">
-                        <div class="input-group-append">
-                            <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('kioskUrl').value)" title="{{ __('Copy') }}"><i class="fas fa-copy"></i></button>
-                        </div>
-                    </div>
-                @else
-                    <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i> {{ __('The kiosk is currently open: anyone with the URL (e.g. from their phone) could open it. Generate a token to restrict it to the authorized tablet.') }}</div>
-                @endif
-                <form method="POST" action="{{ route('settings.kioskToken') }}" class="d-inline">
-                    @csrf
-                    <button class="btn btn-warning btn-sm"><i class="fas fa-sync-alt"></i> {{ $setting->kiosk_token ? __('Rotate token') : __('Generate token') }}</button>
-                </form>
-                @if($setting->kiosk_token)
-                    <form method="POST" action="{{ route('settings.kioskToken.clear') }}" class="d-inline delete-form">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlock"></i> {{ __('Remove token (open kiosk)') }}</button>
-                    </form>
-                @endif
-                <hr>
-                {{-- Device binding: lock the kiosk to one physical tablet --}}
-                <h6 class="font-weight-bold"><i class="fas fa-fingerprint"></i> {{ __('Device binding (recommended)') }}</h6>
-                @if($setting->kiosk_device_hash)
-                    <p class="text-sm mb-2"><i class="fas fa-check-circle text-success"></i> {{ __('A device is paired. Only that tablet (which holds the device cookie) can open the kiosk; a copied URL on another device is rejected.') }}</p>
-                    <form method="POST" action="{{ route('settings.kioskUnpair') }}" class="d-inline delete-form">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlink"></i> {{ __('Unpair device') }}</button>
-                    </form>
-                @else
-                    <p class="text-sm text-muted mb-2">{{ __('Bind the kiosk to a single tablet: generate a one-time code, then open the pairing page on that tablet and enter it. From then on, only that device can open the kiosk.') }}</p>
-                    @if(session('pair_code'))
-                        <div class="alert alert-success py-2">
-                            {{ __('Pairing code (valid 15 min):') }} <span class="h4 font-weight-bold">{{ session('pair_code') }}</span><br>
-                            <span class="text-sm">{{ __('On the tablet open:') }} <a href="{{ route('kiosk.pair') }}" target="_blank">{{ route('kiosk.pair') }}</a></span>
-                        </div>
-                    @endif
-                    <form method="POST" action="{{ route('settings.kioskPair') }}" class="d-inline">
-                        @csrf
-                        <button class="btn btn-primary btn-sm"><i class="fas fa-key"></i> {{ __('Generate pairing code') }}</button>
-                    </form>
-                @endif
+                <p><i class="fas fa-info-circle text-info"></i> {{ __('Kiosk security is now managed per site: each site (tablet) has its own access token and its own paired device.') }}</p>
+                <p class="text-sm text-muted">{{ __('This keeps every tablet locked to its own site — one site\'s link never opens another\'s kiosk.') }}</p>
+                <a href="{{ route('sites.index') }}" class="btn btn-primary btn-sm"><i class="fas fa-map-marker-alt"></i> {{ __('Go to Sites to manage kiosk links and devices') }}</a>
                 <hr>
                 <p class="text-muted text-sm mb-0">
                     <i class="fas fa-info-circle"></i>

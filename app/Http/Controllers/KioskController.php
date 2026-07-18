@@ -48,29 +48,28 @@ class KioskController extends Controller
     public function pair(Request $request)
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:16']]);
-        $setting = app_setting();
+        $code = strtoupper(trim($data['code']));
 
-        $valid = $setting->kiosk_pair_code
-            && $setting->kiosk_pair_expires_at?->isFuture()
-            && hash_equals($setting->kiosk_pair_code, strtoupper(trim($data['code'])));
+        // The one-time code identifies which site to bind — no need to pass the site
+        $site = Site::where('kiosk_pair_code', $code)
+            ->where('kiosk_pair_expires_at', '>', now())
+            ->first();
 
-        if (!$valid) {
+        if (!$site) {
             return back()->withErrors(['code' => __('Invalid or expired pairing code. Ask an administrator for a new one.')]);
         }
 
         $secret = Str::random(48);
-        $setting->update([
+        $site->update([
             'kiosk_device_hash' => hash('sha256', $secret),
             'kiosk_pair_code' => null,
             'kiosk_pair_expires_at' => null,
         ]);
 
-        AuditLog::record('UPDATE', 'Settings', __('A kiosk device was paired'));
+        AuditLog::record('UPDATE', 'Sites', __('A kiosk device was paired to site :name', ['name' => $site->name]));
 
-        $target = $setting->kiosk_token ? route('kiosk', ['token' => $setting->kiosk_token]) : route('kiosk');
-
-        // 10-year cookie identifies this device on every future request
-        return redirect($target)->withCookie(cookie('kiosk_device', $secret, 60 * 24 * 365 * 10));
+        // 10-year cookie identifies this device; open this site's kiosk
+        return redirect($site->kioskLink())->withCookie(cookie('kiosk_device', $secret, 60 * 24 * 365 * 10));
     }
 
     /** Employees scoped to the kiosk's site (all sites when none is selected) */

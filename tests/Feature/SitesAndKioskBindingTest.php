@@ -48,13 +48,16 @@ class SitesAndKioskBindingTest extends TestCase
 
     // ---------- Device binding ----------
 
-    public function test_pairing_binds_the_device_and_blocks_others(): void
+    public function test_pairing_binds_the_device_to_a_site_and_blocks_others(): void
     {
         $this->seed(DatabaseSeeder::class);
         $admin = User::where('email', 'admin@test.com')->first();
+        $site = Site::first(); // the seeded "Sede Principal"
 
-        // Admin generates a one-time pairing code
-        $this->actingAs($admin)->post('/settings/kiosk-pair-code')->assertSessionHas('pair_code');
+        // Admin generates a one-time pairing code FOR THIS SITE
+        $this->actingAs($admin)->post('/sites/'.$site->id.'/kiosk-pair-code')
+            ->assertSessionHas('pair_code')
+            ->assertSessionHas('pair_site', $site->id);
         $code = session('pair_code');
         $this->assertNotEmpty($code);
 
@@ -63,28 +66,42 @@ class SitesAndKioskBindingTest extends TestCase
         $pair->assertRedirect();
         $pair->assertCookie('kiosk_device');
 
-        $setting = Setting::instance();
-        $this->assertNotNull($setting->kiosk_device_hash);
-        $this->assertNull($setting->kiosk_pair_code); // one-time: consumed
+        $site->refresh();
+        $this->assertNotNull($site->kiosk_device_hash);
+        $this->assertNull($site->kiosk_pair_code); // one-time: consumed
 
-        // Another device (no valid cookie) is rejected
-        $this->get('/kiosk')->assertForbidden();
+        // Another device (no valid cookie) is rejected for this site
+        $this->get('/kiosk?site='.$site->id)->assertForbidden();
 
         // The paired device (correct cookie) is allowed
         $secret = $pair->headers->getCookies()[0]->getValue();
-        $this->withUnencryptedCookie('kiosk_device', $secret)->get('/kiosk')->assertOk();
+        $this->withUnencryptedCookie('kiosk_device', $secret)->get('/kiosk?site='.$site->id)->assertOk();
     }
 
     public function test_expired_or_wrong_code_does_not_pair(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $site = Site::first();
 
-        Setting::instance()->update(['kiosk_pair_code' => 'ABC123', 'kiosk_pair_expires_at' => now()->subMinute()]);
+        $site->update(['kiosk_pair_code' => 'ABC123', 'kiosk_pair_expires_at' => now()->subMinute()]);
         $this->post('/kiosk/pair', ['code' => 'ABC123'])->assertSessionHasErrors('code');
 
-        Setting::instance()->update(['kiosk_pair_code' => 'ABC123', 'kiosk_pair_expires_at' => now()->addMinutes(10)]);
+        $site->update(['kiosk_pair_code' => 'ABC123', 'kiosk_pair_expires_at' => now()->addMinutes(10)]);
         $this->post('/kiosk/pair', ['code' => 'WRONG'])->assertSessionHasErrors('code');
 
-        $this->assertNull(Setting::instance()->kiosk_device_hash);
+        $this->assertNull($site->fresh()->kiosk_device_hash);
+    }
+
+    public function test_a_sites_token_link_opens_only_that_sites_kiosk(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $site = Site::first();
+        $site->regenerateKioskToken();
+        $token = $site->fresh()->kiosk_token;
+
+        // Wrong/absent token is rejected; the correct token opens it
+        $this->get('/kiosk?site='.$site->id)->assertForbidden();
+        $this->get('/kiosk?site='.$site->id.'&token=WRONG')->assertForbidden();
+        $this->get('/kiosk?site='.$site->id.'&token='.$token)->assertOk();
     }
 }

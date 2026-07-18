@@ -88,12 +88,13 @@ class SmokeTest extends TestCase
     public function test_kiosk_requires_token_when_configured(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $site = \App\Models\Site::first(); // single seeded site
 
         $this->get('/kiosk')->assertOk(); // no token configured: open
 
-        \App\Models\Setting::instance()->update(['kiosk_token' => 'secret-token-123']);
-        app()->forgetInstance('app.setting');
+        $site->update(['kiosk_token' => 'secret-token-123']);
 
+        // A single-site company resolves the site even without ?site
         $this->get('/kiosk')->assertForbidden();
         $this->get('/kiosk?token=wrong')->assertForbidden();
         $this->get('/kiosk?token=secret-token-123')->assertOk();
