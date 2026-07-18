@@ -12,25 +12,43 @@ comportamiento del sistema, empieza aquí en lugar de leer los controladores com
 
 Flujo completo en `app/Http/Controllers/KioskController.php`.
 
-### 1.1 Reconocimiento facial
-- El navegador (tablet) descarga los descriptores de TODOS los empleados activos con
-  rostro enrolado (`KioskController::descriptors`) y hace el matching localmente con
-  face-api.js. El servidor nunca recibe la imagen de la cámara en el flujo facial.
-- **Umbral de similitud**: distancia euclidiana máxima `0.55`
-  (`KioskController::THRESHOLD`). Menor = más estricto. Si el mejor match supera el
-  umbral, el kiosco ofrece el marcado por DNI.
-- La lista de descriptores se refresca sola: el kiosco consulta `/kiosk/version`
-  cada 5 minutos (huella md5 de cantidad + último `updated_at`) y solo re-descarga
-  si cambió (`public/js/kiosk.js`).
+### 1.1 Dos modos de kiosco (configurables en Ajustes → Reconocimiento facial)
+- **Modo VERIFICAR (por defecto)**: la persona teclea su documento y la cámara
+  confirma 1:1 que es realmente ella (`public/js/kiosk.js` → `verifyAndMark`). Es el
+  más confiable: no confunde rostros parecidos y el umbral puede ser estricto.
+- **Modo RÁPIDO (`kiosk_fast_mode`)**: auto-escaneo 1:N — la cámara reconoce a
+  cualquiera que se pare enfrente (`detectionCycle`). Más rápido, pero puede
+  confundir personas parecidas.
+- **Umbral de similitud** configurable en Ajustes (`settings.kiosk_face_threshold`,
+  0.35–0.65; 0.50 recomendado). Menor = más estricto.
+- **Vivacidad / parpadeo (`kiosk_liveness`)**: si está activo, exige un parpadeo
+  (EAR, *eye aspect ratio*) para evitar marcar con una foto.
+- En modo rápido, la lista de descriptores se refresca sola: el kiosco consulta
+  `/kiosk/version` cada 5 minutos y solo re-descarga si cambió.
 
-### 1.2 Marcado por DNI (respaldo)
-- Si la cámara no reconoce el rostro, el empleado teclea su documento
+### 1.2 Exigir rostro detectado (`kiosk_require_face`, por defecto ACTIVO)
+Regla clave de negocio: **sin rostro no hay marca ni foto.**
+- Si durante la ventana de verificación (7 s) la cámara **nunca detecta un rostro**,
+  el kiosco **no marca y no guarda ninguna foto**: muestra "No se detectó ningún
+  rostro…" y devuelve al teclado para reintentar (`kiosk.js` → `noFaceRetry`).
+- Aplica también a documentos **sin rostro enrolado**: primero se exige que haya un
+  rostro frente a la cámara (`waitForAnyFace`) antes del respaldo por documento.
+- **Si se vio un rostro pero no coincidió** con el enrolado, sí se marca por
+  documento y se guarda la foto de evidencia (la foto es útil para revisión).
+- Con la opción desactivada se conserva el comportamiento anterior (marca por
+  documento aunque no se haya visto rostro).
+
+### 1.3 Marcado por DNI (respaldo)
+- Cuando corresponde (ver §1.2), el empleado teclea su documento
   (`KioskController::markByDni`). Se guarda una **foto de evidencia** del momento
   en `public/uploads/kiosk_evidence/` y la marca queda con método `DNI` para que
   un supervisor la verifique en Asistencias (badge amarillo + foto).
 - Las evidencias se purgan a los 90 días (`kiosk:purge-evidence`, ver §6).
+- **Auto-enrolamiento visible**: durante la captura de muestras, el panel se
+  vuelve transparente y se reduce a una barra inferior para que la persona **se vea
+  en la cámara** mientras se captura (clase `.capturing` en `kiosk.js`).
 
-### 1.3 Reglas comunes a toda marca (`KioskController::performMark`)
+### 1.4 Reglas comunes a toda marca (`KioskController::performMark`)
 Se evalúan en este orden:
 
 1. **Feriado** (`Holiday::onDate`) → marca rechazada.
@@ -61,28 +79,35 @@ Se evalúan en este orden:
 Cada marca guarda auditoría del dispositivo: IP y user-agent (`attendances.ip`,
 `attendances.user_agent`).
 
-### 1.4 Seguridad del kiosco
-Dos capas (`app/Http/Middleware/VerifyKioskToken.php`):
+### 1.5 Seguridad del kiosco (POR SEDE)
+La seguridad es **por sede**: cada sede (tablet) tiene su propio token y su propio
+dispositivo vinculado (`app/Http/Middleware/VerifyKioskToken.php`). El middleware
+resuelve la sede así: `?site=<id>` → sesión `kiosk_site` → si la empresa tiene una
+sola sede activa, esa. Dos capas sobre la sede resuelta:
 - **Vinculación de dispositivo** (más fuerte): un admin genera un **código de un
-  solo uso** en Ajustes (`SettingController::generatePairCode`, vence en 15 min).
-  En la tablet se abre `/kiosk/pair` y se ingresa; el servidor guarda el hash de
-  un secreto de dispositivo (`settings.kiosk_device_hash`) y entrega una **cookie
-  de 10 años** (`KioskController::pair`). Desde entonces solo esa tablet (que
-  lleva la cookie) abre el kiosco; una URL copiada en otro dispositivo → 403.
+  solo uso** para la sede en la pantalla **Sedes** (`SiteController::generatePairCode`,
+  vence en 15 min). En la tablet se abre `/kiosk/pair` y se ingresa; el código
+  identifica la sede, el servidor guarda el hash de un secreto (`sites.kiosk_device_hash`)
+  y entrega una **cookie de 10 años** (`KioskController::pair`). Desde entonces solo
+  esa tablet abre el kiosco de **esa** sede; una URL copiada en otro dispositivo → 403.
   "Desvincular" (`unpairDevice`) limpia el hash para volver a emparejar.
-- **Token de dispositivo** (respaldo, cuando NO hay dispositivo vinculado): la URL
-  `/kiosk?token=...` (configurado en Ajustes) queda en sesión tras el primer
-  acceso. Sin token válido → 403. Si no hay ni dispositivo ni token, el kiosco
-  queda abierto (se avisa al admin en Ajustes).
+- **Token de sede** (respaldo, cuando NO hay dispositivo vinculado): el enlace
+  autorizado `/kiosk?site=<id>&token=<token de la sede>` (`Site::kioskLink`) queda en
+  sesión tras el primer acceso. Sin token válido → 403. Sin dispositivo ni token, el
+  kiosco de esa sede queda abierto.
+- Migración `2026_01_11_000003`: al actualizar, el token y el dispositivo globales
+  anteriores se copian a la **primera sede** para no romper la tablet ya autorizada.
 
-### 1.5 Multi-sede (sedes)
-- Cada empleado puede pertenecer a una **sede** (`employees.site_id`). Las sedes se
+### 1.6 Multi-sede (sedes) y alcance por sede
+- Cada empleado puede pertenecer a una **sede** (`employees.site_id`); cada usuario
+  puede estar **atado a una sede** (`users.site_id`, ver §8.1). Las sedes se
   administran en el módulo `settings` (`SiteController`).
-- El enlace de kiosco de una sede es `/kiosk?token=<global>&site=<id>`. Al entrar,
-  la sede queda en sesión (`kiosk_site`) y el kiosco **solo reconoce y marca** a
-  los empleados de esa sede (`KioskController::scopedEmployees`, aplica a
+- El enlace de kiosco de una sede es `/kiosk?site=<id>&token=<token de la sede>`. Al
+  entrar, la sede queda en sesión (`kiosk_site`) y el kiosco **solo reconoce y marca**
+  a los empleados de esa sede (`KioskController::scopedEmployees`, aplica a
   descriptores faciales y marcado por DNI). Sin `site`, el kiosco ve a todos.
-- Empleados y reportes se pueden filtrar por sede.
+- Empleados y reportes se pueden filtrar por sede; los reportes muestran **sede y
+  dirección** (pantalla, Excel y ficha imprimible).
 - El **auto-enrolamiento** desde el kiosco está protegido por PIN
   (`settings.kiosk_enroll_pin`); el PIN desbloquea el modo por 15 minutos
   (`KioskController::ENROLL_SESSION_MINUTES`) y exige aceptar el consentimiento
@@ -191,6 +216,28 @@ JSON de módulos habilitados (`profiles.permissions`).
   empresa (dashboard global, calendario de cualquiera, etc.).
 - La vista de **eliminados** y el botón **restaurar** exigen el módulo `settings`
   (en la práctica: administradores).
+
+### 8.1 Alcance por sede (`users.site_id`)
+Un usuario puede estar **atado a una sede** (`users.site_id`). Regla de oro:
+- `site_id = NULL` → **acceso a toda la empresa** (admin de empresa / sistema): ve
+  todas las sedes. Los usuarios de prueba y el admin principal quedan en NULL.
+- `site_id = X` → el usuario **solo ve la sede X**: empleados, asistencias, reportes,
+  vacaciones y justificaciones de esa sede.
+
+Implementación (mínima invasión, difícil de saltarse):
+- `Employee` lleva un **global scope** `App\Models\Scopes\SiteScope`: si el usuario
+  autenticado tiene sede, filtra `employees.site_id`. **Invitados (kiosco) y comandos
+  de consola no se filtran** → el kiosco y las tareas programadas siguen operando en
+  todas las sedes. Un empleado de otra sede da 404 por *route-model binding*.
+- Asistencias, vacaciones y justificaciones (no tienen `site_id` propio) usan el
+  trait `App\Models\Concerns\BelongsToScopedSite` con el scope local `inCurrentSite()`
+  (filtra vía `whereHas('employee')`, incluyendo eliminados). Se aplica en las
+  listas y en el dashboard de gestor.
+- Al crear un empleado, un usuario atado a sede lo asigna **automáticamente a su
+  sede** (`Employee::creating`). En el alta de usuarios, un admin atado a sede solo
+  puede crear usuarios **dentro de su propia sede** (`UserController::resolveSiteId`;
+  el selector de sede solo lo ve el admin de empresa).
+- Tests: `SiteScopingTest`.
 
 ---
 
