@@ -26,10 +26,14 @@
         <div id="status" class="alert alert-secondary d-inline-block px-4">{{ __('Loading models...') }}</div>
     </div>
 
-    {{-- End-of-window options: explicit buttons, nothing happens behind your back --}}
+    {{-- End-of-window options: explicit buttons, nothing happens behind your back.
+         Document marking is ONLY the fallback for someone already enrolled whose
+         recognition failed — a non-enrolled person never gets that button. --}}
     <div id="actionRow" class="mt-1" style="display:none">
         <button class="btn btn-primary px-4 m-1" id="retryBtn" onclick="retryVerify()"><i class="fas fa-redo"></i> {{ __('Try again') }}</button>
-        <button class="btn btn-outline-warning px-4 m-1" id="markDocBtn" onclick="markByDocument()" style="display:none"><i class="fas fa-id-card"></i> {{ __('Mark by document (photo evidence)') }}</button>
+        @if($employee->hasFace())
+            <button class="btn btn-outline-warning px-4 m-1" id="markDocBtn" onclick="markByDocument()" style="display:none"><i class="fas fa-id-card"></i> {{ __('Mark by document (photo evidence)') }}</button>
+        @endif
         <a href="{{ route('kiosk') }}" class="btn btn-outline-light px-4 m-1">{{ __('Cancel') }}</a>
     </div>
 
@@ -95,6 +99,8 @@
         cameraFallback: @json(__('The camera is not available. You can still mark by document (no photo evidence).')),
         notConfirmed: @json(__('We could not confirm your face in :sec seconds. You can try again or mark by document (an evidence photo will be saved for review).')),
         noFaceSeen: @json(__('No face was detected in front of the camera — nothing was recorded. Come closer, improve the lighting and try again.')),
+        enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
+        cameraNeededToEnroll: @json(__('The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.')),
         verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
         showYourFace: @json(__('Show your face to the camera to save the evidence photo.')),
         backSoon: @json(__('Returning to the kiosk...')),

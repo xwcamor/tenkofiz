@@ -25,11 +25,11 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
      marca y vuelve al teclado en 4 s.
    - **Se agotó el tiempo**: NADA ocurre solo — la persona elige con botones:
      **Reintentar** / **Marcar por documento (foto de evidencia)** / **Cancelar**.
-   - **Sin rostro enrolado**: puede **enrolarse ahí mismo** (consentimiento + 3
-     muestras; con PIN de supervisor si está configurado) y marcar de inmediato, o
-     marcar por documento con foto.
-   - **Sin cámara disponible**: se permite marcar por documento (sin foto) para no
-     bloquear la asistencia.
+   - **Sin rostro enrolado**: el ÚNICO camino es **enrolarse ahí mismo**
+     (consentimiento + 3 muestras; con PIN de supervisor si está configurado) y
+     marcar de inmediato. No hay marcado por documento para no enrolados (§1.2).
+   - **Sin cámara disponible**: un enrolado puede marcar por documento (sin foto);
+     un no enrolado no puede marcar (ver §1.2).
 3. **`/kiosk/enroll` (supervisor)**: página propia de enrolamiento (PIN → documento
    → consentimiento → captura), con la cámara siempre visible arriba.
 
@@ -42,7 +42,21 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
   `/kiosk/descriptors` y `/kiosk/version` se conservan por compatibilidad.
 - JS: `public/js/kiosk-home.js`, `kiosk-verify.js`, `kiosk-enroll.js`.
 
-### 1.2 Exigir rostro detectado (`kiosk_require_face`, por defecto ACTIVO)
+### 1.2 Regla: el marcado por documento es SOLO para rostros ya enrolados
+Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" existe
+únicamente para quien **ya tiene rostro enrolado** y el reconocimiento falló.
+- **Sin rostro enrolado → no hay marcado por documento** (el botón ni aparece y el
+  servidor lo rechaza con 422 en `KioskController::markByDni`). El único camino es
+  **enrolarse ahí mismo** en `/kiosk/verify` y marcar facialmente.
+- **Auto-enrolamiento abierto**: si NO hay PIN configurado en Ajustes, la persona
+  validada en el teclado puede enrolarse a sí misma (el servidor verifica que el
+  `employee_id` coincida con el documento validado en sesión — no puede enrolar a
+  otro). Con PIN configurado, el supervisor desbloquea la tablet 15 minutos.
+- **Cámara rota**: un enrolado puede marcar por documento (sin foto); un NO
+  enrolado no puede marcar (necesita la cámara para enrolarse) — el supervisor
+  registra la marca manualmente en Asistencias.
+
+### 1.2b Exigir rostro detectado (`kiosk_require_face`, por defecto ACTIVO)
 Regla clave de negocio: **sin rostro no hay marca ni foto.**
 - Si al agotarse la ventana de verificación la cámara **nunca detectó un rostro**,
   el botón "Marcar por documento" **no se ofrece**: solo Reintentar/Cancelar, y no

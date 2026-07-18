@@ -37,7 +37,9 @@ function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 function setProgress(pct) { document.getElementById('verifyProgress').style.width = pct + '%'; }
 function showActions(withMarkDoc, withRetry = true) {
     document.getElementById('actionRow').style.display = '';
-    document.getElementById('markDocBtn').style.display = withMarkDoc ? '' : 'none';
+    // The document button only exists in the DOM for people with an enrolled face
+    const markDocBtn = document.getElementById('markDocBtn');
+    if (markDocBtn) markDocBtn.style.display = withMarkDoc ? '' : 'none';
     document.getElementById('retryBtn').style.display = withRetry ? '' : 'none';
 }
 function hideActions() { document.getElementById('actionRow').style.display = 'none'; }
@@ -86,20 +88,22 @@ async function start() {
             begin();
         }, { once: true });
     } catch (e) {
-        // Camera unavailable: attendance must not be blocked — offer document marking
-        show('warning', '<i class="fas fa-video-slash"></i> ' + I18N.cameraFallback);
-        showActions(true);
+        // Camera unavailable. Enrolled people may still mark by document so
+        // attendance is not blocked; non-enrolled people must enroll first (and
+        // enrolling needs the camera), so they can only cancel.
+        show('warning', '<i class="fas fa-video-slash"></i> ' + (window.HAS_FACE ? I18N.cameraFallback : I18N.cameraNeededToEnroll));
+        showActions(window.HAS_FACE, false);
     }
 }
 
 function begin() {
     if (window.HAS_FACE) { runVerify(); return; }
-    // No enrolled face: offer enrolling right here (optimizes the first mark),
-    // with document+photo marking still available as the alternative.
+    // No enrolled face: the ONLY way to mark is enrolling right here first
+    // (document marking is reserved for enrolled people whose recognition fails).
     const card = document.getElementById('enrollCard');
     if (card) card.style.display = '';
-    show('info', '<i class="fas fa-user-plus"></i> ' + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
-    showActions(true, false); // mark-by-document + cancel; "try again" makes no sense yet
+    show('info', '<i class="fas fa-user-plus"></i> ' + I18N.enrollFirst);
+    showActions(false, false); // just Cancel; the enroll card is the path forward
 }
 
 /* ---------- 1:1 verification with a real, configurable window ---------- */

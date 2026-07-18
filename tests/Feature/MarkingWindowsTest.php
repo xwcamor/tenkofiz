@@ -28,6 +28,8 @@ class MarkingWindowsTest extends TestCase
         // Morning Shift: Mon-Sat 08:00-17:00 (Lima = UTC-5)
         return Employee::create([
             'document_number' => '11112222',
+
+            'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             'first_name' => 'JOHN',
             'last_name' => 'DOE',
             'schedule_id' => Schedule::first()->id,

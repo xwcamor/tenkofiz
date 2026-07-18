@@ -223,9 +223,9 @@ límites por plan, registro self-service y resolución por subdominio.
 
 ---
 
-## 5. PENDIENTE — Dilema del enrolamiento y el marcado por documento (decisión de negocio)
+## 5. DECIDIDO E IMPLEMENTADO — Enrolamiento y marcado por documento
 
-**Observación de Carlos (sin implementar aún, esperando su decisión):**
+**Decisión de Carlos (IMPLEMENTADA):** el marcado por documento es SOLO el plan B de quien ya tiene rostro enrolado. Detalle original del dilema:
 
 > El respaldo "marcar por documento + foto de evidencia" quizá debería existir SOLO
 > para quien **ya tiene rostro enrolado** (como plan B cuando el reconocimiento

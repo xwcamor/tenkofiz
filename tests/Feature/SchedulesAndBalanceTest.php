@@ -28,6 +28,8 @@ class SchedulesAndBalanceTest extends TestCase
 
         return Employee::create([
             'document_number' => '11112222',
+
+            'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             'first_name' => 'JOHN',
             'last_name' => 'DOE',
             'schedule_id' => Schedule::first()->id, // Morning Shift, Mon-Sat 08:00-17:00
@@ -68,6 +70,8 @@ class SchedulesAndBalanceTest extends TestCase
         }
         $employee = Employee::create([
             'document_number' => '55556666',
+
+            'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             'first_name' => 'NIGHT',
             'last_name' => 'OWL',
             'schedule_id' => $night->id,

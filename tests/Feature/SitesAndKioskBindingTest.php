@@ -31,8 +31,9 @@ class SitesAndKioskBindingTest extends TestCase
         $lima = Site::create(['name' => 'Lima']);
         $cusco = Site::create(['name' => 'Cusco']);
 
-        Employee::create(['document_number' => '11112222', 'first_name' => 'A', 'last_name' => 'LIMA', 'schedule_id' => $schedule->id, 'site_id' => $lima->id]);
-        Employee::create(['document_number' => '33334444', 'first_name' => 'B', 'last_name' => 'CUSCO', 'schedule_id' => $schedule->id, 'site_id' => $cusco->id]);
+        $face = json_encode([array_fill(0, 128, 0.1)]); // enrolled: required for document fallback
+        Employee::create(['document_number' => '11112222', 'first_name' => 'A', 'last_name' => 'LIMA', 'schedule_id' => $schedule->id, 'site_id' => $lima->id, 'face_descriptor' => $face]);
+        Employee::create(['document_number' => '33334444', 'first_name' => 'B', 'last_name' => 'CUSCO', 'schedule_id' => $schedule->id, 'site_id' => $cusco->id, 'face_descriptor' => $face]);
 
         Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday, a working day
 

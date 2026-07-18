@@ -899,5 +899,8 @@
     "mobile": "móvil",
     "module(s)": "módulo(s)",
     "optional": "opcional",
-    "seconds the camera tries; 15 recommended": "segundos que la cámara intenta; 15 recomendado"
+    "seconds the camera tries; 15 recommended": "segundos que la cámara intenta; 15 recomendado",
+    "You have no enrolled face yet. Enroll it on this kiosk (one time) to be able to mark.": "Aún no tienes rostro enrolado. Enrólalo en este kiosco (una sola vez) para poder marcar.",
+    "To mark attendance you must first enroll your face (one time only). Complete the steps below.": "Para marcar asistencia primero debes enrolar tu rostro (solo una vez). Completa los pasos de abajo.",
+    "The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.": "La cámara no está disponible y tu rostro aún no está enrolado. Pide a tu supervisor que registre tu marca manualmente."
 }

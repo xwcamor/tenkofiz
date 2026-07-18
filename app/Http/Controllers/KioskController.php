@@ -256,6 +256,16 @@ class KioskController extends Controller
             return response()->json(['ok' => false, 'message' => __('No active employee found with that document number.')], 422);
         }
 
+        // Business rule (Carlos): document marking is ONLY the fallback for people
+        // who already enrolled their face and recognition failed. Someone without
+        // an enrolled face must enroll first — they cannot mark by document.
+        if (!$employee->hasFace()) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('You have no enrolled face yet. Enroll it on this kiosk (one time) to be able to mark.'),
+            ], 422);
+        }
+
         $evidencePath = $this->storeEvidencePhoto($data['photo'] ?? null);
 
         return $this->performMark($request, $employee, 'DNI', ['evidence_photo' => $evidencePath]);
@@ -502,8 +512,6 @@ class KioskController extends Controller
     /** Stores the face samples captured on the kiosk (requires on-screen consent) */
     public function enrollDescriptor(Request $request)
     {
-        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
-
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'consent' => ['accepted'],
@@ -513,6 +521,16 @@ class KioskController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
+
+        // Two ways to be authorized:
+        //  1. supervisor PIN entered on this tablet (15-min session), OR
+        //  2. OPEN self-enrollment: no PIN is configured AND the person being
+        //     enrolled is exactly the one validated on the keypad (kiosk_verify_doc)
+        //     — this is the "enroll yourself on your first mark" flow.
+        $openSelfEnroll = !app_setting()->kiosk_enroll_pin
+            && $request->session()->get('kiosk_verify_doc') === $employee->document_number;
+
+        abort_unless($this->enrollUnlocked($request) || $openSelfEnroll, 403, __('Enrollment mode is locked.'));
 
         $employee->update([
             'face_descriptor' => json_encode($data['descriptors']),

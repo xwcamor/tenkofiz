@@ -21,6 +21,8 @@ class KioskTest extends TestCase
 
         return Employee::create([
             'document_number' => '11112222',
+
+            'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             'first_name' => 'JOHN',
             'last_name' => 'DOE',
             'schedule_id' => Schedule::first()->id,
@@ -37,6 +39,8 @@ class KioskTest extends TestCase
 
         $response = $this->postJson('/kiosk/mark-dni', [
             'document_number' => '11112222',
+
+            'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             'photo' => $photo,
         ]);
 
@@ -64,6 +68,7 @@ class KioskTest extends TestCase
     public function test_version_changes_when_a_face_is_enrolled(): void
     {
         $employee = $this->seedBase();
+        $employee->update(['face_descriptor' => null]); // start NOT enrolled for this test
 
         $before = $this->getJson('/kiosk/version')->json('version');
 
@@ -131,6 +136,8 @@ class KioskTest extends TestCase
                 'second_last_name' => 'TORRES',
                 'full_name' => 'GARCIA TORRES MARIA ELENA',
                 'document_number' => '40111222',
+
+                'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]), // enrolled: required for document fallback
             ]),
         ]);
 
