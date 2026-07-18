@@ -61,7 +61,7 @@
                         <div class="input-group input-group-sm mb-3">
                             <input type="text" class="form-control" value="{{ $site->kioskLink() }}" readonly onclick="this.select()" style="font-size:.72rem">
                             <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" onclick="navigator.clipboard.writeText('{{ $site->kioskLink() }}'); Swal.fire({toast:true,position:'top-end',icon:'success',title:@json(__('Link copied')),showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
+                                <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" data-link="{{ $site->kioskLink() }}" data-msg="{{ __('Link copied') }}" onclick="navigator.clipboard.writeText(this.dataset.link); Swal.fire({toast:true,position:'top-end',icon:'success',title:this.dataset.msg,showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
                             </div>
                         </div>
 

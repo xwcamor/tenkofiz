@@ -220,3 +220,31 @@ Límites conocidos de la Fase 1 (para fases siguientes): los **perfiles** siguen
 globales (plantillas de permisos compartidas); el acceso directo por ID a un usuario de
 otra empresa no está bloqueado (las listas sí están aisladas); falta facturación,
 límites por plan, registro self-service y resolución por subdominio.
+
+---
+
+## 5. PENDIENTE — Dilema del enrolamiento y el marcado por documento (decisión de negocio)
+
+**Observación de Carlos (sin implementar aún, esperando su decisión):**
+
+> El respaldo "marcar por documento + foto de evidencia" quizá debería existir SOLO
+> para quien **ya tiene rostro enrolado** (como plan B cuando el reconocimiento
+> falla). Quien **no** tiene rostro enrolado **no debería poder marcar por
+> documento**: debería enrolarse primero (el PIN del kiosco existe justamente para
+> que se registren desde ahí) y recién entonces marcar.
+
+Estado actual (hoy): quien no tiene rostro puede (a) enrolarse ahí mismo en
+`/kiosk/verify` (PIN si está configurado) o (b) marcar por documento con foto de
+evidencia (exigiendo un rostro en cámara si `kiosk_require_face` está activo).
+
+Análisis para decidir:
+- **A favor de la regla propuesta**: obliga a enrolar el día 1; elimina las marcas
+  "solo documento" de gente nunca enrolada; la foto de evidencia deja de ser la vía
+  normal y vuelve a ser una excepción.
+- **Riesgos**: si la cámara falla o no hay supervisor con el PIN a mano, la persona
+  **no podría marcar** (asistencia bloqueada el primer día); hoy ese caso cae al
+  respaldo por documento. Habría que definir el procedimiento para "cámara rota".
+- **Implementación sugerida si se aprueba**: un ajuste
+  `kiosk_document_fallback = solo_enrolados | todos | nunca` en Ajustes → Facial,
+  para que cada empresa elija su rigidez. Cambio pequeño (una condición en
+  `/kiosk/verify` + el ajuste).

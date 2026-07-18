@@ -60,7 +60,7 @@
                             <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
                             <button class="btn btn-sm btn-primary" title="{{ __('Plan (modules and limits)') }}" data-payload="{{ $planPayload }}" onclick="openPlanModal(JSON.parse(this.dataset.payload))"><i class="fas fa-cubes"></i></button>
                             @if($company->is_active)
-                                <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" onclick="openSuspendModal(@json(route('admin.companies.suspend', $company)), @json($company->name))"><i class="fas fa-pause"></i></button>
+                                <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" data-action="{{ route('admin.companies.suspend', $company) }}" data-name="{{ $company->name }}" onclick="openSuspendModal(this.dataset.action, this.dataset.name)"><i class="fas fa-pause"></i></button>
                             @else
                                 <form method="POST" action="{{ route('admin.companies.reactivate', $company) }}" class="d-inline">
                                     @csrf

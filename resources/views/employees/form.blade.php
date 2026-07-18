@@ -44,7 +44,7 @@
                                     @endforeach
                                 </select>
                                 <div class="input-group-append">
-                                    <button type="button" class="btn btn-outline-primary" onclick="addCatalogItem('{{ route('areas.store') }}', 'areaSelect', @json(__('area')))" title="{{ __('Add new area') }}"><i class="fas fa-plus"></i></button>
+                                    <button type="button" class="btn btn-outline-primary" data-url="{{ route('areas.store') }}" data-select="areaSelect" data-label="{{ __('area') }}" onclick="addCatalogItem(this.dataset.url, this.dataset.select, this.dataset.label)" title="{{ __('Add new area') }}"><i class="fas fa-plus"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -58,7 +58,7 @@
                                     @endforeach
                                 </select>
                                 <div class="input-group-append">
-                                    <button type="button" class="btn btn-outline-primary" onclick="addCatalogItem('{{ route('positions.store') }}', 'positionSelect', @json(__('position')))" title="{{ __('Add new position') }}"><i class="fas fa-plus"></i></button>
+                                    <button type="button" class="btn btn-outline-primary" data-url="{{ route('positions.store') }}" data-select="positionSelect" data-label="{{ __('position') }}" onclick="addCatalogItem(this.dataset.url, this.dataset.select, this.dataset.label)" title="{{ __('Add new position') }}"><i class="fas fa-plus"></i></button>
                                 </div>
                             </div>
                         </div>
