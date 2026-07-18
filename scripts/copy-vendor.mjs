@@ -41,6 +41,11 @@ const FILES = [
     ['datatables.net-buttons/js/buttons.html5.min.js', 'datatables/buttons.html5.min.js'],
     ['datatables.net-buttons/js/buttons.print.min.js', 'datatables/buttons.print.min.js'],
     ['jszip/dist/jszip.min.js', 'jszip/jszip.min.js'],
+    // Select2 (AJAX autocomplete for large employee lists)
+    ['select2/dist/css/select2.min.css', 'select2/select2.min.css'],
+    ['select2/dist/js/select2.min.js', 'select2/select2.min.js'],
+    ['select2/dist/js/i18n/es.js', 'select2/i18n/es.js'],
+    ['select2-bootstrap4-theme/dist/select2-bootstrap4.min.css', 'select2/select2-bootstrap4.min.css'],
 ];
 
 const DIRS = [

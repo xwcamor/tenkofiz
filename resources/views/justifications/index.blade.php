@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', __('Justifications'))
 @section('header-button')
-    @if($employees->isNotEmpty())
+    @if($isManager || $employees->isNotEmpty())
         <button class="btn btn-primary" onclick="$('#justificationModal').modal('show')"><i class="fas fa-plus"></i> {{ __('New justification') }}</button>
     @endif
 @endsection
@@ -89,11 +89,17 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>{{ __('Employee') }}</label>
-                    <select name="employee_id" class="form-control @error('employee_id') is-invalid @enderror" required>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
+                    @if($isManager)
+                        <select name="employee_id" class="employee-select @error('employee_id') is-invalid @enderror"
+                                data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
+                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
+                    @else
+                        <select name="employee_id" class="form-control @error('employee_id') is-invalid @enderror" required>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="form-group">

@@ -6,12 +6,9 @@
     <div class="card-body py-2">
         <form class="form-inline">
             <label class="mr-2">{{ __('View calendar of:') }}</label>
-            <select name="employee_id" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
-                <option value="">— {{ __('Select an employee') }} —</option>
-                @foreach($employees as $employeeOption)
-                    <option value="{{ $employeeOption->id }}" @selected($employee?->id == $employeeOption->id)>{{ $employeeOption->full_name }}</option>
-                @endforeach
-            </select>
+            <select name="employee_id" class="employee-select mr-2" data-url="{{ route('employees.search') }}"
+                    data-placeholder="— {{ __('Select an employee') }} —" data-width="300px" onchange="this.form.submit()"
+                    @if($employee) data-selected-id="{{ $employee->id }}" data-selected-text="{{ $employee->full_name }}" @endif></select>
         </form>
     </div>
 </div>

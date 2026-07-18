@@ -14,8 +14,6 @@ class CalendarController extends Controller
         $user = $request->user();
         $isManager = $user->isManager();
 
-        $employees = $isManager ? Employee::where('is_active', true)->orderBy('last_name')->get() : collect();
-
         // Managers can pick an employee; employees see their own calendar
         $employee = $isManager && $request->filled('employee_id')
             ? Employee::find($request->integer('employee_id'))
@@ -54,6 +52,6 @@ class CalendarController extends Controller
             $events[] = ['title' => '🎉 '.$holiday->name, 'start' => $holiday->date->toDateString(), 'display' => 'background', 'color' => '#f8d7da'];
         }
 
-        return view('calendar.index', compact('events', 'employee', 'employees', 'isManager'));
+        return view('calendar.index', compact('events', 'employee', 'isManager'));
     }
 }

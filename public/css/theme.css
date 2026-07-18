@@ -317,3 +317,30 @@ label { color: var(--ink-2); font-size: .84rem; font-weight: 600; }
 
 /* ---------- Loading bar ---------- */
 #loading-bar { background: var(--brand); }
+
+/* ---------- Select2 (employee autocomplete) ---------- */
+.select2-container--bootstrap4 .select2-selection {
+    border-color: var(--input-border, #d5dce8);
+    border-radius: var(--radius-sm, 8px);
+}
+html[data-theme="dark"] .select2-container--bootstrap4 .select2-selection {
+    background: var(--input-bg);
+    color: var(--ink);
+}
+html[data-theme="dark"] .select2-container--bootstrap4 .select2-selection__rendered { color: var(--ink); }
+html[data-theme="dark"] .select2-container--bootstrap4 .select2-selection__placeholder { color: var(--ink-3); }
+html[data-theme="dark"] .select2-dropdown {
+    background: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--ink);
+}
+html[data-theme="dark"] .select2-search--dropdown .select2-search__field {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--ink);
+}
+html[data-theme="dark"] .select2-results__option { color: var(--ink-2); }
+html[data-theme="dark"] .select2-container--bootstrap4 .select2-results__option--highlighted {
+    background: var(--brand);
+    color: #fff;
+}

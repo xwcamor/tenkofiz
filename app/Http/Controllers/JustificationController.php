@@ -24,11 +24,12 @@ class JustificationController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        $employees = $isManager
-            ? Employee::where('is_active', true)->orderBy('last_name')->get()
-            : Employee::where('user_id', $user->id)->get();
+        // Managers pick the employee with an AJAX autocomplete; non-managers
+        // only get their own employee in the modal
+        $employees = $isManager ? collect() : Employee::where('user_id', $user->id)->get();
+        $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees'));
+        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee'));
     }
 
     public function store(Request $request)

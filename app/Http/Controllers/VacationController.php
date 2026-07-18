@@ -23,11 +23,13 @@ class VacationController extends Controller
             ->paginate(25)
             ->withQueryString();
 
+        // Managers pick the employee with an AJAX autocomplete (which returns the
+        // balance); non-managers only get their own employee in the modal
         $employees = $isManager
-            ? Employee::where('is_active', true)->orderBy('last_name')->get()
+            ? collect()
             : Employee::where('user_id', $user->id)->get();
 
-        // Remaining days this year, shown in the request modal and next to pending rows
+        // Remaining days this year, shown in the request modal and next to the listed rows
         $balances = $employees->mapWithKeys(fn ($e) => [$e->id => $e->remainingVacationDays()]);
         foreach ($vacations as $vacation) {
             if (!$balances->has($vacation->employee_id)) {
@@ -35,7 +37,9 @@ class VacationController extends Controller
             }
         }
 
-        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances'));
+        $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
+
+        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances', 'oldEmployee'));
     }
 
     public function store(Request $request)

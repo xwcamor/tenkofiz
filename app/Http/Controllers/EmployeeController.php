@@ -45,6 +45,44 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * JSON autocomplete used by every employee selector (Select2). Results are
+     * searched and paginated in the database, so the selectors stay instant
+     * no matter how many employees exist.
+     */
+    public function search(Request $request)
+    {
+        abort_unless($request->user()->isManager(), 403);
+
+        $search = trim((string) $request->input('q'));
+        $year = (int) company_now()->year;
+
+        $employees = Employee::where('is_active', true)
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+                $query->where(fn ($q) => $q
+                    ->where('document_number', 'like', $like)
+                    ->orWhere('first_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like));
+            })
+            // Approved days this year in the same query (avoids one query per result)
+            ->withSum(['vacations as approved_vacation_days' => fn ($q) => $q
+                ->where('status', 'APPROVED')
+                ->whereYear('start_date', $year)], 'days')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate(20);
+
+        return response()->json([
+            'results' => collect($employees->items())->map(fn ($employee) => [
+                'id' => $employee->id,
+                'text' => $employee->full_name.' — '.$employee->document_number,
+                'balance' => max(0, ($employee->vacation_days_per_year ?? 30) - (int) $employee->approved_vacation_days),
+            ]),
+            'pagination' => ['more' => $employees->hasMorePages()],
+        ]);
+    }
+
     public function create()
     {
         return view('employees.form', [

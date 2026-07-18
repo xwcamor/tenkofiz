@@ -22,6 +22,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="{{ vendor_asset('vendor/inter/inter.css', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/select2/select2.min.css', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ vendor_asset('vendor/select2/select2-bootstrap4.min.css', 'https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme.css') }}?v={{ @filemtime(public_path('css/theme.css')) ?: 1 }}">
     <style>
         /* Top loading bar while navigating */
@@ -298,6 +300,11 @@
 <script src="{{ vendor_asset('vendor/datatables/buttons.print.min.js', 'https://cdn.jsdelivr.net/npm/datatables.net-buttons@2.4.2/js/buttons.print.min.js') }}"></script>
 <script src="{{ vendor_asset('vendor/sweetalert2/sweetalert2.all.min.js', 'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js') }}"></script>
 <script src="{{ vendor_asset('vendor/chartjs/chart.umd.min.js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js') }}"></script>
+<script src="{{ vendor_asset('vendor/select2/select2.min.js', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js') }}"></script>
+@if(app()->getLocale() === 'es')
+<script src="{{ vendor_asset('vendor/select2/i18n/es.js', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/i18n/es.js') }}"></script>
+@endif
+<script src="{{ asset('js/employee-select.js') }}?v={{ @filemtime(public_path('js/employee-select.js')) ?: 1 }}"></script>
 <script>
     @php
         // Inline Spanish strings: no external i18n download

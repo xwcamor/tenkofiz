@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', __('Vacations'))
 @section('header-button')
-    @if($employees->isNotEmpty())
+    @if($isManager || $employees->isNotEmpty())
         <button class="btn btn-primary" onclick="$('#vacationModal').modal('show')"><i class="fas fa-plus"></i> {{ __('Request vacations') }}</button>
     @endif
 @endsection
@@ -81,11 +81,17 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>{{ __('Employee') }}</label>
-                    <select name="employee_id" id="vacationEmployee" class="form-control @error('employee_id') is-invalid @enderror" required {{ $employees->count() === 1 ? 'readonly' : '' }}>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
+                    @if($isManager)
+                        <select name="employee_id" id="vacationEmployee" class="employee-select @error('employee_id') is-invalid @enderror"
+                                data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
+                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
+                    @else
+                        <select name="employee_id" id="vacationEmployee" class="form-control @error('employee_id') is-invalid @enderror" required>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     <small class="text-muted" id="vacationBalanceHint"></small>
                 </div>
@@ -118,21 +124,28 @@
 
 @push('scripts')
 <script>
-// Remaining vacation days per employee (current year), shown under the selector
+// Remaining vacation days (current year), shown under the selector
 const VACATION_BALANCES = @json($balances);
-const employeeSelect = document.getElementById('vacationEmployee');
 
-function refreshBalanceHint() {
-    if (!employeeSelect) return;
-    const remaining = VACATION_BALANCES[employeeSelect.value];
+function showBalanceHint(remaining) {
     document.getElementById('vacationBalanceHint').textContent =
-        remaining === undefined ? '' : @json(__('Available this year:')) + ' ' + remaining + ' ' + @json(__('days'));
+        remaining === undefined || remaining === null
+            ? ''
+            : @json(__('Available this year:')) + ' ' + remaining + ' ' + @json(__('days'));
 }
 
-if (employeeSelect) {
-    employeeSelect.addEventListener('change', refreshBalanceHint);
-    refreshBalanceHint();
-}
+@if($isManager)
+    // The autocomplete already returns each employee's balance with the result
+    $('#vacationEmployee')
+        .on('select2:select', e => showBalanceHint(e.params.data.balance))
+        .on('select2:clear', () => showBalanceHint(null));
+@else
+    const employeeSelect = document.getElementById('vacationEmployee');
+    if (employeeSelect) {
+        employeeSelect.addEventListener('change', () => showBalanceHint(VACATION_BALANCES[employeeSelect.value]));
+        showBalanceHint(VACATION_BALANCES[employeeSelect.value]);
+    }
+@endif
 
 @if($errors->any())
     $('#vacationModal').modal('show');

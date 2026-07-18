@@ -27,12 +27,9 @@
             <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm mr-3">
             <label class="mr-2">{{ __('To') }}</label>
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
-            <select name="employee_id" class="form-control form-control-sm mr-3">
-                <option value="">{{ __('All employees') }}</option>
-                @foreach($employees as $employee)
-                    <option value="{{ $employee->id }}" @selected(request('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
-                @endforeach
-            </select>
+            <select name="employee_id" class="employee-select mr-3" data-url="{{ route('employees.search') }}"
+                    data-placeholder="{{ __('All employees') }}" data-width="240px"
+                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->id }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
             <select name="status" class="form-control form-control-sm mr-3">
                 <option value="">{{ __('All statuses') }}</option>
                 @foreach(\App\Models\Attendance::STATUSES as $status)
@@ -106,12 +103,9 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>{{ __('Employee') }}</label>
-                    <select name="employee_id" class="form-control @error('employee_id') is-invalid @enderror" required>
-                        <option value="">— {{ __('Select') }} —</option>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <select name="employee_id" class="employee-select @error('employee_id') is-invalid @enderror"
+                            data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
+                            @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="row">

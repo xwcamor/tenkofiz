@@ -24,6 +24,8 @@
         "fullcalendar": "6.1.11",
         "jquery": "3.7.1",
         "jszip": "3.10.1",
+        "select2": "4.0.13",
+        "select2-bootstrap4-theme": "npm:@ttskch/select2-bootstrap4-theme@1.5.2",
         "sweetalert2": "11.10.5"
     },
     "devDependencies": {

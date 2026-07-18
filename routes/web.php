@@ -115,6 +115,8 @@ Route::middleware('auth')->group(function () {
     });
 
     // All authenticated users
+    // Employee autocomplete for the selectors (managers only; checked in the controller)
+    Route::get('lookup/employees', [EmployeeController::class, 'search'])->name('employees.search');
     Route::get('vacations', [VacationController::class, 'index'])->name('vacations.index');
     Route::post('vacations', [VacationController::class, 'store'])->name('vacations.store');
     Route::get('vacations/{vacation}/print', [VacationController::class, 'print'])->name('vacations.print');

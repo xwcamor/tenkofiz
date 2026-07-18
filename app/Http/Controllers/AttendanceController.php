@@ -26,9 +26,12 @@ class AttendanceController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $employees = Employee::where('is_active', true)->orderBy('last_name')->get();
+        // The employee selectors use AJAX autocomplete; only resolve the labels
+        // of the values already chosen (filter and re-opened modal after errors)
+        $selectedEmployee = $request->filled('employee_id') ? Employee::find($request->integer('employee_id')) : null;
+        $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('attendances.index', compact('attendances', 'employees', 'from', 'to'));
+        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to'));
     }
 
     /** Manual entry (e.g. corrections) by managers */
