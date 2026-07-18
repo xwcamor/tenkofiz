@@ -9,25 +9,69 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Workspace') }}</th><th>{{ __('Tax ID') }}</th><th>{{ __('Users') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Sites') }}</th><th>{{ __('Status') }}</th><th style="width:200px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr><th>{{ __('Workspace') }}</th><th>{{ __('Plan') }}</th><th>{{ __('Users') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Sites') }}</th><th>{{ __('Status') }}</th><th style="width:280px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
             @foreach($companies as $company)
-                <tr>
-                    <td class="font-weight-500">{{ $company->name }} @if($actingCompanyId == $company->id)<span class="badge badge-success">{{ __('current') }}</span>@endif</td>
-                    <td>{{ $company->tax_id ?? '—' }}</td>
+                <tr class="{{ $company->trashed() ? 'table-danger' : (!$company->is_active ? 'table-warning' : '') }}">
+                    <td class="font-weight-500">
+                        {{ $company->name }}
+                        @if($actingCompanyId == $company->id)<span class="badge badge-success">{{ __('current') }}</span>@endif
+                        @if($company->tax_id)<br><small class="text-muted">{{ $company->tax_id }}</small>@endif
+                    </td>
+                    <td>
+                        @if($company->modules === null)
+                            <span class="badge badge-primary">{{ __('All modules') }}</span>
+                        @else
+                            <span class="badge badge-info">{{ count($company->modules) }} {{ __('module(s)') }}</span>
+                        @endif
+                        <br><small class="text-muted">
+                            {{ $company->max_employees ? __(':max empl. max', ['max' => $company->max_employees]) : __('Unlimited empl.') }}
+                            · {{ $company->max_sites ? __(':max sites max', ['max' => $company->max_sites]) : __('Unlimited sites') }}
+                        </small>
+                    </td>
                     <td class="text-center">{{ $company->users_count }}</td>
                     <td class="text-center">{{ $company->employees_count }}</td>
                     <td class="text-center">{{ $company->sites_count }}</td>
-                    <td><span class="badge badge-{{ $company->is_active ? 'success' : 'secondary' }}">{{ $company->is_active ? __('Active') : __('Inactive') }}</span></td>
                     <td>
-                        <form method="POST" action="{{ route('admin.companies.enter', $company) }}" class="d-inline">
-                            @csrf
-                            <button class="btn btn-sm btn-success"><i class="fas fa-sign-in-alt"></i> {{ __('Enter') }}</button>
-                        </form>
-                        @php
-                            $payload = json_encode(['action' => route('admin.companies.update', $company), 'name' => $company->name, 'tax_id' => $company->tax_id, 'is_active' => $company->is_active]);
-                        @endphp
-                        <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                        @if($company->trashed())
+                            <span class="badge badge-danger" title="{{ $company->delete_reason }}">{{ __('Deleted') }}</span>
+                        @elseif(!$company->is_active)
+                            <span class="badge badge-warning" title="{{ $company->suspended_reason }}">{{ __('Suspended') }}</span>
+                            @if($company->suspended_reason)<br><small class="text-muted">{{ $company->suspended_reason }}</small>@endif
+                        @else
+                            <span class="badge badge-success">{{ __('Active') }}</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($company->trashed())
+                            <form method="POST" action="{{ route('admin.companies.restore', $company->id) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('admin.companies.enter', $company) }}" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm btn-success" title="{{ __('Enter') }}"><i class="fas fa-sign-in-alt"></i></button>
+                            </form>
+                            @php
+                                $payload = json_encode(['action' => route('admin.companies.update', $company), 'name' => $company->name, 'tax_id' => $company->tax_id, 'is_active' => $company->is_active]);
+                                $planPayload = json_encode(['action' => route('admin.companies.plan', $company), 'name' => $company->name, 'modules' => $company->modules, 'max_employees' => $company->max_employees, 'max_sites' => $company->max_sites]);
+                            @endphp
+                            <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="btn btn-sm btn-primary" title="{{ __('Plan (modules and limits)') }}" data-payload="{{ $planPayload }}" onclick="openPlanModal(JSON.parse(this.dataset.payload))"><i class="fas fa-cubes"></i></button>
+                            @if($company->is_active)
+                                <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" onclick="openSuspendModal(@json(route('admin.companies.suspend', $company)), @json($company->name))"><i class="fas fa-pause"></i></button>
+                            @else
+                                <form method="POST" action="{{ route('admin.companies.reactivate', $company) }}" class="d-inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-success" title="{{ __('Reactivate') }}"><i class="fas fa-play"></i></button>
+                                </form>
+                            @endif
+                            <form method="POST" action="{{ route('admin.companies.destroy', $company) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                            </form>
+                        @endif
                     </td>
                 </tr>
             @endforeach
@@ -109,11 +153,103 @@
         </form>
     </div>
 </div>
+{{-- Suspend modal (reason required, e.g. "pending payment") --}}
+<div class="modal fade" id="suspendModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content" id="suspendForm">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-pause-circle text-warning"></i> {{ __('Suspend workspace') }}</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">{{ __('Its users will be signed out immediately and its kiosks will stop marking. All data is kept: reactivating restores everything.') }}</p>
+                <div class="form-group mb-0">
+                    <label>{{ __('Suspension reason') }} <span class="text-danger">*</span></label>
+                    <input name="suspended_reason" id="suspendReason" class="form-control" maxlength="200" required placeholder="{{ __('E.g.: pending payment — invoice #123') }}">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+                <button class="btn btn-warning"><i class="fas fa-pause"></i> {{ __('Suspend') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Plan modal (contracted modules + limits) --}}
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content" id="planForm">
+            @csrf @method('PUT')
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cubes"></i> {{ __('Plan') }}: <span id="planCompanyName"></span></h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="custom-control custom-switch mb-2">
+                    <input type="checkbox" name="all_modules" value="1" class="custom-control-input" id="planAllModules" onchange="togglePlanModules()">
+                    <label class="custom-control-label" for="planAllModules">{{ __('All modules (no restriction)') }}</label>
+                </div>
+                <div id="planModulesBox" class="border rounded p-2 mb-3" style="max-height:220px;overflow-y:auto">
+                    @foreach($modules as $key => $label)
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" name="modules[]" value="{{ $key }}" class="custom-control-input plan-module" id="planMod_{{ $key }}">
+                            <label class="custom-control-label" for="planMod_{{ $key }}">{{ __($label) }}</label>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="row">
+                    <div class="col-6 form-group">
+                        <label>{{ __('Employee limit') }} <small class="text-muted">({{ __('empty = unlimited') }})</small></label>
+                        <input type="number" name="max_employees" id="planMaxEmployees" min="1" max="100000" class="form-control">
+                    </div>
+                    <div class="col-6 form-group">
+                        <label>{{ __('Site limit') }} <small class="text-muted">({{ __('empty = unlimited') }})</small></label>
+                        <input type="number" name="max_sites" id="planMaxSites" min="1" max="1000" class="form-control">
+                    </div>
+                </div>
+                <small class="text-muted">{{ __('The workspace admin distributes the contracted modules to their people through Profiles; they can never grant a module outside the plan.') }}</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+                <button class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Save plan') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
 const COMPANY_STORE_URL = @json(route('admin.companies.store'));
+
+function openSuspendModal(action, name) {
+    const form = document.getElementById('suspendForm');
+    form.action = action;
+    document.getElementById('suspendReason').value = '';
+    $('#suspendModal').modal('show');
+}
+
+function togglePlanModules() {
+    const all = document.getElementById('planAllModules').checked;
+    document.getElementById('planModulesBox').style.opacity = all ? '.4' : '1';
+    document.querySelectorAll('.plan-module').forEach(cb => cb.disabled = all);
+}
+
+function openPlanModal(data) {
+    document.getElementById('planForm').action = data.action;
+    document.getElementById('planCompanyName').textContent = data.name;
+    const all = data.modules === null;
+    document.getElementById('planAllModules').checked = all;
+    document.querySelectorAll('.plan-module').forEach(cb => {
+        cb.checked = !all && (data.modules || []).includes(cb.value);
+    });
+    document.getElementById('planMaxEmployees').value = data.max_employees || '';
+    document.getElementById('planMaxSites').value = data.max_sites || '';
+    togglePlanModules();
+    $('#planModal').modal('show');
+}
 function openCompanyModal(data = null) {
     const form = document.getElementById('companyForm');
     form.action = data ? data.action : COMPANY_STORE_URL;

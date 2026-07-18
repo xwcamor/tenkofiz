@@ -23,7 +23,7 @@ class CompanyController extends Controller
 {
     public function index()
     {
-        $companies = Company::orderBy('name')->get()->map(function (Company $company) {
+        $companies = Company::withTrashed()->orderBy('name')->get()->map(function (Company $company) {
             $company->users_count = User::withoutGlobalScopes()->where('company_id', $company->id)->count();
             $company->employees_count = Employee::withoutGlobalScopes()->where('company_id', $company->id)->count();
             $company->sites_count = Site::withoutGlobalScopes()->where('company_id', $company->id)->count();
@@ -35,6 +35,7 @@ class CompanyController extends Controller
             'companies' => $companies,
             'countries' => HolidayTemplate::COUNTRIES,
             'timezones' => \DateTimeZone::listIdentifiers(),
+            'modules' => Profile::MODULES,
             'actingCompanyId' => session('acting_company_id'),
         ]);
     }
@@ -118,6 +119,88 @@ class CompanyController extends Controller
         ]);
 
         return back()->with('ok', __('Workspace updated.'));
+    }
+
+    /**
+     * Plan editor: which modules the workspace contracted and its size limits.
+     * An empty module selection is stored as NULL = "all modules" (no restriction).
+     */
+    public function updatePlan(Request $request, Company $company)
+    {
+        $data = $request->validate([
+            'modules' => ['nullable', 'array'],
+            'modules.*' => [Rule::in(array_keys(Profile::MODULES))],
+            'all_modules' => ['boolean'],
+            'max_employees' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'max_sites' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        $company->update([
+            'modules' => $request->boolean('all_modules') ? null : array_values($data['modules'] ?? []),
+            'max_employees' => $data['max_employees'] ?? null,
+            'max_sites' => $data['max_sites'] ?? null,
+        ]);
+
+        \App\Models\AuditLog::record('UPDATE', 'Workspaces',
+            __('Plan updated for workspace :name', ['name' => $company->name]), $company->only('modules', 'max_employees', 'max_sites'));
+
+        return back()->with('ok', __('Plan for ":name" updated.', ['name' => $company->name]));
+    }
+
+    /** Suspend (e.g. non-payment): users are cut off immediately; data stays intact */
+    public function suspend(Request $request, Company $company)
+    {
+        $data = $request->validate(['suspended_reason' => ['required', 'string', 'max:200']],
+            ['suspended_reason.required' => __('Indicate the suspension reason (e.g. pending payment).')]);
+
+        $company->update(['is_active' => false, 'suspended_reason' => $data['suspended_reason']]);
+
+        \App\Models\AuditLog::record('UPDATE', 'Workspaces',
+            __('Workspace :name was SUSPENDED. Reason: :reason', ['name' => $company->name, 'reason' => $data['suspended_reason']]));
+
+        return back()->with('ok', __('Workspace ":name" suspended: its users can no longer sign in and its kiosks stopped marking.', ['name' => $company->name]));
+    }
+
+    /** Lift the suspension: everything works again exactly as before */
+    public function reactivate(Company $company)
+    {
+        $company->update(['is_active' => true, 'suspended_reason' => null]);
+
+        \App\Models\AuditLog::record('UPDATE', 'Workspaces', __('Workspace :name was reactivated', ['name' => $company->name]));
+
+        return back()->with('ok', __('Workspace ":name" reactivated.', ['name' => $company->name]));
+    }
+
+    /** Retire a workspace (soft delete with reason). Its data stays recoverable. */
+    public function destroy(Request $request, Company $company)
+    {
+        $data = $request->validate(['delete_reason' => ['required', 'string', 'max:300']],
+            ['delete_reason.required' => __('The deletion reason is required.')]);
+
+        // If the super was administering this workspace, leave it first
+        if ((int) session('acting_company_id') === $company->id) {
+            $request->session()->forget('acting_company_id');
+        }
+
+        $company->update(['delete_reason' => $data['delete_reason']]);
+        $company->delete();
+
+        \App\Models\AuditLog::record('DELETE', 'Workspaces',
+            __('Workspace :name was deleted. Reason: :reason', ['name' => $company->name, 'reason' => $data['delete_reason']]),
+            $company->toArray());
+
+        return back()->with('ok', __('Workspace ":name" deleted. Its users are blocked; you can restore it if needed.', ['name' => $company->name]));
+    }
+
+    /** Bring a deleted workspace back (everything as it was) */
+    public function restore(Company $company)
+    {
+        $company->restore();
+        $company->update(['delete_reason' => null]);
+
+        \App\Models\AuditLog::record('UPDATE', 'Workspaces', __('Workspace :name was restored', ['name' => $company->name]));
+
+        return back()->with('ok', __('Workspace ":name" restored.', ['name' => $company->name]));
     }
 
     /** Super-admin enters a workspace: subsequent screens are scoped to it */

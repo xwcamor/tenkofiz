@@ -100,16 +100,42 @@ class User extends Authenticatable
         return $this->hasOne(Employee::class);
     }
 
-    /** Whether the user's profile grants access to the given module */
+    /**
+     * Effective module access = the workspace's PLAN includes the module (what the
+     * super-admin sold them) AND the user's profile grants it (how the company
+     * admin distributed it). The super-admin bypasses profiles but still sees only
+     * the plan modules of the workspace they entered.
+     */
     public function hasModule(string $module): bool
     {
         if ($this->isSuperAdmin()) {
-            return true; // super-admin sees every module of the workspace they entered
+            return $this->actingCompany()?->hasModule($module) ?? true;
+        }
+
+        if ($this->company_id && !($this->company?->hasModule($module) ?? true)) {
+            return false; // not contracted in the workspace's plan
         }
 
         return $this->profile !== null
             && $this->profile->is_active
             && in_array($module, $this->profile->permissions ?? [], true);
+    }
+
+    /** The workspace a super-admin is currently administering (null = console) */
+    public function actingCompany(): ?Company
+    {
+        $id = session('acting_company_id');
+        if (!$id) {
+            return null;
+        }
+
+        // Memoized per request: the sidebar asks for a dozen modules per render
+        $key = 'acting.company.'.$id;
+        if (!app()->bound($key)) {
+            app()->instance($key, Company::find($id));
+        }
+
+        return app($key);
     }
 
     public function hasAnyModule(string ...$modules): bool

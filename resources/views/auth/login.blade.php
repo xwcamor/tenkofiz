@@ -75,6 +75,11 @@
 
         <form method="POST" action="{{ route('login') }}">
             @csrf
+            {{-- Security audit: real GPS location, filled only if the person grants
+                 the browser permission. Without it the audit falls back to the IP. --}}
+            <input type="hidden" name="geo_lat" id="geoLat">
+            <input type="hidden" name="geo_lng" id="geoLng">
+            <input type="hidden" name="geo_acc" id="geoAcc">
             <div class="form-group">
                 <label>{{ __('Email address') }}</label>
                 <input type="email" name="email" value="{{ old('email') }}" class="form-control" required autofocus>
@@ -100,5 +105,16 @@
     <p class="auth-footer">{{ __('Attendance Control System with Facial Recognition') }}</p>
 </div>
 <script src="{{ asset('js/trim-inputs.js') }}?v={{ @filemtime(public_path('js/trim-inputs.js')) ?: 1 }}"></script>
+<script>
+// Best-effort GPS for the security audit: fills the hidden fields only if the
+// person grants the browser permission. Never blocks nor delays the sign-in.
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+        document.getElementById('geoLat').value = pos.coords.latitude;
+        document.getElementById('geoLng').value = pos.coords.longitude;
+        document.getElementById('geoAcc').value = Math.round(pos.coords.accuracy || 0);
+    }, function () {}, { timeout: 5000, maximumAge: 300000 });
+}
+</script>
 </body>
 </html>

@@ -15,6 +15,23 @@ if (!function_exists('current_company_id')) {
     }
 }
 
+if (!function_exists('current_company')) {
+    /** The Company model of the current workspace (null = super console / guest without site) */
+    function current_company(): ?\App\Models\Company
+    {
+        $id = current_company_id();
+        if (!$id) {
+            return null;
+        }
+        $key = 'app.company.'.$id;
+        if (!app()->bound($key)) {
+            app()->instance($key, \App\Models\Company::withTrashed()->find($id));
+        }
+
+        return app($key);
+    }
+}
+
 if (!function_exists('app_setting')) {
     /** Settings row of the current company, cached per company for the request */
     function app_setting(): Setting
@@ -167,5 +184,38 @@ if (!function_exists('notify_module_users')) {
             ->get()
             ->filter(fn (User $user) => $user->hasModule($module))
             ->each(fn (User $user) => safe_mail($user->email, $subject, $body));
+    }
+}
+
+if (!function_exists('device_summary')) {
+    /** Human-readable "Browser — OS" summary parsed from a user-agent string */
+    function device_summary(?string $userAgent): string
+    {
+        $ua = (string) $userAgent;
+
+        $os = match (true) {
+            str_contains($ua, 'Windows NT') => 'Windows',
+            str_contains($ua, 'Android') => 'Android',
+            str_contains($ua, 'iPhone') || str_contains($ua, 'iPad') => 'iOS',
+            str_contains($ua, 'Mac OS X') => 'macOS',
+            str_contains($ua, 'CrOS') => 'ChromeOS',
+            str_contains($ua, 'Linux') => 'Linux',
+            default => '?',
+        };
+
+        $browser = match (true) {
+            str_contains($ua, 'Edg/') => 'Edge',
+            str_contains($ua, 'OPR/') || str_contains($ua, 'Opera') => 'Opera',
+            str_contains($ua, 'SamsungBrowser') => 'Samsung Internet',
+            str_contains($ua, 'Firefox/') => 'Firefox',
+            str_contains($ua, 'Chrome/') => 'Chrome',
+            str_contains($ua, 'Safari/') => 'Safari',
+            default => '?',
+        };
+
+        $kind = (str_contains($ua, 'Mobile') || str_contains($ua, 'Android') || str_contains($ua, 'iPhone'))
+            ? __('mobile') : __('desktop');
+
+        return "$browser — $os ($kind)";
     }
 }

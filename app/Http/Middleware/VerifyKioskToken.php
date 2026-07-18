@@ -32,6 +32,14 @@ class VerifyKioskToken
             return $next($request);
         }
 
+        // Commercial kill-switch: a suspended/deleted workspace stops marking too
+        $company = $site->company_id
+            ? \App\Models\Company::withTrashed()->find($site->company_id)
+            : null;
+        if ($company && !$company->isOperational()) {
+            abort(403, __('This workspace is suspended. Please contact your service provider.'));
+        }
+
         // Layer 1: device binding takes precedence when a device is paired
         if ($site->kiosk_device_hash) {
             $cookie = $request->cookie('kiosk_device');

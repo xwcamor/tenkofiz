@@ -239,6 +239,17 @@ class EmployeeImportController extends Controller
                 ->with('error', __('Nothing was imported: fix the :count row(s) with errors and upload the file again.', ['count' => count($errors)]));
         }
 
+        // Plan limit (SaaS): the whole batch must fit within the contracted employees
+        $company = current_company();
+        if ($company && $company->max_employees !== null) {
+            $current = Employee::withoutGlobalScopes()->where('company_id', $company->id)->whereNull('deleted_at')->count();
+            if ($current + count($rows) > $company->max_employees) {
+                return back()->with('error', __('Your plan allows up to :max employees (you have :current and the file adds :new). Contact your service provider to extend it.', [
+                    'max' => $company->max_employees, 'current' => $current, 'new' => count($rows),
+                ]));
+            }
+        }
+
         DB::transaction(function () use ($rows) {
             // Areas and positions are created on the fly by name
             $areaIds = [];

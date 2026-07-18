@@ -19,6 +19,12 @@ class SiteController extends Controller
 
     public function store(Request $request)
     {
+        // Plan limit (SaaS): the workspace cannot exceed its contracted sites
+        if (($company = current_company()) && !$company->canAddSite()) {
+            return back()->withInput()->with('error',
+                __('Your plan allows up to :max sites. Contact your service provider to extend it.', ['max' => $company->max_sites]));
+        }
+
         Site::create($this->validated($request));
 
         return redirect()->route('sites.index')->with('ok', __('Site registered.'));

@@ -104,6 +104,12 @@ class EmployeeController extends Controller
 
     public function store(Request $request)
     {
+        // Plan limit (SaaS): the workspace cannot exceed its contracted employees
+        if (($company = current_company()) && !$company->canAddEmployee()) {
+            return back()->withInput()->with('error',
+                __('Your plan allows up to :max employees. Contact your service provider to extend it.', ['max' => $company->max_employees]));
+        }
+
         Employee::create($this->validated($request));
         return redirect()->route('employees.index')->with('ok', __('Employee registered. You can now enroll their face.'));
     }
