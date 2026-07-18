@@ -12,7 +12,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'password', 'profile_id', 'is_active',
+        'name', 'email', 'password', 'profile_id', 'site_id', 'is_active',
         'must_change_password', 'timezone', 'locale', 'photo', 'delete_reason',
     ];
 
@@ -31,6 +31,18 @@ class User extends Authenticatable
     public function profile()
     {
         return $this->belongsTo(Profile::class);
+    }
+
+    /** The site this user is bound to (NULL = company-wide access) */
+    public function site()
+    {
+        return $this->belongsTo(Site::class);
+    }
+
+    /** True when this account is limited to a single site */
+    public function isSiteBound(): bool
+    {
+        return $this->site_id !== null;
     }
 
     public function employee()

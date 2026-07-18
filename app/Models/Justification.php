@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToScopedSite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Justification extends Model
 {
-    use SoftDeletes;
+    use BelongsToScopedSite, SoftDeletes;
 
     protected $fillable = ['employee_id', 'date', 'reason', 'document', 'status', 'reviewed_by', 'delete_reason'];
 

@@ -30,11 +30,11 @@ class DashboardController extends Controller
 
         $totalEmployees = Employee::where('is_active', true)->count();
         $withoutFace = Employee::where('is_active', true)->whereNull('face_descriptor')->count();
-        $pendingVacations = Vacation::pending()->count();
-        $pendingJustifications = Justification::pending()->count();
+        $pendingVacations = Vacation::inCurrentSite()->pending()->count();
+        $pendingJustifications = Justification::inCurrentSite()->pending()->count();
 
         // Today's marks split by status (KPIs + doughnut)
-        $todayByStatus = Attendance::whereDate('date', $today)
+        $todayByStatus = Attendance::inCurrentSite()->whereDate('date', $today)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -45,7 +45,7 @@ class DashboardController extends Controller
         $attendanceRate = $totalEmployees > 0 ? (int) round($presentToday * 100 / $totalEmployees) : 0;
 
         // Last 7 days, one stacked series per status (single grouped query)
-        $weekRaw = Attendance::whereBetween('date', [$weekStart, $today])
+        $weekRaw = Attendance::inCurrentSite()->whereBetween('date', [$weekStart, $today])
             ->selectRaw('date, status, count(*) as total')
             ->groupBy('date', 'status')
             ->get()
@@ -63,14 +63,15 @@ class DashboardController extends Controller
         }
 
         $latest = Attendance::with('employee')
+            ->inCurrentSite()
             ->whereDate('date', $today)
             ->latest('updated_at')
             ->take(8)
             ->get();
 
         // Small work queue: the most recent items waiting for a decision
-        $pendingVacationList = Vacation::pending()->with('employee')->latest()->take(4)->get();
-        $pendingJustificationList = Justification::pending()->with('employee')->latest()->take(4)->get();
+        $pendingVacationList = Vacation::inCurrentSite()->pending()->with('employee')->latest()->take(4)->get();
+        $pendingJustificationList = Justification::inCurrentSite()->pending()->with('employee')->latest()->take(4)->get();
 
         return view('dashboard', [
             'isManager' => true,

@@ -48,7 +48,7 @@
         <table class="table table-bordered table-hover report-table">
             <thead>
                 <tr>
-                    <th>{{ __('Employee') }}</th><th>{{ __('Document') }}</th><th>{{ __('Area') }}</th><th>{{ __('Position') }}</th>
+                    <th>{{ __('Employee') }}</th><th>{{ __('Document') }}</th><th>{{ __('Site') }}</th><th>{{ __('Area') }}</th><th>{{ __('Position') }}</th>
                     <th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th>
                     <th>{{ __('Worked hours') }}</th><th>{{ __('Vacation days') }}</th><th>{{ __('Sheet') }}</th>
                 </tr>
@@ -58,6 +58,7 @@
                 <tr>
                     <td>{{ $row['employee'] }}</td>
                     <td>{{ $row['document_number'] }}</td>
+                    <td>{{ $row['site'] }}@if($row['site_address'])<br><small class="text-muted">{{ $row['site_address'] }}</small>@endif</td>
                     <td>{{ $row['area'] }}</td>
                     <td>{{ $row['position'] }}</td>
                     <td class="text-center">{{ $row['worked_days'] }}</td>

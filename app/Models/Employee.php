@@ -2,12 +2,27 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\SiteScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
     use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        // A site-bound user only ever sees their own site's employees. Guests
+        // (kiosk) and console jobs are not scoped. See App\Models\Scopes\SiteScope.
+        static::addGlobalScope(new SiteScope());
+
+        // When a site-bound user creates an employee, default it to their site.
+        static::creating(function (Employee $employee) {
+            if (empty($employee->site_id) && ($siteId = SiteScope::currentSiteId())) {
+                $employee->site_id = $siteId;
+            }
+        });
+    }
 
     /** Supported identity documents (key => translatable label) */
     public const DOCUMENT_TYPES = [

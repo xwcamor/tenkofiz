@@ -70,6 +70,10 @@
         <th>{{ __('Schedule') }}</th><td>{{ $employee->schedule?->name ?? '—' }}{{ $employee->schedule ? ' ('.$employee->schedule->daysSummary().')' : '' }}</td>
     </tr>
     <tr>
+        <th>{{ __('Site') }}</th><td>{{ $employee->site?->name ?? '—' }}</td>
+        <th>{{ __('Site address') }}</th><td>{{ $employee->site?->address ?? '—' }}</td>
+    </tr>
+    <tr>
         <th>{{ __('Hire date') }}</th><td>{{ $employee->hire_date?->format('d/m/Y') ?? '—' }}</td>
         <th>{{ __('Status') }}</th><td>{{ $employee->is_active ? __('ACTIVE') : __('INACTIVE') }}</td>
     </tr>

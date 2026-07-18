@@ -726,5 +726,12 @@
     "Late minutes": "Min. de tardanza",
     "Export Excel": "Exportar Excel",
     "Report": "Reporte",
-    "Toggle dark mode": "Alternar modo oscuro"
+    "Toggle dark mode": "Alternar modo oscuro",
+    "Site address": "Dirección de la sede",
+    "All sites (company-wide admin)": "Todas las sedes (administrador de toda la empresa)",
+    "Bind this user to one site so they only see that site's employees, marks and reports. Leave as \"All sites\" for company/system administrators.": "Vincula este usuario a una sede para que solo vea los empleados, marcaciones y reportes de esa sede. Deja \"Todas las sedes\" para administradores de la empresa o del sistema.",
+    "Require a detected face before marking — no face, no mark and no photo": "Exigir que se detecte un rostro antes de marcar — sin rostro no hay marca ni foto",
+    "Recommended ON: the kiosk will not mark (nor save a photo) unless it actually sees a face in front of the camera. The person is asked to show their face and try again.": "Recomendado activado: el kiosco no marca (ni guarda foto) a menos que realmente vea un rostro frente a la cámara. Se le pide a la persona que muestre su rostro y vuelva a intentar.",
+    "No face detected. Show your face to the camera and try again — nothing was recorded.": "No se detectó ningún rostro. Muestra tu cara a la cámara e inténtalo de nuevo — no se registró nada.",
+    "Show your face to the camera, :name...": "Muestra tu rostro a la cámara, :name..."
 }

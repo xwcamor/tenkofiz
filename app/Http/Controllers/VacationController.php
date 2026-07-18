@@ -15,6 +15,7 @@ class VacationController extends Controller
         $canApprove = $user->hasModule('vacations_manage');
 
         $vacations = Vacation::with(['employee', 'approver'])
+            ->inCurrentSite()
             ->when(!$isManager, function ($q) use ($user) {
                 $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id));
             })

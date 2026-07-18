@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToScopedSite;
 use Illuminate\Database\Eloquent\Model;
 
 class Vacation extends Model
 {
+    use BelongsToScopedSite;
+
     protected $fillable = [
         'employee_id', 'start_date', 'end_date', 'days',
         'status', 'reason', 'approved_by',

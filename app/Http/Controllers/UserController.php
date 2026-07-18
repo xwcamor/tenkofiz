@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Profile;
+use App\Models\Site;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,7 @@ class UserController extends Controller
         // Deleted-records view: restricted to administrators (settings module)
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
-        $users = User::with(['profile', 'employee'])
+        $users = User::with(['profile', 'employee', 'site'])
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
@@ -33,7 +34,8 @@ class UserController extends Controller
             ->withQueryString();
 
         $profiles = Profile::where('is_active', true)->orderBy('name')->get();
-        return view('users.index', compact('users', 'profiles', 'showDeleted'));
+        $sites = Site::where('is_active', true)->orderBy('name')->get();
+        return view('users.index', compact('users', 'profiles', 'sites', 'showDeleted'));
     }
 
     public function store(Request $request)
@@ -43,11 +45,13 @@ class UserController extends Controller
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'password' => ['required', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
+            'site_id' => ['nullable', 'exists:sites,id'],
             'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'is_active' => ['boolean'],
         ]);
 
         $data['is_active'] = true; // new users are always active (toggle only on edit)
+        $data['site_id'] = $this->resolveSiteId($request, $data['site_id'] ?? null);
         $data['photo'] = $this->storePhoto($request);
         $user = User::create($data);
 
@@ -73,6 +77,7 @@ class UserController extends Controller
             'email' => ['required', 'email', Rule::unique('users')->ignore($user)->withoutTrashed()],
             'password' => ['nullable', 'string', 'min:6'],
             'profile_id' => ['required', 'exists:profiles,id'],
+            'site_id' => ['nullable', 'exists:sites,id'],
             'photo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'is_active' => ['boolean'],
         ]);
@@ -81,6 +86,7 @@ class UserController extends Controller
             unset($data['password']);
         }
         $data['is_active'] = $request->boolean('is_active');
+        $data['site_id'] = $this->resolveSiteId($request, $data['site_id'] ?? null);
 
         if ($photo = $this->storePhoto($request, $user)) {
             $data['photo'] = $photo;
@@ -135,6 +141,18 @@ class UserController extends Controller
             __('User :name (:email) was restored', ['name' => $user->name, 'email' => $user->email]));
 
         return back()->with('ok', __('User restored.'));
+    }
+
+    /**
+     * A company/system admin (no site) freely assigns any site or leaves it blank
+     * (company-wide). A site-bound admin can only ever create users inside their
+     * own site — the selector is ignored and forced to their site.
+     */
+    private function resolveSiteId(Request $request, ?int $chosen): ?int
+    {
+        $current = $request->user();
+
+        return $current->isSiteBound() ? $current->site_id : $chosen;
     }
 
     /** Saves the avatar center-cropped to a 256px square JPEG and removes the previous one */

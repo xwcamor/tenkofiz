@@ -21,6 +21,7 @@ class JustificationController extends Controller
         $showDeleted = $request->boolean('deleted') && $user->hasModule('settings');
 
         $justifications = Justification::with(['employee', 'reviewer'])
+            ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when(!$isManager, fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id)))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))

@@ -21,6 +21,7 @@ class AttendanceController extends Controller
 
         // Server-side pagination: this table grows without bounds
         $attendances = Attendance::with('employee')
+            ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))

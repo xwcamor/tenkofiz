@@ -43,31 +43,31 @@ class ReportController extends Controller
         $sheet->setTitle(__('Report'));
 
         $headers = [
-            __('Employee'), __('Document'), __('Area'), __('Position'),
+            __('Employee'), __('Document'), __('Site'), __('Address'), __('Area'), __('Position'),
             __('Worked days'), __('On time'), __('Late'), __('Late minutes'),
             __('Absences'), __('Excused'), __('Worked hours'), __('Vacation days'),
         ];
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 1], $header);
         }
-        $sheet->getStyle('A1:L1')->applyFromArray([
+        $sheet->getStyle('A1:N1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
         ]);
         $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A2:L2');
+        $sheet->mergeCells('A2:N2');
 
         $rowIndex = 3;
         foreach ($rows as $row) {
             $sheet->fromArray([
-                $row['employee'], $row['document'], $row['area'], $row['position'],
+                $row['employee'], $row['document'], $row['site'], $row['site_address'], $row['area'], $row['position'],
                 $row['worked_days'], $row['on_time'], $row['late'], $row['late_minutes'],
                 $row['absent'], $row['excused'], $row['worked_hours'], $row['vacation_days'],
             ], null, 'A'.$rowIndex++);
         }
-        foreach (range('A', 'L') as $column) {
+        foreach (range('A', 'N') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -172,7 +172,7 @@ class ReportController extends Controller
     private function buildRows($from, $to)
     {
         $employees = Employee::with([
-            'area', 'position', 'schedule.days',
+            'area', 'position', 'site', 'schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()]),
             'vacations' => fn ($q) => $q->where('status', 'APPROVED'),
         ])->where('is_active', true)->orderBy('last_name')->get();
@@ -210,6 +210,8 @@ class ReportController extends Controller
                 'document_number' => $employee->document_number,
                 'area' => $employee->area?->name ?? '—',
                 'position' => $employee->position?->name ?? '—',
+                'site' => $employee->site?->name ?? '—',
+                'site_address' => $employee->site?->address ?? '',
                 'worked_days' => $attendances->whereNotNull('check_in')->whereIn('status', ['ON_TIME', 'LATE'])->count(),
                 'on_time' => $attendances->where('status', 'ON_TIME')->count(),
                 'late' => $attendances->where('status', 'LATE')->count(),
@@ -260,7 +262,7 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
 
-        $employee->load('schedule.days');
+        $employee->load('schedule.days', 'site', 'area', 'position');
 
         $minutes = 0;
         $lateMinutes = 0;

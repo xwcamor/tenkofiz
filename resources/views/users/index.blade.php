@@ -47,7 +47,7 @@
                 @if($showDeleted)
                     <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
-                    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+                    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Site') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
                 @endif
             </thead>
             <tbody>
@@ -80,6 +80,13 @@
                     <td>{{ $user->email }}</td>
                     <td><span class="badge badge-primary">{{ $user->profile?->name ?? '—' }}</span></td>
                     <td>
+                        @if($user->site)
+                            <span class="badge badge-info"><i class="fas fa-map-marker-alt"></i> {{ $user->site->name }}</span>
+                        @else
+                            <span class="text-muted small">{{ __('All sites') }}</span>
+                        @endif
+                    </td>
+                    <td>
                         @if($user->employee)
                             <span class="badge badge-success" title="{{ $user->employee->document_type }} {{ $user->employee->document_number }}"><i class="fas fa-id-badge"></i> {{ $user->employee->full_name }}</span>
                         @else
@@ -94,6 +101,7 @@
                                 'name' => $user->name,
                                 'email' => $user->email,
                                 'profile_id' => $user->profile_id,
+                                'site_id' => $user->site_id,
                                 'is_active' => $user->is_active,
                             ]);
                         @endphp
@@ -109,7 +117,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="{{ $showDeleted ? 5 : 6 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No users match the current filters.') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 5 : 7 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No users match the current filters.') }}</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -162,6 +170,19 @@
                     @error('profile_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     <small class="text-muted">{{ __('The profile defines which modules the user can see (configure it in Profiles).') }}</small>
                 </div>
+                @unless(auth()->user()->isSiteBound())
+                <div class="form-group">
+                    <label>{{ __('Site') }}</label>
+                    <select name="site_id" id="userSite" class="form-control @error('site_id') is-invalid @enderror">
+                        <option value="">{{ __('All sites (company-wide admin)') }}</option>
+                        @foreach($sites as $site)
+                            <option value="{{ $site->id }}" @selected(old('site_id') == $site->id)>{{ $site->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    <small class="text-muted">{{ __('Bind this user to one site so they only see that site\'s employees, marks and reports. Leave as "All sites" for company/system administrators.') }}</small>
+                </div>
+                @endunless
                 <div class="form-group">
                     <label>{{ __('Photo') }} <small class="text-muted">({{ __('optional; PNG/JPG, max. 2MB') }})</small></label>
                     <input type="file" name="photo" class="form-control-file @error('photo') is-invalid @enderror" accept="image/png,image/jpeg,image/webp">
@@ -194,6 +215,8 @@ function openUserModal(data = null) {
     document.getElementById('userName').value = data ? data.name : '';
     document.getElementById('userEmail').value = data ? data.email : '';
     document.getElementById('userProfile').value = data ? (data.profile_id || '') : '';
+    const siteSelect = document.getElementById('userSite');
+    if (siteSelect) siteSelect.value = data ? (data.site_id || '') : '';
     document.getElementById('userActive').checked = data ? !!data.is_active : true;
     // The Active toggle only makes sense when editing (new users are always active)
     document.getElementById('userActiveRow').style.display = data ? '' : 'none';
