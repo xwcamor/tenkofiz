@@ -80,7 +80,7 @@ function blinkDetected(ear) {
     if (earSamples.length >= 4) {
         const sorted = [...earSamples].sort((a, b) => a - b);
         const baseline = sorted[Math.floor(sorted.length * 0.75)]; // upper quartile
-        const relativeDrop = baseline > 0.12 && ear < baseline * 0.78;
+        const relativeDrop = baseline > 0.12 && ear < baseline * 0.83;
         if (relativeDrop || ear < EAR_CLOSED) return true;
     } else if (ear < EAR_CLOSED) {
         return true;
@@ -142,7 +142,14 @@ async function runVerify() {
             refs = person.descriptors.map(d => new Float32Array(d));
         }
 
+        // Identity is confirmed ONCE and stays confirmed (sticky): the full
+        // face-descriptor pass is slow (300-500ms on modest hardware), so after
+        // the match the loop switches to the cheap landmarks-only pass and hunts
+        // the blink at the camera's real frame rate. Sampling eyes through the
+        // slow pass was why real blinks (~120ms) kept falling between samples.
         let blinked = !LIVENESS, sawFace = false;
+        let identityOk = false, matchedDistance = null;
+        earSamples.length = 0; // fresh baseline per attempt
         const startAt = Date.now();
         const deadline = startAt + VERIFY_WINDOW_MS;
 
@@ -151,47 +158,39 @@ async function runVerify() {
 
             let det;
             try {
-                det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor();
+                det = identityOk
+                    ? await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks()
+                    : await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor();
             } catch (e) { det = null; }
 
             clearOverlay();
             if (!det) {
                 show('info', spinner + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
-                await wait(280);
+                await wait(200);
                 continue;
             }
             sawFace = true;
 
-            const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
-            const ok = d <= THRESHOLD;
-            drawBox(det.detection.box, ok ? '#28a745' : '#ffc107');
+            if (!identityOk) {
+                const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
+                if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; }
+            }
+            drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
 
             if (LIVENESS && !blinked) {
                 blinked = blinkDetected(eyeAspectRatio(det.landmarks));
                 show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name) : I18N.blinkNow));
-
-                // Identity already matches and only the blink is missing: sample the
-                // eyes FAST (landmarks only, ~10x/s) so a real 120ms blink is never
-                // lost between the slow full-descriptor iterations.
-                if (ok && !blinked) {
-                    const burstUntil = Math.min(Date.now() + 1200, deadline);
-                    while (!blinked && Date.now() < burstUntil) {
-                        let quick = null;
-                        try { quick = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks(); } catch (e) { /* keep sampling */ }
-                        if (quick) blinked = blinkDetected(eyeAspectRatio(quick.landmarks));
-                        if (!blinked) await wait(70);
-                    }
-                }
             } else {
                 show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
             }
 
-            if (ok && blinked) {
+            if (identityOk && blinked) {
                 setProgress(100);
                 verifying = false;
-                return commitFacial(d);
+                return commitFacial(matchedDistance);
             }
-            await wait(280);
+            // Blink hunting runs flat out (no artificial pause once identity locked)
+            await wait(identityOk ? 15 : 150);
         }
 
         // Window over: the PERSON decides what happens next — no silent fallbacks.
