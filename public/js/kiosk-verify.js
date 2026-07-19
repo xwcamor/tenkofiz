@@ -35,6 +35,23 @@ function drawBox(box, color) {
 }
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 function setProgress(pct) { document.getElementById('verifyProgress').style.width = pct + '%'; }
+function setCountdown(seconds) {
+    const el = document.getElementById('countdown');
+    if (seconds === null) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.textContent = seconds;
+}
+function setFaceChip(present) {
+    const wrap = document.getElementById('faceChip');
+    const badge = document.getElementById('faceChipBadge');
+    if (present === null) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    badge.style.background = present ? '#28a745' : '#6c757d';
+    badge.style.color = '#fff';
+    badge.innerHTML = present
+        ? '<i class="fas fa-check-circle"></i> ' + I18N.faceDetected
+        : '<i class="fas fa-search"></i> ' + I18N.noFaceYet;
+}
 function showActions(withMarkDoc, withRetry = true) {
     document.getElementById('actionRow').style.display = '';
     // The document button only exists in the DOM for people with an enrolled face
@@ -180,6 +197,7 @@ async function runVerify() {
 
         while (Date.now() < deadline) {
             setProgress(Math.min(100, Math.round((Date.now() - startAt) * 100 / VERIFY_WINDOW_MS)));
+            setCountdown(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
 
             let det;
             try {
@@ -189,6 +207,7 @@ async function runVerify() {
             } catch (e) { det = null; }
 
             clearOverlay();
+            setFaceChip(!!det);
             if (!det) {
                 show('info', spinner + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
                 debugUpdate(null, lastDistance, identityOk);
@@ -225,6 +244,8 @@ async function runVerify() {
 
             if (identityOk && blinked) {
                 setProgress(100);
+                setCountdown(null);
+                setFaceChip(null);
                 verifying = false;
                 return commitFacial(matchedDistance);
             }
@@ -232,19 +253,71 @@ async function runVerify() {
             await wait(identityOk ? 15 : 150);
         }
 
-        // Window over: the PERSON decides what happens next — no silent fallbacks.
+        // Window over: automatic evidence phase — no buttons, no decisions. The
+        // ONLY condition to record by document is that a face shows up on camera
+        // (even a cheater's photo: the evidence snapshot exposes them). No face at
+        // all (finger on the lens, walked away) -> nothing recorded, back home.
         setProgress(0);
         clearOverlay();
         verifying = false;
-        if (sawFace) {
-            show('warning', '<i class="fas fa-user-clock"></i> ' + I18N.notConfirmed.replace(':sec', String(VERIFY_WINDOW_MS / 1000)));
-            showActions(true); // retry / document+photo / cancel
-        } else {
-            show('warning', '<i class="fas fa-exclamation-triangle"></i> ' + I18N.noFaceSeen);
-            showActions(!REQUIRE_FACE); // without a face, document marking only if the rule allows it
-        }
+        return evidencePhase();
     } catch (e) {
         verifying = false;
+        setCountdown(null);
+        show('danger', I18N.connectionError);
+        showActions(true);
+    }
+}
+
+/** Second phase after a failed verification: hunt for ANY face for a few seconds
+ *  and auto-mark by document + evidence photo the moment one appears. */
+async function evidencePhase() {
+    const EVIDENCE_MS = 8000;
+    hideActions();
+    show('info', spinner + I18N.evidenceIntro);
+
+    const deadline = Date.now() + EVIDENCE_MS;
+    while (Date.now() < deadline) {
+        setCountdown(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+
+        let det = null;
+        try { det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks(); } catch (e) { /* keep looking */ }
+        clearOverlay();
+        setFaceChip(!!det);
+
+        if (det) {
+            drawBox(det.detection.box, '#ffc107');
+            setCountdown(null);
+            return autoMarkByDocument(); // face on camera -> snapshot is meaningful evidence
+        }
+        await wait(200);
+    }
+
+    setCountdown(null);
+    setFaceChip(null);
+
+    // Permissive mode (require-face OFF): record by document anyway
+    if (!REQUIRE_FACE) return autoMarkByDocument();
+
+    // No face ever showed up: nothing is recorded and the kiosk closes
+    show('warning', '<i class="fas fa-exclamation-triangle"></i> ' + I18N.evidenceClosing);
+    setTimeout(() => { window.location.href = window.HOME_URL; }, 2500);
+}
+
+async function autoMarkByDocument() {
+    show('info', spinner + I18N.savingSlow);
+    try {
+        const { data } = await postJson(window.MARK_DNI_URL, {
+            document_number: window.EMPLOYEE.document,
+            photo: captureSnapshot(),
+        });
+        if (data.ok) {
+            finishWithResult(data, I18N.verifyFailedPhoto);
+        } else {
+            show('warning', (data.message || I18N.couldNotRecord) + `<br><small class="text-muted">${I18N.backSoon}</small>`);
+            setTimeout(() => { window.location.href = window.HOME_URL; }, 3500);
+        }
+    } catch (e) {
         show('danger', I18N.connectionError);
         showActions(true);
     }

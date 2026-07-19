@@ -19,8 +19,14 @@
     <div class="video-frame">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="overlay"></canvas>
+        {{-- Live countdown of the current phase, over the video --}}
+        <div id="countdown" style="position:absolute;top:8px;right:14px;font-size:2.4rem;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85);display:none"></div>
     </div>
     <div class="progress kiosk-progress"><div class="progress-bar bg-info" id="verifyProgress" style="width:0%"></div></div>
+    {{-- Face presence indicator: instant feedback while searching --}}
+    <div class="mt-2" id="faceChip" style="display:none">
+        <span class="badge px-3 py-2" id="faceChipBadge" style="font-size:.85rem"></span>
+    </div>
 
     <div id="result" class="mt-3">
         <div id="status" class="alert alert-secondary d-inline-block px-4">{{ __('Loading models...') }}</div>
@@ -100,6 +106,10 @@
         notConfirmed: @json(__('We could not confirm your face in :sec seconds. You can try again or mark by document (an evidence photo will be saved for review).')),
         noFaceSeen: @json(__('No face was detected in front of the camera — nothing was recorded. Come closer, improve the lighting and try again.')),
         enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
+        faceDetected: @json(__('Face detected')),
+        noFaceYet: @json(__('Looking for a face...')),
+        evidenceIntro: @json(__('We could not confirm your face. Look at the camera: your mark will be recorded by document with an evidence photo.')),
+        evidenceClosing: @json(__('No face was detected — nothing was recorded. Returning to the kiosk...')),
         cameraNeededToEnroll: @json(__('The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.')),
         verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
         showYourFace: @json(__('Show your face to the camera to save the evidence photo.')),

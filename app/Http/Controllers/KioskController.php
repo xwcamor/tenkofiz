@@ -334,6 +334,12 @@ class KioskController extends Controller
             // First mark of the day = CHECK-IN; lateness depends on TODAY's weekday hours
             $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
             $status = 'ON_TIME';
+            if (!$todayShift) {
+                // No shift today (e.g. Sunday on a Mon-Sat schedule): there is no
+                // start time to be late against, so the mark records as on-time —
+                // but say so explicitly instead of looking like a normal "on time".
+                $extra['note'] = trim((($extra['note'] ?? '').' '.__('Mark on a non-working day according to their schedule.')));
+            }
             if ($todayShift) {
                 $start = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone());
 

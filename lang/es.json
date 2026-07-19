@@ -909,5 +909,10 @@
     "Select a site": "Selecciona una sede",
     "You must assign a site to the employee (the kiosk and reports are organized by site).": "Debes asignar una sede al empleado (el kiosco y los reportes se organizan por sede).",
     "Default language": "Idioma por defecto",
-    "Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.": "Aplica a todos en el espacio de trabajo (y a sus kioscos) salvo que un usuario elija su propio idioma con el conmutador."
+    "Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.": "Aplica a todos en el espacio de trabajo (y a sus kioscos) salvo que un usuario elija su propio idioma con el conmutador.",
+    "Face detected": "Rostro detectado",
+    "Looking for a face...": "Buscando rostro...",
+    "We could not confirm your face. Look at the camera: your mark will be recorded by document with an evidence photo.": "No pudimos confirmar tu rostro. Mira a la cámara: tu marca se registrará por documento con foto de evidencia.",
+    "No face was detected — nothing was recorded. Returning to the kiosk...": "No se detectó ningún rostro — no se registró nada. Volviendo al kiosco...",
+    "Mark on a non-working day according to their schedule.": "Marca en día no laborable según su horario."
 }
