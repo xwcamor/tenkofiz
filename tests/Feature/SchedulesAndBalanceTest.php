@@ -102,7 +102,7 @@ class SchedulesAndBalanceTest extends TestCase
         Carbon::setTestNow('2026-07-17 15:00:00');
 
         // 11 days > 10 allowance
-        $this->actingAs(User::first())
+        $this->actingAs(User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
             ->post('/vacations', [
                 'employee_id' => $employee->id,
                 'start_date' => '2026-08-01',
@@ -119,7 +119,7 @@ class SchedulesAndBalanceTest extends TestCase
         $employee = $this->seedBase();
         $employee->update(['vacation_days_per_year' => 10]);
         Carbon::setTestNow('2026-07-17 15:00:00');
-        $admin = User::first();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
 
         // Two competing 7-day requests: both fit alone, not together
         $first = Vacation::create(['employee_id' => $employee->id, 'start_date' => '2026-08-01', 'end_date' => '2026-08-07', 'days' => 7, 'reason' => 'A']);

@@ -18,7 +18,7 @@ class EmployeeImportTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        return User::first();
+        return User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
     }
 
     private function csv(array $rows): UploadedFile

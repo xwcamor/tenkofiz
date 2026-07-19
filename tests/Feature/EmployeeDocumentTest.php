@@ -30,7 +30,7 @@ class EmployeeDocumentTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        return User::first();
+        return User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
     }
 
     public function test_dni_must_have_exactly_8_digits(): void

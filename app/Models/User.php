@@ -109,7 +109,12 @@ class User extends Authenticatable
     public function hasModule(string $module): bool
     {
         if ($this->isSuperAdmin()) {
-            return $this->actingCompany()?->hasModule($module) ?? true;
+            // SaaS rule: the super-admin operates business modules ONLY from inside
+            // a workspace they explicitly entered (so every action has an unambiguous
+            // company). Outside one, they only keep the global security audit.
+            $acting = $this->actingCompany();
+
+            return $acting ? $acting->hasModule($module) : $module === 'audit_logs';
         }
 
         if ($this->company_id && !($this->company?->hasModule($module) ?? true)) {

@@ -150,7 +150,7 @@ async function linkUser(id, name) {
                 @if($showDeleted)
                     <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
-                    <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('Web access') }}</th><th>{{ __('Face') }}</th><th>{{ __('Status') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr>
+                    <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Site') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('Web access') }}</th><th>{{ __('Face') }}</th><th>{{ __('Status') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr>
                 @endif
             </thead>
             <tbody>
@@ -172,6 +172,13 @@ async function linkUser(id, name) {
                     <tr>
                         <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
                         <td>{{ $employee->full_name }}</td>
+                        <td>
+                            @if($employee->site)
+                                <span class="badge badge-info"><i class="fas fa-map-marker-alt"></i> {{ $employee->site->name }}</span>
+                            @else
+                                <span class="text-muted small">—</span>
+                            @endif
+                        </td>
                         <td>{{ $employee->area?->name ?? '—' }}{{ $employee->position ? ' / '.$employee->position->name : '' }}</td>
                         <td>{{ $employee->schedule?->name ?? '—' }}</td>
                         <td>
@@ -216,7 +223,7 @@ async function linkUser(id, name) {
                     </tr>
                 @endif
             @empty
-                <tr><td colspan="{{ $showDeleted ? 5 : 8 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No employees match the current filters.') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 5 : 9 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No employees match the current filters.') }}</td></tr>
             @endforelse
             </tbody>
         </table>

@@ -178,6 +178,9 @@
                     @endif
 
                     <li class="nav-header">{{ __('MY ACCOUNT') }}</li>
+                    {{-- Personal items (marking, requests) are for company people; the
+                         super-admin is the platform owner, not an employee --}}
+                    @unless($currentUser->isSuperAdmin())
                     <li class="nav-item">
                         <a href="{{ route('vacations.index') }}" class="nav-link {{ request()->routeIs('vacations.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-umbrella-beach"></i><p>{{ __('Vacations') }}
@@ -202,6 +205,7 @@
                             <i class="nav-icon fas fa-calendar-alt"></i><p>{{ __('Calendar') }}</p>
                         </a>
                     </li>
+                    @endunless
                     <li class="nav-item">
                         <a href="{{ route('account.edit') }}" class="nav-link {{ request()->routeIs('account.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-user-cog"></i><p>{{ __('My account') }}</p>

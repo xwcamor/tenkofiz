@@ -17,6 +17,13 @@ class CheckModule
         $user = $request->user();
 
         if (!$user || !$user->hasAnyModule(...$modules)) {
+            // A super-admin outside a workspace is guided (not just blocked): they
+            // must enter a workspace first so every action lands in ONE company.
+            if ($user?->isSuperAdmin() && !session('acting_company_id')) {
+                return redirect()->route('admin.companies.index')
+                    ->with('error', __('Enter a workspace first: as super-admin you manage company data from inside the workspace it belongs to.'));
+            }
+
             abort(403, __('You do not have permission to access this module.'));
         }
 

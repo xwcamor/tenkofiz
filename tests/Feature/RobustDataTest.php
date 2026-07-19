@@ -17,7 +17,7 @@ class RobustDataTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        return User::first();
+        return User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
     }
 
     private function makeEmployees(int $count): void
@@ -26,6 +26,7 @@ class RobustDataTest extends TestCase
         $rows = [];
         foreach (range(1, $count) as $i) {
             $rows[] = [
+                'company_id' => \App\Models\Company::orderBy('id')->value('id'),
                 'document_number' => str_pad((string) $i, 8, '0', STR_PAD_LEFT),
                 'document_type' => 'DNI',
                 'first_name' => 'NAME'.$i,
@@ -97,6 +98,7 @@ class RobustDataTest extends TestCase
         $rows = [];
         foreach (range(1, 40) as $i) {
             $rows[] = [
+                'company_id' => \App\Models\Company::orderBy('id')->value('id'),
                 'name' => 'User '.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
                 'email' => 'user'.$i.'@example.com',
                 'password' => 'x',

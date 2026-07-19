@@ -248,3 +248,35 @@ Análisis para decidir:
   `kiosk_document_fallback = solo_enrolados | todos | nunca` en Ajustes → Facial,
   para que cada empresa elija su rigidez. Cambio pequeño (una condición en
   `/kiosk/verify` + el ajuste).
+
+---
+
+## 6. EL MODELO DE OPERACIÓN SaaS (definición formal — implementada)
+
+La analogía del edificio de Carlos es exactamente el modelo:
+
+| Nivel | Analogía | Quién | Qué hace | Dónde |
+|---|---|---|---|---|
+| **Super-admin** | Dueño del edificio | Tú | Crea los "pisos" (empresas) con su **primer admin**, reparte módulos y límites (plan), suspende/elimina por falta de pago, ve la **auditoría de seguridad global** | Consola **Espacios de trabajo** |
+| **Admin de empresa** | Administrador del piso | Tu cliente | Dentro de SU workspace: crea **sedes**, usuarios, perfiles, horarios, feriados y sus **normas** (Ajustes) | Su workspace |
+| **Usuario de sede / empleado** | Encargado de área / inquilino | Su gente | Solo su sede (`users.site_id`) o solo su propia información | Su sede |
+
+**Reglas duras que el sistema HACE CUMPLIR (no son convención):**
+
+1. **El super nunca opera "desde ninguna parte".** Fuera de un workspace solo ve la
+   consola de Espacios de trabajo y la auditoría global. Si intenta abrir
+   Empleados/Asistencias/etc. se le redirige con el mensaje "Primero entra a un
+   espacio de trabajo" (`CheckModule` + `User::hasModule`). Así es IMPOSIBLE la
+   ambigüedad de "¿a qué empresa le creé esto?": todo lo que el super crea, lo crea
+   **dentro** del workspace que entró (banner oscuro visible + botón Salir).
+2. **El acceso de cada empresa nace con la empresa.** Al crear un workspace, el
+   super define su **primer administrador** (nombre/correo/clave, se le envía por
+   correo). Ese admin es quien reparte el acceso hacia abajo: usuarios, perfiles
+   (módulos dentro del plan), sedes y usuarios atados a sede.
+3. **La separación de accesos es por datos, no por pantallas**: `CompanyScope`
+   (empresa) + `SiteScope` (sede) filtran TODA consulta automáticamente. Un admin
+   de empresa jamás ve otra empresa; un usuario de sede jamás ve otra sede.
+4. **El super no es un empleado**: no tiene "Mis asistencias / Vacaciones /
+   Justificaciones" en el menú; su cuenta es de plataforma.
+5. **Listas con contexto**: Empleados muestra la **columna Sede**; el workspace en
+   el que estás siempre se ve en el banner superior (super) o es el tuyo (admin).

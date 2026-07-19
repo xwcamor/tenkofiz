@@ -30,7 +30,7 @@ class EmployeeUserLinkTest extends TestCase
     public function test_create_user_with_chosen_profile(): void
     {
         $employee = $this->seedBase();
-        $admin = User::first();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
         $supervisorProfile = Profile::where('name', 'Supervisor')->first();
 
         $this->actingAs($admin)
@@ -50,7 +50,7 @@ class EmployeeUserLinkTest extends TestCase
     {
         $employee = $this->seedBase();
 
-        $this->actingAs(User::first())
+        $this->actingAs(User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
             ->postJson("/employees/{$employee->id}/create-user", ['email' => 'worker@test.test'])
             ->assertOk();
 
@@ -60,7 +60,7 @@ class EmployeeUserLinkTest extends TestCase
     public function test_link_and_unlink_existing_user(): void
     {
         $employee = $this->seedBase();
-        $admin = User::first();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
 
         $free = User::create([
             'name' => 'Free User',
@@ -95,7 +95,7 @@ class EmployeeUserLinkTest extends TestCase
     public function test_user_photo_upload(): void
     {
         $this->seed(DatabaseSeeder::class);
-        $admin = User::first();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
 
         $this->actingAs($admin)->post('/users', [
             'name' => 'With Photo',

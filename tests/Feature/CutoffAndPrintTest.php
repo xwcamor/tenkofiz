@@ -74,7 +74,7 @@ class CutoffAndPrintTest extends TestCase
         app()->forgetInstance('app.setting');
         Carbon::setTestNow('2026-07-17 18:00:00');
 
-        $response = $this->actingAs(User::first())->get('/attendances');
+        $response = $this->actingAs(User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())->get('/attendances');
 
         $response->assertOk();
         $this->assertSame('2026-06-20', $response->viewData('from')->toDateString());
@@ -86,7 +86,7 @@ class CutoffAndPrintTest extends TestCase
     public function test_vacation_and_justification_print_views_render(): void
     {
         $employee = $this->seedBase();
-        $admin = User::first();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
 
         $vacation = Vacation::create([
             'employee_id' => $employee->id,

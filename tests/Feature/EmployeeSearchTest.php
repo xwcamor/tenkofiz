@@ -19,7 +19,7 @@ class EmployeeSearchTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        return User::first();
+        return User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
     }
 
     private function makeEmployees(int $count): void
@@ -28,6 +28,7 @@ class EmployeeSearchTest extends TestCase
         $rows = [];
         foreach (range(1, $count) as $i) {
             $rows[] = [
+                'company_id' => \App\Models\Company::orderBy('id')->value('id'),
                 'document_number' => str_pad((string) $i, 8, '0', STR_PAD_LEFT),
                 'document_type' => 'DNI',
                 'first_name' => 'NAME'.$i,

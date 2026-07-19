@@ -141,7 +141,7 @@ class KioskTest extends TestCase
             ]),
         ]);
 
-        $this->actingAs(\App\Models\User::first())
+        $this->actingAs(\App\Models\User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
             ->getJson('/dni-lookup/40111222')
             ->assertOk()
             ->assertJsonPath('ok', true)
@@ -154,7 +154,7 @@ class KioskTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         config(['services.decolecta.token' => null]);
 
-        $this->actingAs(\App\Models\User::first())
+        $this->actingAs(\App\Models\User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
             ->getJson('/dni-lookup/40111222')
             ->assertStatus(503)
             ->assertJsonPath('ok', false);
