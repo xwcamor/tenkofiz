@@ -56,9 +56,11 @@
                             @php
                                 $payload = json_encode(['action' => route('admin.companies.update', $company), 'name' => $company->name, 'tax_id' => $company->tax_id, 'is_active' => $company->is_active]);
                                 $planPayload = json_encode(['action' => route('admin.companies.plan', $company), 'name' => $company->name, 'modules' => $company->modules, 'max_employees' => $company->max_employees, 'max_sites' => $company->max_sites]);
+                                $recognitionPayload = json_encode(['action' => route('admin.companies.recognition', $company), 'name' => $company->name, 'threshold' => $company->recognition['threshold'], 'seconds' => $company->recognition['seconds']]);
                             @endphp
                             <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
                             <button class="btn btn-sm btn-primary" title="{{ __('Plan (modules and limits)') }}" data-payload="{{ $planPayload }}" onclick="openPlanModal(JSON.parse(this.dataset.payload))"><i class="fas fa-cubes"></i></button>
+                            <button class="btn btn-sm btn-secondary" title="{{ __('Recognition calibration') }}" data-payload="{{ $recognitionPayload }}" onclick="openRecognitionModal(JSON.parse(this.dataset.payload))"><i class="fas fa-sliders-h"></i></button>
                             @if($company->is_active)
                                 <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" data-action="{{ route('admin.companies.suspend', $company) }}" data-name="{{ $company->name }}" onclick="openSuspendModal(this.dataset.action, this.dataset.name)"><i class="fas fa-pause"></i></button>
                             @else
@@ -226,6 +228,33 @@
         </form>
     </div>
 </div>
+{{-- Recognition calibration modal: core engine screws, super-only by design --}}
+<div class="modal fade" id="recognitionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content" id="recognitionForm">
+            @csrf @method('PUT')
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sliders-h"></i> {{ __('Recognition calibration') }}: <span id="recognitionCompanyName"></span></h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">{{ __('Core calibration of this workspace\'s kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.') }}</p>
+                <div class="form-group">
+                    <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
+                    <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" id="recognitionThreshold" class="form-control" style="max-width:140px" required>
+                </div>
+                <div class="form-group mb-0">
+                    <label>{{ __('Verification time') }} <small class="text-muted">({{ __('seconds the camera tries; 10 recommended') }})</small></label>
+                    <input type="number" min="5" max="60" name="kiosk_verify_seconds" id="recognitionSeconds" class="form-control" style="max-width:140px" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
+                <button class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Save calibration') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -257,6 +286,13 @@ function openPlanModal(data) {
     document.getElementById('planMaxSites').value = data.max_sites || '';
     togglePlanModules();
     $('#planModal').modal('show');
+}
+function openRecognitionModal(data) {
+    document.getElementById('recognitionForm').action = data.action;
+    document.getElementById('recognitionCompanyName').textContent = data.name;
+    document.getElementById('recognitionThreshold').value = data.threshold;
+    document.getElementById('recognitionSeconds').value = data.seconds;
+    $('#recognitionModal').modal('show');
 }
 function openCompanyModal(data = null) {
     const form = document.getElementById('companyForm');

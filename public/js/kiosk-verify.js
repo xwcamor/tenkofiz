@@ -1,16 +1,21 @@
 /* Kiosk camera page: the person was already validated by document on the landing
- * page. Here the camera confirms it is really them (1:1). If they have no
- * enrolled face, they can enroll right here and continue. Nothing auto-returns:
- * on timeout the person chooses (retry / mark by document / cancel). */
+ * page. Here the camera confirms it is really them (1:1) and, with liveness on,
+ * asks for ONE random head gesture (turn left / right / nod) that a printed
+ * photo cannot perform and a pre-recorded video cannot anticipate. If they have
+ * no enrolled face, they can enroll right here and continue.
+ *
+ * Fixed rule (no toggle): without a face on camera there is NEVER a mark nor a
+ * photo — photographing a wall or a finger is worthless as evidence. */
 'use strict';
 
 const MODELS_URL = '/models';
 const THRESHOLD = Number(window.KIOSK_THRESHOLD) || 0.5;
 const LIVENESS = !!window.KIOSK_LIVENESS;
-const REQUIRE_FACE = window.KIOSK_REQUIRE_FACE !== false;
-const VERIFY_WINDOW_MS = (Number(window.KIOSK_VERIFY_SECONDS) || 15) * 1000;
+const VERIFY_WINDOW_MS = (Number(window.KIOSK_VERIFY_SECONDS) || 10) * 1000;
 const RESULT_PAUSE_MS = 4000;
-const EAR_CLOSED = 0.18; // absolute closed-eye threshold (the adaptive baseline handles glasses)
+const CHALLENGE_MS = 3500;   // time to complete a gesture before a new one is rolled
+const YAW_TURN = 1.75;       // yaw ratio beyond which a head turn counts (1 = frontal)
+const NOD_DELTA = 0.25;      // relative pitch change that counts as a nod
 const DETECTOR = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
 
 const I18N = window.KIOSK_I18N;
@@ -81,39 +86,63 @@ function captureSnapshot() {
     return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-/* Blink / liveness.
- * Glasses (and small eyes) compress the eye-aspect-ratio, so fixed thresholds
- * miss real blinks. The detector is ADAPTIVE: it learns the person's own
- * open-eye baseline from recent samples and fires on a significant RELATIVE
- * drop (or the absolute closed threshold, whichever happens first). A printed
- * photo still fails: its ratio is constant, so there is never a drop. */
-function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function eyeRatio(eye) { return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * dist(eye[0], eye[3])); }
-function eyeAspectRatio(landmarks) { return (eyeRatio(landmarks.getLeftEye()) + eyeRatio(landmarks.getRightEye())) / 2; }
+/* Liveness via random head gestures (replaces the old blink detector, which
+ * struggled with glasses and needed the person right up against the tablet).
+ *
+ * Head pose comes from the 68 landmarks already loaded — no extra models:
+ *  - yaw: nose tip position between the jaw extremes. A REAL head turning
+ *    shows asymmetric perspective (near cheek widens, nose shifts sideways);
+ *    a flat photo rotated on its axis just compresses uniformly and stays
+ *    symmetric, so it never crosses the turn threshold.
+ *  - pitch proxy: eyes→nose vs nose→chin vertical proportion. A real nod
+ *    changes them unevenly; tilting or moving a photo scales both equally.
+ *
+ * The gesture is picked at random AFTER the identity is confirmed, and must be
+ * performed within a short window — a pre-recorded video cannot know which
+ * gesture will be asked nor when. */
+function headPose(landmarks) {
+    const jaw = landmarks.getJawOutline();
+    const noseTip = landmarks.getNose()[3]; // point 30
+    const xs = jaw.map(p => p.x);
+    const jawLeftX = Math.min(...xs), jawRightX = Math.max(...xs);
+    const chinY = Math.max(...jaw.map(p => p.y));
+    const eyeMidY = [...landmarks.getLeftEye(), ...landmarks.getRightEye()]
+        .reduce((sum, p) => sum + p.y, 0) / 12;
+    return {
+        yaw: Math.max(1, noseTip.x - jawLeftX) / Math.max(1, jawRightX - noseTip.x),
+        pitch: Math.max(1, noseTip.y - eyeMidY) / Math.max(1, chinY - noseTip.y),
+    };
+}
+function isFrontal(pose) { return pose.yaw > 0.72 && pose.yaw < 1.4; }
 
-const earSamples = [];
-let lastBaseline = null, lastFactor = 0.83; // exposed for the debug overlay
-function blinkDetected(ear, factor = 0.83) {
-    lastFactor = factor;
-    // Baseline = the person's typical OPEN eye (median of the upper half of samples)
-    if (earSamples.length >= 4) {
-        const sorted = [...earSamples].sort((a, b) => a - b);
-        const baseline = sorted[Math.floor(sorted.length * 0.75)]; // upper quartile
-        lastBaseline = baseline;
-        const relativeDrop = baseline > 0.12 && ear < baseline * factor;
-        if (relativeDrop || ear < EAR_CLOSED) return true;
-    } else if (ear < EAR_CLOSED) {
-        return true;
-    }
-    earSamples.push(ear);
-    if (earSamples.length > 14) earSamples.shift();
-    return false;
+// 'left'/'right' are the PERSON's left and right. In the (unmirrored) camera
+// image their left side sits on the image's right, so turning left pushes the
+// nose tip toward the right jaw extreme and the yaw ratio RISES.
+function pickChallenge(except = null) {
+    const options = ['left', 'right', 'nod'].filter(c => c !== except);
+    return options[Math.floor(Math.random() * options.length)];
+}
+function challengeMet(challenge, pose, pitchBaseline) {
+    if (challenge === 'left') return pose.yaw >= YAW_TURN;
+    if (challenge === 'right') return pose.yaw <= 1 / YAW_TURN;
+    return pitchBaseline > 0 && Math.abs(pose.pitch - pitchBaseline) / pitchBaseline >= NOD_DELTA;
+}
+function challengeLabel(challenge) {
+    if (challenge === 'left') return '<i class="fas fa-arrow-left"></i> ' + I18N.challengeTurnLeft;
+    if (challenge === 'right') return I18N.challengeTurnRight + ' <i class="fas fa-arrow-right"></i>';
+    return '<i class="fas fa-arrows-alt-v"></i> ' + I18N.challengeNod;
+}
+function setChallenge(challenge) {
+    const el = document.getElementById('challenge');
+    if (!challenge) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = challengeLabel(challenge);
 }
 
 /* ---------- live diagnosis (open /kiosk/verify?debug=1) ---------- */
 const DEBUG = new URLSearchParams(location.search).has('debug');
 let debugBox = null, debugSamples = 0, debugWindowStart = 0, debugHz = 0;
-function debugUpdate(ear, distance, identityOk) {
+function debugUpdate(pose, distance, identityOk, challenge, pitchBaseline) {
     if (!DEBUG) return;
     if (!debugBox) {
         debugBox = document.createElement('div');
@@ -123,11 +152,10 @@ function debugUpdate(ear, distance, identityOk) {
     const now = Date.now();
     debugSamples++;
     if (now - debugWindowStart > 1000) { debugHz = debugSamples; debugSamples = 0; debugWindowStart = now; }
-    const need = lastBaseline ? (lastBaseline * lastFactor).toFixed(3) : '—';
     debugBox.innerHTML =
-        `EAR ojo: <b>${ear !== null ? ear.toFixed(3) : '—'}</b><br>` +
-        `base: ${lastBaseline ? lastBaseline.toFixed(3) : '—'} | dispara &lt; ${need} (o &lt; ${EAR_CLOSED})<br>` +
-        `factor: ${lastFactor} | muestras/s: ${debugHz}<br>` +
+        `yaw: <b>${pose ? pose.yaw.toFixed(2) : '—'}</b> (izq ≥ ${YAW_TURN} | der ≤ ${(1 / YAW_TURN).toFixed(2)})<br>` +
+        `pitch: ${pose ? pose.pitch.toFixed(2) : '—'} | base: ${pitchBaseline ? pitchBaseline.toFixed(2) : '—'} (±${NOD_DELTA * 100}%)<br>` +
+        `reto: ${challenge || '—'} | muestras/s: ${debugHz}<br>` +
         `identidad: ${identityOk ? 'OK' : 'buscando'}${distance !== null ? ' (dist ' + distance.toFixed(3) + ' / max ' + THRESHOLD + ')' : ''}`;
 }
 
@@ -185,13 +213,16 @@ async function runVerify() {
 
         // Identity is confirmed ONCE and stays confirmed (sticky): the full
         // face-descriptor pass is slow (300-500ms on modest hardware), so after
-        // the match the loop switches to the cheap landmarks-only pass and hunts
-        // the blink at the camera's real frame rate. Sampling eyes through the
-        // slow pass was why real blinks (~120ms) kept falling between samples.
-        let blinked = !LIVENESS, sawFace = false;
-        let identityOk = false, matchedDistance = null, identityLockedAt = null;
+        // the match the loop switches to the cheap landmarks-only pass and
+        // tracks the gesture at the camera's real frame rate.
+        let challengeDone = !LIVENESS, sawFace = false;
+        let identityOk = false, matchedDistance = null;
         let lastDistance = null;
-        earSamples.length = 0; // fresh baseline per attempt
+        // Liveness challenge state: issued only AFTER identity locks and the
+        // face has been frontal for a few samples (so the pitch baseline is
+        // clean and the gesture is a response to the prompt, not residue).
+        let challenge = null, challengeAt = 0, frontalStreak = 0, pitchBaseline = null;
+        const pitchSamples = [];
         const startAt = Date.now();
         const deadline = startAt + VERIFY_WINDOW_MS;
 
@@ -210,7 +241,7 @@ async function runVerify() {
             setFaceChip(!!det);
             if (!det) {
                 show('info', spinner + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
-                debugUpdate(null, lastDistance, identityOk);
+                debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(200);
                 continue;
             }
@@ -219,39 +250,60 @@ async function runVerify() {
             if (!identityOk) {
                 const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
                 lastDistance = d;
-                if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; identityLockedAt = Date.now(); }
+                if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; }
             }
             drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
 
-            const ear = eyeAspectRatio(det.landmarks);
-            if (LIVENESS && !blinked) {
-                // The longer a confirmed person keeps trying, the more forgiving the
-                // relative threshold gets (capped at a 12% dip, which a static
-                // photo's constant ratio never produces).
-                const hunting = identityLockedAt ? Date.now() - identityLockedAt : 0;
-                const factor = hunting > 8000 ? 0.88 : (hunting > 4000 ? 0.86 : 0.83);
-                blinked = blinkDetected(ear, factor);
+            const pose = headPose(det.landmarks);
+            if (LIVENESS && !challengeDone && identityOk) {
+                if (!challenge) {
+                    // Frontal warm-up: collect the person's own pitch baseline
+                    if (isFrontal(pose)) {
+                        frontalStreak++;
+                        pitchSamples.push(pose.pitch);
+                        if (pitchSamples.length > 10) pitchSamples.shift();
+                        if (frontalStreak >= 3) {
+                            pitchBaseline = [...pitchSamples].sort((a, b) => a - b)[Math.floor(pitchSamples.length / 2)];
+                            challenge = pickChallenge();
+                            challengeAt = Date.now();
+                            setChallenge(challenge);
+                        }
+                    } else {
+                        frontalStreak = 0;
+                    }
+                } else if (challengeMet(challenge, pose, pitchBaseline)) {
+                    challengeDone = true;
+                    setChallenge(null);
+                } else if (Date.now() - challengeAt > CHALLENGE_MS) {
+                    // Not performed in time: roll a DIFFERENT random gesture. A
+                    // fresh chance for a real person, extra noise for a looped video.
+                    challenge = pickChallenge(challenge);
+                    challengeAt = Date.now();
+                    setChallenge(challenge);
+                }
             }
-            debugUpdate(ear, lastDistance, identityOk);
+            debugUpdate(pose, lastDistance, identityOk, challenge, pitchBaseline);
 
-            // Honest per-stage message: never ask for a blink while the real
+            // Honest per-stage message: never ask for the gesture while the real
             // blocker is still the identity match.
-            if (!identityOk || blinked || !LIVENESS) {
-                show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
+            if (challenge && !challengeDone) {
+                show('info', spinner + challengeLabel(challenge));
             } else {
-                show('info', spinner + I18N.blinkNow);
+                show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
             }
 
-            if (identityOk && blinked) {
+            if (identityOk && challengeDone) {
                 setProgress(100);
                 setCountdown(null);
                 setFaceChip(null);
+                setChallenge(null);
                 verifying = false;
                 return commitFacial(matchedDistance);
             }
-            // Blink hunting runs flat out (no artificial pause once identity locked)
+            // Gesture tracking runs flat out (no artificial pause once identity locked)
             await wait(identityOk ? 15 : 150);
         }
+        setChallenge(null);
 
         // Window over: automatic evidence phase — no buttons, no decisions. The
         // ONLY condition to record by document is that a face shows up on camera
@@ -264,13 +316,16 @@ async function runVerify() {
     } catch (e) {
         verifying = false;
         setCountdown(null);
+        setChallenge(null);
         show('danger', I18N.connectionError);
         showActions(true);
     }
 }
 
 /** Second phase after a failed verification: hunt for ANY face for a few seconds
- *  and auto-mark by document + evidence photo the moment one appears. */
+ *  and auto-mark by document + evidence photo the moment one appears. The
+ *  on-screen message is deliberately NEUTRAL ("retrying detection"): announcing
+ *  that an evidence photo is coming would tell a cheater exactly when to hide. */
 async function evidencePhase() {
     const EVIDENCE_MS = 8000;
     hideActions();
@@ -296,10 +351,9 @@ async function evidencePhase() {
     setCountdown(null);
     setFaceChip(null);
 
-    // Permissive mode (require-face OFF): record by document anyway
-    if (!REQUIRE_FACE) return autoMarkByDocument();
-
-    // No face ever showed up: nothing is recorded and the kiosk closes
+    // No face ever showed up (finger on the lens, walked away): nothing is
+    // recorded and the kiosk closes. This rule has no off-switch — a "mark"
+    // whose evidence is a photo of the ceiling is worse than no mark.
     show('warning', '<i class="fas fa-exclamation-triangle"></i> ' + I18N.evidenceClosing);
     setTimeout(() => { window.location.href = window.HOME_URL; }, 2500);
 }
@@ -346,9 +400,10 @@ async function commitFacial(distance) {
 async function markByDocument() {
     hideActions();
 
-    // Require-face rule also applies to the photo evidence path: a face must be on
-    // camera at the moment of the snapshot (5s grace), otherwise nothing is saved.
-    if (REQUIRE_FACE && cameraOk) {
+    // The fixed no-face-no-mark rule also applies to the manual button: a face
+    // must be on camera at the moment of the snapshot (5s grace), or nothing is
+    // saved. The message stays neutral on purpose (see evidencePhase).
+    if (cameraOk) {
         show('info', spinner + I18N.showYourFace);
         const seen = await waitForAnyFace(5000);
         if (!seen) {

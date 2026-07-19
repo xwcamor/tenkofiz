@@ -92,31 +92,17 @@
                         @error('kiosk_enroll_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         <small class="text-muted">{{ __('With this PIN, a supervisor unlocks the self-enrollment mode on the kiosk: the employee types their document, accepts the consent and captures their face — no admin needed per person.') }}</small>
                     </div>
-                    {{-- Facial recognition (kiosk) --}}
+                    {{-- Facial recognition (kiosk). Core calibration (match threshold,
+                         verification seconds) lives in the super-admin console only:
+                         a workspace admin never sees or edits it. --}}
                     <hr>
                     <h6 class="font-weight-bold"><i class="fas fa-user-check"></i> {{ __('Facial recognition (kiosk)') }}</h6>
                     <div class="custom-control custom-switch mb-2">
-                        <input type="checkbox" name="kiosk_require_face" value="1" class="custom-control-input" id="kioskRequireFace" @checked(old('kiosk_require_face', $setting->kiosk_require_face))>
-                        <label class="custom-control-label" for="kioskRequireFace">{{ __('Require a detected face before marking — no face, no mark and no photo') }}</label>
-                    </div>
-                    <small class="text-muted d-block mb-2">{{ __('Recommended ON: the kiosk will not mark (nor save a photo) unless it actually sees a face in front of the camera. The person is asked to show their face and try again.') }}</small>
-                    <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="kiosk_liveness" value="1" class="custom-control-input" id="kioskLiveness" @checked(old('kiosk_liveness', $setting->kiosk_liveness))>
-                        <label class="custom-control-label" for="kioskLiveness">{{ __('Require a blink (liveness) — blocks marking with a photo') }}</label>
+                        <label class="custom-control-label" for="kioskLiveness">{{ __('Require a liveness challenge (random gesture) — blocks marking with a photo or a video') }}</label>
                     </div>
+                    <small class="text-muted d-block mb-2">{{ __('After recognizing the face, the kiosk asks for one random gesture (turn your head left / right, or nod). A printed photo cannot move and a pre-recorded video cannot know which gesture will be asked. Without a completed gesture, the mark falls back to document + evidence photo.') }}</small>
                     <small class="text-muted d-block mb-2">{{ __('Flow: the employee types their document on the kiosk, and only then the camera page opens to confirm it is really them (1:1). If they have no enrolled face, they can enroll right there.') }}</small>
-                    <div class="form-row">
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
-                            <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" value="{{ old('kiosk_face_threshold', $setting->kiosk_face_threshold ?? 0.50) }}" class="form-control @error('kiosk_face_threshold') is-invalid @enderror" style="max-width:140px">
-                            @error('kiosk_face_threshold')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('Verification time') }} <small class="text-muted">({{ __('seconds the camera tries; 15 recommended') }})</small></label>
-                            <input type="number" min="5" max="60" name="kiosk_verify_seconds" value="{{ old('kiosk_verify_seconds', $setting->kiosk_verify_seconds ?? 15) }}" class="form-control @error('kiosk_verify_seconds') is-invalid @enderror" style="max-width:140px">
-                            @error('kiosk_verify_seconds')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
-                        </div>
-                    </div>
                     <div class="form-group">
                         <label>{{ __('Logo') }} <small class="text-muted">({{ __('PNG/JPG, max. 2MB') }})</small></label>
                         <input type="file" name="logo" class="form-control-file @error('logo') is-invalid @enderror" accept="image/png,image/jpeg">

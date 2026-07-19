@@ -73,6 +73,8 @@ Route::middleware('auth')->group(function () {
         Route::post('companies/leave', [\App\Http\Controllers\CompanyController::class, 'leave'])->name('admin.companies.leave');
         // Commercial controls: plan (modules + limits), suspension and retirement
         Route::put('companies/{company}/plan', [\App\Http\Controllers\CompanyController::class, 'updatePlan'])->name('admin.companies.plan');
+        // Core facial-recognition calibration: super-only, never in company Settings
+        Route::put('companies/{company}/recognition', [\App\Http\Controllers\CompanyController::class, 'updateRecognition'])->name('admin.companies.recognition');
         Route::post('companies/{company}/suspend', [\App\Http\Controllers\CompanyController::class, 'suspend'])->name('admin.companies.suspend');
         Route::post('companies/{company}/reactivate', [\App\Http\Controllers\CompanyController::class, 'reactivate'])->name('admin.companies.reactivate');
         Route::delete('companies/{company}', [\App\Http\Controllers\CompanyController::class, 'destroy'])->name('admin.companies.destroy');

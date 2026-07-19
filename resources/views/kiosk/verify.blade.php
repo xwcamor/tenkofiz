@@ -21,6 +21,8 @@
         <canvas id="overlay"></canvas>
         {{-- Live countdown of the current phase, over the video --}}
         <div id="countdown" style="position:absolute;top:8px;right:14px;font-size:2.4rem;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85);display:none"></div>
+        {{-- Random liveness challenge instruction, big over the video --}}
+        <div id="challenge" style="position:absolute;left:0;right:0;bottom:12px;font-size:1.35rem;font-weight:700;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.9);display:none"></div>
     </div>
     <div class="progress kiosk-progress"><div class="progress-bar bg-info" id="verifyProgress" style="width:0%"></div></div>
     {{-- Face presence indicator: instant feedback while searching --}}
@@ -87,14 +89,15 @@
     window.HAS_FACE = @json($employee->hasFace());
     window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
-    window.KIOSK_REQUIRE_FACE = @json((bool) app_setting()->kiosk_require_face);
-    window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 15));
+    window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 10));
     window.KIOSK_I18N = {
         loadingModels: @json(__('Loading recognition models...')),
         startingCamera: @json(__('Starting camera...')),
         lookAtCamera: @json(__('Confirming it is you, :name...')),
         comeCloser: @json(__('Move closer and look at the camera, :name...')),
-        blinkNow: @json(__('Blink to confirm you are present')),
+        challengeTurnLeft: @json(__('Turn your head to the LEFT')),
+        challengeTurnRight: @json(__('Turn your head to the RIGHT')),
+        challengeNod: @json(__('Nod — move your head up and down')),
         savingSlow: @json(__('Saving to the database, one moment please...')),
         recorded: @json(__('recorded')),
         checkIn: @json(__('CHECK-IN')),
@@ -108,11 +111,11 @@
         enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
         faceDetected: @json(__('Face detected')),
         noFaceYet: @json(__('Looking for a face...')),
-        evidenceIntro: @json(__('We could not confirm your face. Look at the camera: your mark will be recorded by document with an evidence photo.')),
+        evidenceIntro: @json(__('Retrying detection — stay in front of the camera...')),
         evidenceClosing: @json(__('No face was detected — nothing was recorded. Returning to the kiosk...')),
         cameraNeededToEnroll: @json(__('The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.')),
-        verifyFailedPhoto: @json(__('We could not confirm your face. Marked by document — an evidence photo was saved for review.')),
-        showYourFace: @json(__('Show your face to the camera to save the evidence photo.')),
+        verifyFailedPhoto: @json(__('Recorded by document (facial verification not completed).')),
+        showYourFace: @json(__('Retrying detection — look at the camera...')),
         backSoon: @json(__('Returning to the kiosk...')),
         pinRequired: @json(__('Enter the PIN.')),
         unlocking: @json(__('Verifying PIN...')),

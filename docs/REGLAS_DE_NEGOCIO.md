@@ -21,10 +21,15 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
    sesión 3 minutos (`kiosk_verify_doc`) y pasa a la página de cámara.
 2. **`/kiosk/verify` (cámara)**: muestra el nombre de la persona y abre la cámara.
    - **Con rostro enrolado**: verificación 1:1 durante `kiosk_verify_seconds`
-     segundos (Ajustes, 5–60, por defecto **15**) con barra de progreso. Coincide →
-     marca y vuelve al teclado en 4 s.
-   - **Se agotó el tiempo**: NADA ocurre solo — la persona elige con botones:
-     **Reintentar** / **Marcar por documento (foto de evidencia)** / **Cancelar**.
+     segundos (5–60, por defecto **10**) con conteo grande sobre el video y chip
+     de "rostro detectado". Identidad confirmada (+ reto de vida si está activo,
+     §1.2c) → marca facial y vuelve al teclado en 4 s.
+   - **Se agotó el tiempo → fase de evidencia AUTOMÁTICA** (8 s): la cámara busca
+     **cualquier** rostro; al primero que aparece marca por documento con foto de
+     evidencia (aunque sea la foto de un tramposo: la evidencia lo delata). Si en
+     8 s no aparece ningún rostro, **no se registra nada** y vuelve al teclado.
+     El mensaje en pantalla es deliberadamente **neutro** ("Reintentando
+     detección...") para no avisarle al tramposo el momento de esconderse.
    - **Sin rostro enrolado**: el ÚNICO camino es **enrolarse ahí mismo**
      (consentimiento + 3 muestras; con PIN de supervisor si está configurado) y
      marcar de inmediato. No hay marcado por documento para no enrolados (§1.2).
@@ -33,10 +38,15 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
 3. **`/kiosk/enroll` (supervisor)**: página propia de enrolamiento (PIN → documento
    → consentimiento → captura), con la cámara siempre visible arriba.
 
-- **Umbral de similitud** configurable en Ajustes (`settings.kiosk_face_threshold`,
-  0.35–0.65; 0.50 recomendado). Menor = más estricto.
-- **Vivacidad / parpadeo (`kiosk_liveness`)**: si está activo, exige un parpadeo
-  (EAR, *eye aspect ratio*) para evitar marcar con una foto.
+- **Calibración core (solo super-admin, §14)**: el umbral de similitud
+  (`kiosk_face_threshold`, 0.35–0.65; 0.50 recomendado; menor = más estricto) y la
+  ventana de verificación (`kiosk_verify_seconds`) se editan ÚNICAMENTE desde la
+  consola de Workspaces (botón "Calibración del reconocimiento"). El administrador
+  de la empresa **no ve estos campos**: un umbral mal puesto deja pasar a
+  cualquiera como cualquiera.
+- **Reto de vida (`kiosk_liveness`)**: si está activo, tras confirmar la identidad
+  se exige UN gesto aleatorio de cabeza (§1.2c). Este toggle sí es del admin de la
+  empresa (es un balance fricción/seguridad de su negocio).
 - El antiguo "modo rápido" 1:N fue retirado de la interfaz: el flujo es siempre
   documento → confirmación 1:1 (filtra antes de abrir la cámara). Los endpoints
   `/kiosk/descriptors` y `/kiosk/version` se conservan por compatibilidad.
@@ -56,17 +66,43 @@ Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" exist
   enrolado no puede marcar (necesita la cámara para enrolarse) — el supervisor
   registra la marca manualmente en Asistencias.
 
-### 1.2b Exigir rostro detectado (`kiosk_require_face`, por defecto ACTIVO)
-Regla clave de negocio: **sin rostro no hay marca ni foto.**
-- Si al agotarse la ventana de verificación la cámara **nunca detectó un rostro**,
-  el botón "Marcar por documento" **no se ofrece**: solo Reintentar/Cancelar, y no
-  se guarda nada (`kiosk-verify.js` → `runVerify`).
-- Aplica también al respaldo por documento: antes de guardar la foto de evidencia
-  se exige un rostro en cámara (5 s de gracia, `waitForAnyFace`); sin rostro no se
-  marca.
-- **Si se vio un rostro pero no coincidió** con el enrolado, la persona puede marcar
-  por documento y la foto de evidencia queda para revisión del supervisor.
-- Con la opción desactivada, el marcado por documento se ofrece siempre.
+### 1.2b Regla FIJA: sin rostro no hay marca ni foto (sin interruptor)
+Decisión de negocio (Carlos): el propósito del kiosco es registrar asistencia
+**con evidencia**; una marca cuya "evidencia" es una foto del techo es peor que no
+marcar. Por eso la antigua opción `kiosk_require_face` **fue eliminada** — el
+comportamiento es fijo:
+- En la fase de evidencia (8 s tras fallar la verificación), si la cámara **nunca
+  detecta un rostro** (dedo en el lente, se fue), **no se registra nada** y el
+  kiosco vuelve al teclado.
+- Aplica también al botón manual de respaldo: antes de guardar la foto de
+  evidencia se exige un rostro en cámara (5 s de gracia, `waitForAnyFace`).
+- **Si se ve un rostro pero no coincide** con el enrolado, la marca sale por
+  documento con foto de evidencia para revisión del supervisor. Una foto sostenida
+  por un tramposo PASA a propósito: la evidencia lo expone (el sistema encarece y
+  evidencia la trampa, no promete impedirla al 100 % sin hardware 3D/IR).
+
+### 1.2c Reto de vida con gestos aleatorios (`kiosk_liveness`)
+El antiguo parpadeo (EAR) fue reemplazado: fallaba con lentes y obligaba a pegarse
+a la tablet (los ojos son pocos píxeles a distancia de fila). Ahora, tras
+confirmar la identidad y ver la cara de frente unos instantes, el kiosco pide **un
+gesto al azar** con orden grande sobre el video:
+- **Gira la cabeza a la IZQUIERDA / DERECHA**: pose por geometría de los 68
+  landmarks (posición de la punta de la nariz entre los extremos de la mandíbula).
+  Una cabeza real 3D gira con perspectiva ASIMÉTRICA; una foto plana girada solo se
+  comprime uniformemente y nunca cruza el umbral (`YAW_TURN`).
+- **Asiente (arriba/abajo)**: proporción vertical ojos→nariz vs nariz→mentón contra
+  la línea base propia de la persona; inclinar o mover una foto escala ambas por
+  igual y no dispara.
+- El gesto debe realizarse en ~3.5 s tras la orden; si no, se sortea OTRO gesto
+  distinto (nueva oportunidad para la persona real, ruido extra contra un video en
+  loop, que no puede saber qué gesto ni cuándo se pedirá).
+- Sin modelos adicionales (ni Python, ni MediaPipe): todo con los landmarks que ya
+  están cargados. Diagnóstico en vivo con `/kiosk/verify?debug=1` (yaw, pitch,
+  reto activo, identidad).
+- Si el reto no se completa dentro de la ventana → fase de evidencia (§1.1).
+- Se descartó el reto de "mostrar dedos/mano": la mano no está amarrada a la cara
+  (foto de Juan + la mano del tramposo pasaría). Los gestos de cara los debe hacer
+  la MISMA cara que se verifica.
 
 ### 1.3 Marcado por DNI (respaldo)
 - Cuando corresponde (ver §1.2), la marca sale por `KioskController::markByDni` con

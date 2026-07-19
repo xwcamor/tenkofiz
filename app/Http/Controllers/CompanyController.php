@@ -27,6 +27,12 @@ class CompanyController extends Controller
             $company->users_count = User::withoutGlobalScopes()->where('company_id', $company->id)->count();
             $company->employees_count = Employee::withoutGlobalScopes()->where('company_id', $company->id)->count();
             $company->sites_count = Site::withoutGlobalScopes()->where('company_id', $company->id)->count();
+            // Facial-recognition calibration is core: edited only from this console
+            $setting = Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
+            $company->recognition = [
+                'threshold' => (float) ($setting->kiosk_face_threshold ?? 0.50),
+                'seconds' => (int) ($setting->kiosk_verify_seconds ?? 10),
+            ];
 
             return $company;
         });
@@ -155,6 +161,27 @@ class CompanyController extends Controller
             __('Plan updated for workspace :name', ['name' => $company->name]), $company->only('modules', 'max_employees', 'max_sites'));
 
         return back()->with('ok', __('Plan for ":name" updated.', ['name' => $company->name]));
+    }
+
+    /**
+     * Core facial-recognition calibration for a workspace's kiosks. These are
+     * engine screws (match strictness, verification window): a wrong value can
+     * let anyone impersonate anyone, so ONLY the super-admin touches them —
+     * workspace admins never even see these fields.
+     */
+    public function updateRecognition(Request $request, Company $company)
+    {
+        $data = $request->validate([
+            'kiosk_face_threshold' => ['required', 'numeric', 'min:0.35', 'max:0.65'],
+            'kiosk_verify_seconds' => ['required', 'integer', 'min:5', 'max:60'],
+        ]);
+
+        Setting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->id])->update($data);
+
+        \App\Models\AuditLog::record('UPDATE', 'Workspaces',
+            __('Recognition calibration updated for workspace :name', ['name' => $company->name]), $data);
+
+        return back()->with('ok', __('Recognition calibration for ":name" updated.', ['name' => $company->name]));
     }
 
     /** Suspend (e.g. non-payment): users are cut off immediately; data stays intact */

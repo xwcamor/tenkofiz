@@ -233,9 +233,12 @@ límites por plan, registro self-service y resolución por subdominio.
 > documento**: debería enrolarse primero (el PIN del kiosco existe justamente para
 > que se registren desde ahí) y recién entonces marcar.
 
-Estado actual (hoy): quien no tiene rostro puede (a) enrolarse ahí mismo en
-`/kiosk/verify` (PIN si está configurado) o (b) marcar por documento con foto de
-evidencia (exigiendo un rostro en cámara si `kiosk_require_face` está activo).
+Estado actual (DECIDIDO e implementado): quien no tiene rostro enrolado SOLO puede
+enrolarse ahí mismo en `/kiosk/verify` (PIN si está configurado; el servidor
+rechaza su marcado por documento con 422). Además la regla "sin rostro en cámara
+no hay marca ni foto" es FIJA (el toggle `kiosk_require_face` fue eliminado), y la
+calibración del reconocimiento (umbral + segundos) es exclusiva del super-admin
+desde la consola de Workspaces (ver REGLAS_DE_NEGOCIO §1.1, §1.2b y §1.2c).
 
 Análisis para decidir:
 - **A favor de la regla propuesta**: obliga a enrolar el día 1; elimina las marcas

@@ -107,20 +107,48 @@ class KioskFlowTest extends TestCase
             ->assertSee(__('Supervisor PIN'));
     }
 
-    public function test_verify_seconds_setting_is_saved_from_settings(): void
+    // ---------- Calibration is core: super-only, never in company Settings ----------
+
+    public function test_super_admin_updates_recognition_calibration_from_the_console(): void
+    {
+        $super = \App\Models\User::withoutGlobalScopes()->where('is_super_admin', true)->first();
+        $company = \App\Models\Company::first();
+
+        $this->actingAs($super)->put(route('admin.companies.recognition', $company), [
+            'kiosk_face_threshold' => 0.45,
+            'kiosk_verify_seconds' => 20,
+        ])->assertSessionHas('ok');
+
+        $setting = \App\Models\Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
+        $this->assertSame(0.45, $setting->kiosk_face_threshold);
+        $this->assertSame(20, $setting->kiosk_verify_seconds);
+    }
+
+    public function test_company_admin_cannot_touch_recognition_calibration(): void
     {
         $admin = \App\Models\User::withoutGlobalScopes()->where('email', 'admin@test.com')->first();
+        $company = \App\Models\Company::find($admin->company_id);
+        $before = \App\Models\Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
 
+        // The console route is super-only
+        $this->actingAs($admin)->put(route('admin.companies.recognition', $company), [
+            'kiosk_face_threshold' => 0.65,
+            'kiosk_verify_seconds' => 60,
+        ])->assertForbidden();
+
+        // And their own Settings form silently ignores the calibration fields
         $this->actingAs($admin)->put('/settings', [
             'company_name' => 'MI EMPRESA S.A.C.',
             'timezone' => 'America/Lima',
             'country' => 'PE',
             'locale' => 'es',
-            'kiosk_face_threshold' => 0.5,
-            'kiosk_verify_seconds' => 25,
+            'kiosk_face_threshold' => 0.65,
+            'kiosk_verify_seconds' => 60,
         ])->assertSessionHas('ok');
 
-        $this->assertSame(25, app_setting()->fresh()->kiosk_verify_seconds);
+        $after = \App\Models\Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
+        $this->assertSame((float) ($before->kiosk_face_threshold ?? 0.5), (float) ($after->kiosk_face_threshold ?? 0.5));
+        $this->assertSame($before->kiosk_verify_seconds, $after->kiosk_verify_seconds);
     }
 
     // ---------- Rule (Carlos): document marking only for enrolled faces ----------
