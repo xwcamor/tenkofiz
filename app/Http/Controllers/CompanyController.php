@@ -48,6 +48,7 @@ class CompanyController extends Controller
             'tax_id' => ['nullable', 'string', 'max:20'],
             'timezone' => ['required', 'timezone:all'],
             'country' => ['required', Rule::in(array_keys(HolidayTemplate::COUNTRIES))],
+            'locale' => ['required', Rule::in(\App\Http\Middleware\SetLocale::SUPPORTED)],
             'admin_name' => ['required', 'string', 'max:100'],
             'admin_email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'admin_password' => ['required', 'string', 'min:6'],
@@ -72,6 +73,7 @@ class CompanyController extends Controller
                 'tax_id' => $data['tax_id'] ?? null,
                 'timezone' => $data['timezone'],
                 'country' => $data['country'],
+                'locale' => $data['locale'], // workspace default language
             ]);
 
             // Seed the country's recurring holiday templates for this workspace

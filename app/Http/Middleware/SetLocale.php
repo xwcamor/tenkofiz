@@ -10,11 +10,16 @@ class SetLocale
 {
     public const SUPPORTED = ['es', 'en'];
 
-    /** Applies the user's preferred language (or the session choice for guests) */
+    /**
+     * Language resolution chain: the user's personal choice, else the session
+     * toggle, else the WORKSPACE default (Settings), else the app default.
+     * The workspace default also covers its kiosks (guest + site session).
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $locale = $request->user()?->locale
             ?? $request->session()->get('locale')
+            ?? $this->workspaceLocale()
             ?? config('app.locale');
 
         if (in_array($locale, self::SUPPORTED, true)) {
@@ -22,5 +27,14 @@ class SetLocale
         }
 
         return $next($request);
+    }
+
+    private function workspaceLocale(): ?string
+    {
+        try {
+            return current_company_id() ? app_setting()->locale : null;
+        } catch (\Throwable) {
+            return null; // DB not migrated yet
+        }
     }
 }

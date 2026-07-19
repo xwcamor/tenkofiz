@@ -121,6 +121,14 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>{{ __('Default language') }}</label>
+                        <select name="locale" class="form-control">
+                            <option value="es" @selected(old('locale', 'es') === 'es')>Español</option>
+                            <option value="en" @selected(old('locale') === 'en')>English</option>
+                        </select>
+                        <small class="text-muted">{{ __('Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.') }}</small>
+                    </div>
                     <hr>
                     <p class="text-muted small mb-2"><i class="fas fa-user-shield"></i> {{ __('First administrator of the workspace (they manage everything inside it).') }}</p>
                     <div class="form-group">

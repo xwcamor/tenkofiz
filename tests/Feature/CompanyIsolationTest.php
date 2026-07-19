@@ -98,6 +98,7 @@ class CompanyIsolationTest extends TestCase
             'name' => 'NuevaCorp',
             'timezone' => 'America/Lima',
             'country' => 'PE',
+            'locale' => 'es',
             'admin_name' => 'Jefe',
             'admin_email' => 'jefe@nuevacorp.com',
             'admin_password' => 'secret123',

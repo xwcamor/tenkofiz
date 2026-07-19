@@ -115,6 +115,7 @@ class KioskFlowTest extends TestCase
             'company_name' => 'MI EMPRESA S.A.C.',
             'timezone' => 'America/Lima',
             'country' => 'PE',
+            'locale' => 'es',
             'kiosk_face_threshold' => 0.5,
             'kiosk_verify_seconds' => 25,
         ])->assertSessionHas('ok');

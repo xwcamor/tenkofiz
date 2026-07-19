@@ -907,5 +907,7 @@
     "General schedule": "Horario General",
     "Company default (:tz)": "Predeterminada de la empresa (:tz)",
     "Select a site": "Selecciona una sede",
-    "You must assign a site to the employee (the kiosk and reports are organized by site).": "Debes asignar una sede al empleado (el kiosco y los reportes se organizan por sede)."
+    "You must assign a site to the employee (the kiosk and reports are organized by site).": "Debes asignar una sede al empleado (el kiosco y los reportes se organizan por sede).",
+    "Default language": "Idioma por defecto",
+    "Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.": "Aplica a todos en el espacio de trabajo (y a sus kioscos) salvo que un usuario elija su propio idioma con el conmutador."
 }

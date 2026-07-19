@@ -77,6 +77,7 @@ class SuperAdminBoundaryTest extends TestCase
             'name' => 'Cliente Nuevo SAC',
             'timezone' => 'America/Lima',
             'country' => 'PE',
+            'locale' => 'en',
             'admin_name' => 'Admin Nuevo',
             'admin_email' => 'admin@clientenuevo.com',
             'admin_password' => 'secreto1',
@@ -93,5 +94,10 @@ class SuperAdminBoundaryTest extends TestCase
         // And its first admin belongs to THAT company
         $admin = \App\Models\User::withoutGlobalScopes()->where('email', 'admin@clientenuevo.com')->firstOrFail();
         $this->assertSame($company->id, $admin->company_id);
+
+        // Workspace default language: the new admin (no personal choice) gets it
+        $this->assertSame('en', \App\Models\Setting::withoutGlobalScopes()->where('company_id', $company->id)->value('locale'));
+        $this->actingAs($admin->fresh())->get('/employees');
+        $this->assertSame('en', app()->getLocale());
     }
 }

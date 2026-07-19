@@ -49,6 +49,15 @@
                         <small class="text-muted">{{ __('Sets the default country for the "Generate year" of holidays. You can still edit the recurring holiday templates per country.') }}</small>
                     </div>
                     <div class="form-group">
+                        <label>{{ __('Default language') }}</label>
+                        <select name="locale" class="form-control @error('locale') is-invalid @enderror" required>
+                            <option value="es" @selected(old('locale', $setting->locale ?? 'es') === 'es')>Español</option>
+                            <option value="en" @selected(old('locale', $setting->locale ?? 'es') === 'en')>English</option>
+                        </select>
+                        @error('locale')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        <small class="text-muted">{{ __('Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.') }}</small>
+                    </div>
+                    <div class="form-group">
                         <label>{{ __('Payroll cut-off day') }}</label>
                         <select name="cutoff_day" class="form-control @error('cutoff_day') is-invalid @enderror">
                             <option value="">{{ __('Calendar month (1st to last day)') }}</option>
