@@ -68,4 +68,30 @@ class SuperAdminBoundaryTest extends TestCase
         // Unambiguous: the site belongs to the workspace the super ENTERED
         $this->assertDatabaseHas('sites', ['name' => 'Sede del Super', 'company_id' => $other->id]);
     }
+
+    public function test_a_new_workspace_is_born_with_a_usable_base_schedule(): void
+    {
+        $super = $this->super();
+
+        $this->actingAs($super)->post(route('admin.companies.store'), [
+            'name' => 'Cliente Nuevo SAC',
+            'timezone' => 'America/Lima',
+            'country' => 'PE',
+            'admin_name' => 'Admin Nuevo',
+            'admin_email' => 'admin@clientenuevo.com',
+            'admin_password' => 'secreto1',
+        ])->assertSessionHas('ok');
+
+        $company = Company::where('name', 'Cliente Nuevo SAC')->firstOrFail();
+
+        // Starter kit: a base schedule with working days, so the new admin can
+        // register employees from day one (a schedule is required for that)
+        $schedule = \App\Models\Schedule::withoutGlobalScopes()->where('company_id', $company->id)->first();
+        $this->assertNotNull($schedule);
+        $this->assertSame(6, $schedule->days()->count());
+
+        // And its first admin belongs to THAT company
+        $admin = \App\Models\User::withoutGlobalScopes()->where('email', 'admin@clientenuevo.com')->firstOrFail();
+        $this->assertSame($company->id, $admin->company_id);
+    }
 }
