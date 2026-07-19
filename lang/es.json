@@ -904,5 +904,6 @@
     "To mark attendance you must first enroll your face (one time only). Complete the steps below.": "Para marcar asistencia primero debes enrolar tu rostro (solo una vez). Completa los pasos de abajo.",
     "The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.": "La cámara no está disponible y tu rostro aún no está enrolado. Pide a tu supervisor que registre tu marca manualmente.",
     "Enter a workspace first: as super-admin you manage company data from inside the workspace it belongs to.": "Primero entra a un espacio de trabajo: como super-admin administras los datos de una empresa desde dentro del espacio al que pertenecen.",
-    "General schedule": "Horario General"
+    "General schedule": "Horario General",
+    "Company default (:tz)": "Predeterminada de la empresa (:tz)"
 }

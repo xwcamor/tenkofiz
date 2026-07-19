@@ -14,7 +14,13 @@
                 <tr>
                     <td class="font-weight-500">{{ $site->name }}</td>
                     <td>{{ $site->address ?? '—' }}</td>
-                    <td>{{ $site->timezone ?? __('Company default') }}</td>
+                    <td>
+                        @if($site->timezone)
+                            {{ $site->timezone }}
+                        @else
+                            <span class="text-muted">{{ __('Company default (:tz)', ['tz' => company_timezone()]) }}</span>
+                        @endif
+                    </td>
                     <td class="text-center">{{ $site->employees_count }}</td>
                     <td><span class="badge badge-{{ $site->is_active ? 'success' : 'secondary' }}">{{ $site->is_active ? __('Active') : __('Inactive') }}</span></td>
                     <td>
@@ -136,7 +142,7 @@
                 <div class="form-group">
                     <label>{{ __('Timezone') }} <small class="text-muted">({{ __('optional; overrides the company timezone for this site') }})</small></label>
                     <select name="timezone" id="siteTimezone" class="form-control @error('timezone') is-invalid @enderror">
-                        <option value="">— {{ __('Company default') }} —</option>
+                        <option value="">— {{ __('Company default (:tz)', ['tz' => company_timezone()]) }} —</option>
                         @foreach(\DateTimeZone::listIdentifiers() as $tz)
                             <option value="{{ $tz }}">{{ $tz }}</option>
                         @endforeach
