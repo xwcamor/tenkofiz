@@ -72,9 +72,9 @@
                             @error('vacation_days_per_year')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
                         <div class="col-md-4 form-group">
-                            <label>{{ __('Site') }}</label>
-                            <select name="site_id" class="form-control @error('site_id') is-invalid @enderror">
-                                <option value="">— {{ __('No site') }} —</option>
+                            <label>{{ __('Site') }} <span class="text-danger">*</span></label>
+                            <select name="site_id" class="form-control @error('site_id') is-invalid @enderror" required>
+                                <option value="">— {{ __('Select a site') }} —</option>
                                 @foreach($sites as $site)
                                     <option value="{{ $site->id }}" @selected(old('site_id', $employee->site_id) == $site->id)>{{ $site->name }}</option>
                                 @endforeach

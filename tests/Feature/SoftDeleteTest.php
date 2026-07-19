@@ -67,7 +67,7 @@ class SoftDeleteTest extends TestCase
         $this->actingAs($admin)->post('/employees', [
             'document_type' => 'DNI', 'document_number' => '11112222',
             'first_name' => 'JOHN', 'last_name' => 'AGAIN',
-            'schedule_id' => Schedule::first()->id, 'vacation_days_per_year' => 30, 'is_active' => 1,
+            'schedule_id' => Schedule::first()->id, 'site_id' => \App\Models\Site::first()->id, 'vacation_days_per_year' => 30, 'is_active' => 1,
         ])->assertRedirect('/employees');
     }
 

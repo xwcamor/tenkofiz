@@ -21,6 +21,7 @@ class EmployeeDocumentTest extends TestCase
             'first_name' => 'JOHN',
             'last_name' => 'DOE',
             'schedule_id' => Schedule::first()->id,
+            'site_id' => \App\Models\Site::first()->id,
             'vacation_days_per_year' => 30,
             'is_active' => 1,
         ], $overrides);

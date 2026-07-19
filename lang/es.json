@@ -905,5 +905,7 @@
     "The camera is not available and your face is not enrolled yet. Ask your supervisor to register your mark manually.": "La cámara no está disponible y tu rostro aún no está enrolado. Pide a tu supervisor que registre tu marca manualmente.",
     "Enter a workspace first: as super-admin you manage company data from inside the workspace it belongs to.": "Primero entra a un espacio de trabajo: como super-admin administras los datos de una empresa desde dentro del espacio al que pertenecen.",
     "General schedule": "Horario General",
-    "Company default (:tz)": "Predeterminada de la empresa (:tz)"
+    "Company default (:tz)": "Predeterminada de la empresa (:tz)",
+    "Select a site": "Selecciona una sede",
+    "You must assign a site to the employee (the kiosk and reports are organized by site).": "Debes asignar una sede al empleado (el kiosco y los reportes se organizan por sede)."
 }
