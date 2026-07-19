@@ -84,10 +84,16 @@ class DatabaseSeeder extends Seeder
             ]);
         });
 
-        // ---- Empresa 1 (SENATI) workspace with its sedes ----
-        $senati = \App\Models\Company::firstOrCreate(['name' => 'Empresa 1'], ['tax_id' => '20131376503', 'is_active' => true]);
+        // ---- SENATI workspace with its zonales ----
+        // Tolerate the old seed name "Empresa 1": find by tax id or either name and
+        // normalize to SENATI (idempotent, never duplicates).
+        $senati = \App\Models\Company::where('tax_id', '20131376503')
+            ->orWhereIn('name', ['Empresa 1', 'SENATI'])
+            ->orderBy('id')
+            ->first() ?? \App\Models\Company::create(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
+        $senati->update(['name' => 'SENATI', 'tax_id' => '20131376503']);
 
-        CompanyScope::actingAs($senati->id, function () use ($senati) {
+        CompanyScope::actingAs($senati->id, function () use ($senati, $admin) {
             Setting::firstOrCreate(['company_id' => $senati->id], [
                 'company_name' => 'SENATI',
                 'tax_id' => '20131376503',
@@ -113,8 +119,46 @@ class DatabaseSeeder extends Seeder
                 \App\Models\Site::firstOrCreate(['name' => $name], ['address' => $address]);
             }
 
+            $this->seedStarterSchedule();
             $this->seedHolidays($senati->id);
+
+            // Test admin for this workspace
+            User::firstOrCreate(['email' => 'senati@test.com'], [
+                'name' => 'Admin SENATI', 'password' => Hash::make('123456'), 'profile_id' => $admin->id,
+            ]);
         });
+
+        // ---- TAS workspace with its sedes ----
+        $tas = \App\Models\Company::firstOrCreate(['name' => 'TAS'], ['is_active' => true]);
+
+        CompanyScope::actingAs($tas->id, function () use ($tas, $admin) {
+            Setting::firstOrCreate(['company_id' => $tas->id], [
+                'company_name' => 'TAS',
+                'timezone' => 'America/Lima',
+                'country' => 'PE',
+            ]);
+
+            foreach ([['Lima', 'Cercado de Lima, Lima'], ['San Isidro', 'San Isidro, Lima']] as [$name, $address]) {
+                \App\Models\Site::firstOrCreate(['name' => $name], ['address' => $address]);
+            }
+
+            $this->seedStarterSchedule();
+            $this->seedHolidays($tas->id);
+
+            // Test admin for this workspace
+            User::firstOrCreate(['email' => 'tas@test.com'], [
+                'name' => 'Admin TAS', 'password' => Hash::make('123456'), 'profile_id' => $admin->id,
+            ]);
+        });
+    }
+
+    /** Base schedule so the workspace can register employees from day one */
+    private function seedStarterSchedule(): void
+    {
+        $schedule = Schedule::firstOrCreate(['name' => 'Horario General'], ['tolerance_minutes' => 10]);
+        foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
+            $schedule->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '08:00:00', 'end_time' => '17:00:00']);
+        }
     }
 
     /** Seeds this company's holiday templates (PE + CL) and this year's PE holidays */
