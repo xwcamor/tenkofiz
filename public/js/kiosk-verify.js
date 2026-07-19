@@ -75,12 +75,15 @@ function eyeRatio(eye) { return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / 
 function eyeAspectRatio(landmarks) { return (eyeRatio(landmarks.getLeftEye()) + eyeRatio(landmarks.getRightEye())) / 2; }
 
 const earSamples = [];
-function blinkDetected(ear) {
+let lastBaseline = null, lastFactor = 0.83; // exposed for the debug overlay
+function blinkDetected(ear, factor = 0.83) {
+    lastFactor = factor;
     // Baseline = the person's typical OPEN eye (median of the upper half of samples)
     if (earSamples.length >= 4) {
         const sorted = [...earSamples].sort((a, b) => a - b);
         const baseline = sorted[Math.floor(sorted.length * 0.75)]; // upper quartile
-        const relativeDrop = baseline > 0.12 && ear < baseline * 0.83;
+        lastBaseline = baseline;
+        const relativeDrop = baseline > 0.12 && ear < baseline * factor;
         if (relativeDrop || ear < EAR_CLOSED) return true;
     } else if (ear < EAR_CLOSED) {
         return true;
@@ -88,6 +91,27 @@ function blinkDetected(ear) {
     earSamples.push(ear);
     if (earSamples.length > 14) earSamples.shift();
     return false;
+}
+
+/* ---------- live diagnosis (open /kiosk/verify?debug=1) ---------- */
+const DEBUG = new URLSearchParams(location.search).has('debug');
+let debugBox = null, debugSamples = 0, debugWindowStart = 0, debugHz = 0;
+function debugUpdate(ear, distance, identityOk) {
+    if (!DEBUG) return;
+    if (!debugBox) {
+        debugBox = document.createElement('div');
+        debugBox.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99;background:rgba(0,0,0,.85);color:#7CFC00;font:12px/1.5 monospace;padding:8px 10px;border-radius:8px;text-align:left';
+        document.body.appendChild(debugBox);
+    }
+    const now = Date.now();
+    debugSamples++;
+    if (now - debugWindowStart > 1000) { debugHz = debugSamples; debugSamples = 0; debugWindowStart = now; }
+    const need = lastBaseline ? (lastBaseline * lastFactor).toFixed(3) : '—';
+    debugBox.innerHTML =
+        `EAR ojo: <b>${ear !== null ? ear.toFixed(3) : '—'}</b><br>` +
+        `base: ${lastBaseline ? lastBaseline.toFixed(3) : '—'} | dispara &lt; ${need} (o &lt; ${EAR_CLOSED})<br>` +
+        `factor: ${lastFactor} | muestras/s: ${debugHz}<br>` +
+        `identidad: ${identityOk ? 'OK' : 'buscando'}${distance !== null ? ' (dist ' + distance.toFixed(3) + ' / max ' + THRESHOLD + ')' : ''}`;
 }
 
 /* ---------- startup ---------- */
@@ -148,7 +172,8 @@ async function runVerify() {
         // the blink at the camera's real frame rate. Sampling eyes through the
         // slow pass was why real blinks (~120ms) kept falling between samples.
         let blinked = !LIVENESS, sawFace = false;
-        let identityOk = false, matchedDistance = null;
+        let identityOk = false, matchedDistance = null, identityLockedAt = null;
+        let lastDistance = null;
         earSamples.length = 0; // fresh baseline per attempt
         const startAt = Date.now();
         const deadline = startAt + VERIFY_WINDOW_MS;
@@ -166,6 +191,7 @@ async function runVerify() {
             clearOverlay();
             if (!det) {
                 show('info', spinner + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
+                debugUpdate(null, lastDistance, identityOk);
                 await wait(200);
                 continue;
             }
@@ -173,15 +199,28 @@ async function runVerify() {
 
             if (!identityOk) {
                 const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
-                if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; }
+                lastDistance = d;
+                if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; identityLockedAt = Date.now(); }
             }
             drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
 
+            const ear = eyeAspectRatio(det.landmarks);
             if (LIVENESS && !blinked) {
-                blinked = blinkDetected(eyeAspectRatio(det.landmarks));
-                show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name) : I18N.blinkNow));
-            } else {
+                // The longer a confirmed person keeps trying, the more forgiving the
+                // relative threshold gets (capped at a 12% dip, which a static
+                // photo's constant ratio never produces).
+                const hunting = identityLockedAt ? Date.now() - identityLockedAt : 0;
+                const factor = hunting > 8000 ? 0.88 : (hunting > 4000 ? 0.86 : 0.83);
+                blinked = blinkDetected(ear, factor);
+            }
+            debugUpdate(ear, lastDistance, identityOk);
+
+            // Honest per-stage message: never ask for a blink while the real
+            // blocker is still the identity match.
+            if (!identityOk || blinked || !LIVENESS) {
                 show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
+            } else {
+                show('info', spinner + I18N.blinkNow);
             }
 
             if (identityOk && blinked) {
