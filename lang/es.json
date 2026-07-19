@@ -628,7 +628,6 @@
     "Type the document number of the employee to enroll (they must already be registered).": "Digite el documento del empleado a enrolar (debe estar registrado previamente).",
     "Search": "Buscar",
     "Searching...": "Buscando...",
-    "No active employee found with that document number. Register them first (e.g. via the Excel import).": "No se encontró un empleado activo con ese documento. Regístrelo primero (por ejemplo, con la importación de Excel).",
     "I accept the biometric data consent": "Acepto el consentimiento de datos biométricos",
     "Capture (3 samples)": "Capturar (3 muestras)",
     "Enrolled! The kiosk will recognize this face from now on.": "¡Enrolado! El kiosco reconocerá este rostro desde ahora.",
@@ -914,5 +913,6 @@
     "Looking for a face...": "Buscando rostro...",
     "We could not confirm your face. Look at the camera: your mark will be recorded by document with an evidence photo.": "No pudimos confirmar tu rostro. Mira a la cámara: tu marca se registrará por documento con foto de evidencia.",
     "No face was detected — nothing was recorded. Returning to the kiosk...": "No se detectó ningún rostro — no se registró nada. Volviendo al kiosco...",
-    "Mark on a non-working day according to their schedule.": "Marca en día no laborable según su horario."
+    "Mark on a non-working day according to their schedule.": "Marca en día no laborable según su horario.",
+    "No active employee found with that document number. Ask an administrator to register them first.": "No se encontró un empleado activo con ese documento. Pide a un administrador que lo registre primero."
 }

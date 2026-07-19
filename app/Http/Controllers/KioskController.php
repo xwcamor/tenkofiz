@@ -503,7 +503,7 @@ class KioskController extends Controller
         if (!$employee) {
             return response()->json([
                 'ok' => false,
-                'message' => __('No active employee found with that document number. Register them first (e.g. via the Excel import).'),
+                'message' => __('No active employee found with that document number. Ask an administrator to register them first.'),
             ], 422);
         }
 
