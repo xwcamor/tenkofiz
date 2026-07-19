@@ -128,6 +128,16 @@
 
 @push('scripts')
 <script>
+// Searchable catalog selects: type to filter areas, positions, sites and schedules
+$(function () {
+    $('#areaSelect, #positionSelect, select[name="site_id"], select[name="schedule_id"]').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        language: @json(app()->getLocale()),
+    });
+});
+</script>
+<script>
 /**
  * Optional RENIEC autofill (Decolecta API), no button needed:
  * - Fires automatically ONCE when the type is DNI and the 8th digit is typed.
@@ -239,6 +249,7 @@ async function addCatalogItem(url, selectId, label) {
         const select = document.getElementById(selectId);
         const option = new Option(data.name, data.id, true, true);
         select.add(option);
+        $(select).trigger('change'); // refresh Select2 so the new item shows as selected
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });
     } else {
         const err = await res.json();
