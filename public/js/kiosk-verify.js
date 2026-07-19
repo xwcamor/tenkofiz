@@ -10,7 +10,7 @@ const LIVENESS = !!window.KIOSK_LIVENESS;
 const REQUIRE_FACE = window.KIOSK_REQUIRE_FACE !== false;
 const VERIFY_WINDOW_MS = (Number(window.KIOSK_VERIFY_SECONDS) || 15) * 1000;
 const RESULT_PAUSE_MS = 4000;
-const EAR_OPEN = 0.25, EAR_CLOSED = 0.18;
+const EAR_CLOSED = 0.18; // absolute closed-eye threshold (the adaptive baseline handles glasses)
 const DETECTOR = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
 
 const I18N = window.KIOSK_I18N;
@@ -64,10 +64,31 @@ function captureSnapshot() {
     return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-/* Blink / liveness */
+/* Blink / liveness.
+ * Glasses (and small eyes) compress the eye-aspect-ratio, so fixed thresholds
+ * miss real blinks. The detector is ADAPTIVE: it learns the person's own
+ * open-eye baseline from recent samples and fires on a significant RELATIVE
+ * drop (or the absolute closed threshold, whichever happens first). A printed
+ * photo still fails: its ratio is constant, so there is never a drop. */
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function eyeRatio(eye) { return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * dist(eye[0], eye[3])); }
 function eyeAspectRatio(landmarks) { return (eyeRatio(landmarks.getLeftEye()) + eyeRatio(landmarks.getRightEye())) / 2; }
+
+const earSamples = [];
+function blinkDetected(ear) {
+    // Baseline = the person's typical OPEN eye (median of the upper half of samples)
+    if (earSamples.length >= 4) {
+        const sorted = [...earSamples].sort((a, b) => a - b);
+        const baseline = sorted[Math.floor(sorted.length * 0.75)]; // upper quartile
+        const relativeDrop = baseline > 0.12 && ear < baseline * 0.78;
+        if (relativeDrop || ear < EAR_CLOSED) return true;
+    } else if (ear < EAR_CLOSED) {
+        return true;
+    }
+    earSamples.push(ear);
+    if (earSamples.length > 14) earSamples.shift();
+    return false;
+}
 
 /* ---------- startup ---------- */
 async function start() {
@@ -121,7 +142,7 @@ async function runVerify() {
             refs = person.descriptors.map(d => new Float32Array(d));
         }
 
-        let blinked = !LIVENESS, sawOpen = false, sawFace = false;
+        let blinked = !LIVENESS, sawFace = false;
         const startAt = Date.now();
         const deadline = startAt + VERIFY_WINDOW_MS;
 
@@ -146,10 +167,21 @@ async function runVerify() {
             drawBox(det.detection.box, ok ? '#28a745' : '#ffc107');
 
             if (LIVENESS && !blinked) {
-                const ear = eyeAspectRatio(det.landmarks);
-                if (ear > EAR_OPEN) sawOpen = true;
-                if (sawOpen && ear < EAR_CLOSED) blinked = true;
+                blinked = blinkDetected(eyeAspectRatio(det.landmarks));
                 show('info', spinner + (blinked ? I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name) : I18N.blinkNow));
+
+                // Identity already matches and only the blink is missing: sample the
+                // eyes FAST (landmarks only, ~10x/s) so a real 120ms blink is never
+                // lost between the slow full-descriptor iterations.
+                if (ok && !blinked) {
+                    const burstUntil = Math.min(Date.now() + 1200, deadline);
+                    while (!blinked && Date.now() < burstUntil) {
+                        let quick = null;
+                        try { quick = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks(); } catch (e) { /* keep sampling */ }
+                        if (quick) blinked = blinkDetected(eyeAspectRatio(quick.landmarks));
+                        if (!blinked) await wait(70);
+                    }
+                }
             } else {
                 show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
             }
