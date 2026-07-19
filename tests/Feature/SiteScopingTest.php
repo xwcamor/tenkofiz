@@ -43,6 +43,7 @@ class SiteScopingTest extends TestCase
             'email' => 'manager_'.$site->id.'@test.com',
             'password' => 'x',
             'profile_id' => $adminProfile->id,
+            'company_id' => $site->company_id, // console context: stamp explicitly
             'site_id' => $site->id,
         ]);
     }
@@ -100,5 +101,27 @@ class SiteScopingTest extends TestCase
         $created = Employee::create(['document_number' => '55556666', 'first_name' => 'Cid', 'last_name' => 'NUEVO', 'schedule_id' => $schedule->id]);
 
         $this->assertSame($this->cusco->id, $created->site_id);
+    }
+
+    public function test_site_bound_user_only_sees_and_uses_their_own_site_in_the_form(): void
+    {
+        $manager = $this->siteManager($this->lima);
+
+        // The form only offers THEIR site
+        $sites = $this->actingAs($manager)->get('/employees/create')->viewData('sites');
+        $this->assertSame([$this->lima->id], $sites->pluck('id')->all());
+
+        // Even submitting another site's id, the employee lands in THEIR site
+        $schedule = \App\Models\Schedule::withoutGlobalScopes()->first();
+        $response = $this->actingAs($manager)->post('/employees', [
+            'document_type' => 'DNI', 'document_number' => '77665544',
+            'first_name' => 'Fija', 'last_name' => 'SEDE',
+            'schedule_id' => $schedule->id,
+            'site_id' => $this->cusco->id, // tampered
+            'vacation_days_per_year' => 30,
+        ]);
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('employees', ['document_number' => '77665544', 'site_id' => $this->lima->id]);
     }
 }

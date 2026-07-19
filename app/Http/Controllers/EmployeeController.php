@@ -47,7 +47,7 @@ class EmployeeController extends Controller
             'employees' => $employees,
             'showDeleted' => $showDeleted,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
-            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
+            'sites' => $this->visibleSites(request()),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -98,7 +98,7 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
-            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
+            'sites' => $this->visibleSites(request()),
         ]);
     }
 
@@ -121,7 +121,7 @@ class EmployeeController extends Controller
             'schedules' => Schedule::where('is_active', true)->get(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
-            'sites' => Site::where('is_active', true)->orderBy('name')->get(),
+            'sites' => $this->visibleSites(request()),
         ]);
     }
 
@@ -314,8 +314,25 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /** Site selector options: a site-bound user only ever sees THEIR site */
+    private function visibleSites(Request $request)
+    {
+        $user = $request->user();
+
+        return Site::where('is_active', true)
+            ->when($user->isSiteBound(), fn ($q) => $q->whereKey($user->site_id))
+            ->orderBy('name')
+            ->get();
+    }
+
     private function validated(Request $request, ?Employee $employee = null): array
     {
+        // A site-bound user can only register/keep employees in their own site,
+        // no matter what the submitted form claims.
+        if ($request->user()->isSiteBound()) {
+            $request->merge(['site_id' => $request->user()->site_id]);
+        }
+
         // Normalize before validating: uppercase, no spaces (passports/CE may mix letters and digits)
         $request->merge(['document_number' => strtoupper(trim((string) $request->input('document_number')))]);
 
