@@ -28,9 +28,29 @@ let cameraOk = false;
 let verifying = false;   // guards against double loops (retry spam)
 let refs = null;         // this person's enrolled descriptors
 
+let shownType = null, shownHtml = null;
 function show(type, html) {
+    // Skip identical re-renders: rewriting the same HTML every frame restarts the
+    // spinner and makes the text visibly flicker.
+    if (type === shownType && html === shownHtml) return;
+    shownType = type; shownHtml = html;
     statusBox.className = `alert alert-${type} d-inline-block px-4`;
     statusBox.innerHTML = html;
+}
+
+/* Message stabilizer (anti-dizziness). Detection jitters near the size/centre
+ * thresholds, so the raw state can flip several times a second. We only switch
+ * the DISPLAYED message once a new stage has held steady for a short while — if
+ * the state is bouncing, the last calm message simply stays on screen. */
+let coachStage = null, coachCand = null, coachCandAt = 0;
+const COACH_HOLD_MS = 650;
+function resetCoach() { coachStage = null; coachCand = null; coachCandAt = 0; }
+function coach(stage, type, html) {
+    if (stage === coachStage) { coachCand = null; return; }
+    if (coachStage === null) { coachStage = stage; show(type, html); return; } // first one instantly
+    const now = Date.now();
+    if (stage !== coachCand) { coachCand = stage; coachCandAt = now; return; }
+    if (now - coachCandAt >= COACH_HOLD_MS) { coachStage = stage; coachCand = null; show(type, html); }
 }
 function clearOverlay() { overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height); }
 function drawBox(box, color) {
@@ -52,21 +72,26 @@ function ovalGeom() {
     return { cx: W / 2, cy: H / 2, rx: R * 0.62, ry: R * 0.82 };
 }
 const videoFrame = document.querySelector('.video-frame');
+let lastOvalGreenAt = 0;
 function drawGuideOval(ok) {
+    // Keep the green a short while after the last good frame so the border does
+    // not blink green/white when detection jitters right at the threshold.
+    if (ok) lastOvalGreenAt = Date.now();
+    const green = ok || (Date.now() - lastOvalGreenAt < 400);
     const ctx = overlay.getContext('2d');
     const { cx, cy, rx, ry } = ovalGeom();
     ctx.save();
     ctx.setLineDash([16, 12]);
     ctx.lineWidth = 6;
-    ctx.strokeStyle = ok ? '#28a745' : 'rgba(255,255,255,.9)';
+    ctx.strokeStyle = green ? '#28a745' : 'rgba(255,255,255,.9)';
     ctx.shadowColor = 'rgba(0,0,0,.5)';
     ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-    // On the white camera page the circular frame border echoes the state
-    if (videoFrame) videoFrame.classList.toggle('face-ok', !!ok);
+    // On the white camera page the circular frame border echoes the (smoothed) state
+    if (videoFrame) videoFrame.classList.toggle('face-ok', green);
 }
 
 /* Placement relative to the visible circle → drives the come-closer / center /
@@ -75,17 +100,25 @@ function drawGuideOval(ok) {
  * what makes the circle meaningful (and sets a consistent capture distance —
  * ~50 cm on a tablet) instead of accepting a tiny far-away face. Returns:
  * 'none' | 'far' | 'close' | 'offcenter' | 'ok'. */
+let lastPlace = 'none';
 function facePlacement(box) {
-    if (!box) return 'none';
+    if (!box) { lastPlace = 'none'; return 'none'; }
     const W = overlay.width, H = overlay.height;
     const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2;
     const bcx = box.x + box.width / 2, bcy = box.y + box.height / 2;
     const off = Math.hypot(bcx - cx, bcy - cy);
     const h = box.height;
-    if (h < R * 0.85) return 'far';        // face too small → come closer
-    if (h > R * 1.75) return 'close';      // face too big → back off a little
-    if (off > R * 0.45) return 'offcenter';
-    return 'ok';
+    // Hysteresis: once OK it takes a bit more drift to fall out of OK, so a face
+    // hovering exactly on a threshold does not bounce in and out.
+    const ok = lastPlace === 'ok';
+    const nearFar = ok ? 0.80 : 0.85, tooClose = ok ? 1.85 : 1.75, offMax = ok ? 0.52 : 0.45;
+    let place;
+    if (h < R * nearFar) place = 'far';
+    else if (h > R * tooClose) place = 'close';
+    else if (off > R * offMax) place = 'offcenter';
+    else place = 'ok';
+    lastPlace = place;
+    return place;
 }
 function faceWellPlaced(box) { return facePlacement(box) === 'ok'; }
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -254,6 +287,7 @@ async function runVerify() {
     verifying = true;
     hideActions();
     clearOverlay();
+    resetCoach();
 
     try {
         if (!refs) {
@@ -292,8 +326,10 @@ async function runVerify() {
             clearOverlay();
             setFaceChip(!!det);
             if (!det) {
+                // No face and "too far" share ONE message/stage, so a face blinking
+                // in and out of detection does not swap the text back and forth.
                 drawGuideOval(false);
-                show('info', '<i class="fas fa-user-circle"></i> ' + I18N.placeFaceInOval);
+                coach('far', 'warning', '<i class="fas fa-arrow-up-right-dots"></i> ' + I18N.comeCloser2);
                 debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(200);
                 continue;
@@ -308,12 +344,12 @@ async function runVerify() {
             drawGuideOval(place === 'ok');
             if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
             if (place !== 'ok') {
-                const coach = place === 'far' ? I18N.comeCloser2
-                    : place === 'close' ? I18N.moveBack
-                    : I18N.centerFace;
-                const icon = place === 'far' ? 'fa-arrow-up-right-dots'
-                    : place === 'close' ? 'fa-arrows-to-dot' : 'fa-crosshairs';
-                show('warning', `<i class="fas ${icon}"></i> ` + coach);
+                const c = place === 'close'
+                    ? ['close', 'fa-arrows-to-dot', I18N.moveBack]
+                    : place === 'offcenter'
+                        ? ['offcenter', 'fa-crosshairs', I18N.centerFace]
+                        : ['far', 'fa-arrow-up-right-dots', I18N.comeCloser2];
+                coach(c[0], 'warning', `<i class="fas ${c[1]}"></i> ` + c[2]);
                 debugUpdate(headPose(det.landmarks), lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(120);
                 continue;
@@ -355,12 +391,12 @@ async function runVerify() {
             }
             debugUpdate(pose, lastDistance, identityOk, challenge, pitchBaseline);
 
-            // Honest per-stage message: never ask for the gesture while the real
-            // blocker is still the identity match.
+            // Honest per-stage message (stabilized): never ask for the gesture
+            // while the real blocker is still the identity match.
             if (challenge && !challengeDone) {
-                show('info', spinner + challengeLabel(challenge));
+                coach('gesture-' + challenge, 'info', spinner + challengeLabel(challenge));
             } else {
-                show('info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
+                coach('confirm', 'info', spinner + I18N.lookAtCamera.replace(':name', window.EMPLOYEE.name));
             }
 
             if (identityOk && challengeDone) {

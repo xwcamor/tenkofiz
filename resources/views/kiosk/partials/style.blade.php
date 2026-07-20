@@ -107,4 +107,6 @@
     body.kiosk-cam #result .alert-success { background: #d7f3df; color: #17663a; }
     body.kiosk-cam #result .alert-secondary { background: #eef2f7; color: #33475b; }
     body.kiosk-cam #result .alert i { margin-right: .4rem; }
+    /* The big banner already states the state; the little chip only added flicker */
+    body.kiosk-cam #faceChip { display: none !important; }
 </style>
