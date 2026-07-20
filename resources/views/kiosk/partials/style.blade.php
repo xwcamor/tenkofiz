@@ -64,7 +64,9 @@
        free white screen with the live camera cropped to a circle, RENIEC-style.
        The keypad and other kiosk pages keep the dark theme. */
     body.kiosk-cam { background: #f4f7fb; color: #22303f; }
-    body.kiosk-cam .person-chip { background: #eaf1f9; border-color: #cdddef; color: #1f4b73; }
+    /* Name chip — big enough to read from the door */
+    body.kiosk-cam .person-chip { background: #eaf1f9; border-color: #cdddef; color: #1f4b73; font-size: 1.35rem; padding: .5rem 1.5rem; }
+    body.kiosk-cam .container > .d-flex .btn-sm { font-size: 1rem; padding: .4rem .8rem; }
     body.kiosk-cam .btn-outline-light { color: #33475b; border-color: #b7c5d6; }
     body.kiosk-cam .kiosk-help { color: #5b6b7d; }
     body.kiosk-cam .form-check-label.text-light { color: #33475b !important; }
@@ -94,14 +96,14 @@
     }
     /* Countdown shown BELOW the circle, big and readable on white */
     body.kiosk-cam .kiosk-countdown {
-        font-size: 2.2rem; font-weight: 800; color: #2e75b6;
+        font-size: 2.8rem; font-weight: 800; color: #2e75b6;
         line-height: 1; margin: .6rem auto .1rem;
     }
     /* Big, high-contrast instruction banner (readable from a distance) */
     body.kiosk-cam #result .alert {
-        font-size: 1.35rem; font-weight: 700; line-height: 1.3;
-        padding: .8rem 1.4rem; border-radius: 14px; border: 0;
-        max-width: 520px; box-shadow: 0 6px 20px rgba(20, 50, 90, .10);
+        font-size: 1.7rem; font-weight: 700; line-height: 1.3;
+        padding: 1rem 1.6rem; border-radius: 16px; border: 0;
+        max-width: 620px; box-shadow: 0 6px 20px rgba(20, 50, 90, .10);
     }
     body.kiosk-cam #result .alert-info { background: #e7f1fb; color: #14508a; }
     body.kiosk-cam #result .alert-warning { background: #fff3cd; color: #8a5a00; }
@@ -110,4 +112,15 @@
     body.kiosk-cam #result .alert i { margin-right: .4rem; }
     /* The big banner already states the state; the little chip only added flicker */
     body.kiosk-cam #faceChip { display: none !important; }
+
+    /* Break / early-exit choice — big title and buttons, readable and tappable */
+    body.kiosk-cam #actionChoice { max-width: 620px !important; }
+    body.kiosk-cam #actionChoiceTitle { color: #22303f !important; font-size: 1.9rem; font-weight: 800; }
+    body.kiosk-cam #actionChoiceBody { color: #5b6b7d; font-size: 1.15rem; }
+    body.kiosk-cam #actionChoiceButtons .btn { font-size: 1.5rem; font-weight: 700; padding: .9rem 1.8rem; border-radius: 14px; }
+
+    /* Self-enrollment card text a bit larger too */
+    body.kiosk-cam .kiosk-card h6 { font-size: 1.3rem; }
+    body.kiosk-cam .kiosk-card .btn { font-size: 1.15rem; padding: .7rem 1.2rem; }
+    body.kiosk-cam .kiosk-help { font-size: 1.02rem; }
 </style>
