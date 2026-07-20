@@ -45,29 +45,29 @@ class ReportController extends Controller
         $headers = [
             __('Employee'), __('Document'), __('Contract type'), __('Site'), __('Address'), __('Area'), __('Position'),
             __('Worked days'), __('On time'), __('Late'), __('Late minutes'),
-            __('Absences'), __('Excused'), __('Worked hours'), __('Vacation days'),
+            __('Absences'), __('Excused'), __('Expected hours'), __('Worked hours'), __('Balance'), __('Vacation days'),
         ];
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 1], $header);
         }
-        $sheet->getStyle('A1:O1')->applyFromArray([
+        $sheet->getStyle('A1:Q1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
         ]);
         $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A2:O2');
+        $sheet->mergeCells('A2:Q2');
 
         $rowIndex = 3;
         foreach ($rows as $row) {
             $sheet->fromArray([
                 $row['employee'], $row['document'], $row['contract_type'], $row['site'], $row['site_address'], $row['area'], $row['position'],
                 $row['worked_days'], $row['on_time'], $row['late'], $row['late_minutes'],
-                $row['absent'], $row['excused'], $row['worked_hours'], $row['vacation_days'],
+                $row['absent'], $row['excused'], $row['expected_hours'], $row['worked_hours'], $row['balance_hours'], $row['vacation_days'],
             ], null, 'A'.$rowIndex++);
         }
-        foreach (range('A', 'O') as $column) {
+        foreach (range('A', 'Q') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -178,14 +178,22 @@ class ReportController extends Controller
             $attendances = $employee->attendances;
 
             $minutes = 0;
+            $expectedMinutes = 0;
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
-                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
+                $weekday = $attendance->date->dayOfWeek;
+                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($weekday) : null;
                 $minutes += $attendance->workedMinutes($shift);
+
+                // Expected minutes (the "jornada") only on days actually worked, so a
+                // short day (late in / early out) shows as a deficit vs what was due.
+                if ($attendance->check_in && $attendance->check_out) {
+                    $expectedMinutes += $employee->schedule?->expectedMinutesFor($weekday) ?? 0;
+                }
 
                 // Late minutes: how far past the scheduled start the check-in was
                 if ($attendance->status === 'LATE' && $attendance->check_in) {
-                    $shift = $employee->schedule?->worksOn($attendance->date->dayOfWeek);
+                    $shift = $employee->schedule?->worksOn($weekday);
                     if ($shift) {
                         $scheduled = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$shift->start_time);
                         $actual = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
@@ -193,6 +201,7 @@ class ReportController extends Controller
                     }
                 }
             }
+            $balanceMinutes = $minutes - $expectedMinutes;
 
             return [
                 'id' => $employee->id,
@@ -212,6 +221,10 @@ class ReportController extends Controller
                 'excused' => $attendances->where('status', 'EXCUSED')->count(),
                 'worked_hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
                 'worked_minutes' => $minutes,
+                'expected_hours' => sprintf('%d:%02d', intdiv($expectedMinutes, 60), $expectedMinutes % 60),
+                'expected_minutes' => $expectedMinutes,
+                'balance_minutes' => $balanceMinutes,
+                'balance_hours' => sprintf('%s%d:%02d', $balanceMinutes < 0 ? '-' : '+', intdiv(abs($balanceMinutes), 60), abs($balanceMinutes) % 60),
                 'vacation_days' => $employee->vacations->sum('days'),
             ];
         });
@@ -258,13 +271,19 @@ class ReportController extends Controller
         $clamp = (bool) $setting->clamp_worked_hours;
 
         $minutes = 0;
+        $expectedMinutes = 0;
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
-            $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
+            $weekday = $attendance->date->dayOfWeek;
+            $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($weekday) : null;
             $minutes += $attendance->workedMinutes($shift);
 
+            if ($attendance->check_in && $attendance->check_out) {
+                $expectedMinutes += $employee->schedule?->expectedMinutesFor($weekday) ?? 0;
+            }
+
             if ($attendance->status === 'LATE' && $attendance->check_in) {
-                $shift = $employee->schedule?->worksOn($attendance->date->dayOfWeek);
+                $shift = $employee->schedule?->worksOn($weekday);
                 if ($shift) {
                     $scheduled = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$shift->start_time);
                     $actual = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
@@ -272,6 +291,7 @@ class ReportController extends Controller
                 }
             }
         }
+        $balanceMinutes = $minutes - $expectedMinutes;
 
         $summary = [
             'days' => $attendances->whereIn('status', ['ON_TIME', 'LATE'])->count(),
@@ -281,6 +301,9 @@ class ReportController extends Controller
             'absent' => $attendances->where('status', 'ABSENT')->count(),
             'excused' => $attendances->where('status', 'EXCUSED')->count(),
             'hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
+            'expected_hours' => sprintf('%d:%02d', intdiv($expectedMinutes, 60), $expectedMinutes % 60),
+            'balance' => sprintf('%s%d:%02d', $balanceMinutes < 0 ? '-' : '+', intdiv(abs($balanceMinutes), 60), abs($balanceMinutes) % 60),
+            'balance_minutes' => $balanceMinutes,
         ];
 
         $vacations = $employee->vacations()

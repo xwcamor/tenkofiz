@@ -172,6 +172,20 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
     }
 
+    public function test_expected_minutes_reflect_the_schedule_type(): void
+    {
+        $fixed = Schedule::withoutGlobalScopes()->first(); // General 08:00–17:00 = 9h
+        $this->assertSame(540, $fixed->expectedMinutesFor(4)); // Thursday
+
+        $flexible = Schedule::withoutGlobalScopes()->create([
+            'company_id' => $fixed->company_id, 'name' => 'Flex '.uniqid(),
+            'type' => Schedule::TYPE_FLEXIBLE, 'tolerance_minutes' => 0, 'target_minutes' => 240,
+        ]);
+        $flexible->days()->create(['weekday' => 4, 'start_time' => '00:00:00', 'end_time' => '00:00:00']);
+        $flexible->load('days');
+        $this->assertSame(240, $flexible->expectedMinutesFor(4)); // target, not shift length
+    }
+
     // ---------- Keypad pre-check: fail fast before the camera ----------
 
     public function test_lookup_warns_when_it_is_too_early_to_check_in(): void

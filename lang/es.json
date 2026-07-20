@@ -939,5 +939,8 @@
     "A flexible schedule needs a daily hour target.": "Un horario flexible necesita una meta de horas por día.",
     "Contract type": "Tipo de contrato",
     "Full-time": "Tiempo completo",
-    "Part-time": "Medio tiempo"
+    "Part-time": "Medio tiempo",
+    "Expected hours": "Horas esperadas",
+    "Balance": "Saldo",
+    "Expected = the hours due per their schedule on the days worked; Worked = the hours actually completed; Balance = the difference (a chronic late arrival or early leave shows as a negative). Use the buttons to export to Excel or print.": "Esperadas = las horas que debía según su horario en los días trabajados; Trabajadas = las horas realmente cumplidas; Saldo = la diferencia (llegar tarde o salir antes de forma habitual sale en negativo). Usa los botones para exportar a Excel o imprimir."
 }

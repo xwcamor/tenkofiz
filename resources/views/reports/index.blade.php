@@ -50,7 +50,7 @@
                 <tr>
                     <th>{{ __('Employee') }}</th><th>{{ __('Document') }}</th><th>{{ __('Site') }}</th><th>{{ __('Area') }}</th><th>{{ __('Position') }}</th>
                     <th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th>
-                    <th>{{ __('Worked hours') }}</th><th>{{ __('Vacation days') }}</th><th>{{ __('Sheet') }}</th>
+                    <th>{{ __('Expected hours') }}</th><th>{{ __('Worked hours') }}</th><th>{{ __('Balance') }}</th><th>{{ __('Vacation days') }}</th><th>{{ __('Sheet') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -67,7 +67,9 @@
                     <td class="text-center">{{ $row['late_minutes'] }}</td>
                     <td class="text-center text-danger font-weight-bold">{{ $row['absent'] }}</td>
                     <td class="text-center">{{ $row['excused'] }}</td>
-                    <td class="text-center">{{ $row['worked_hours'] }}</td>
+                    <td class="text-center text-muted">{{ $row['expected_hours'] }}</td>
+                    <td class="text-center font-weight-bold">{{ $row['worked_hours'] }}</td>
+                    <td class="text-center font-weight-bold {{ $row['balance_minutes'] < 0 ? 'text-danger' : 'text-success' }}">{{ $row['balance_hours'] }}</td>
                     <td class="text-center">{{ $row['vacation_days'] }}</td>
                     <td class="text-center">
                         <a href="{{ route('reports.sheet', $row['id']) }}?from={{ $from->toDateString() }}&to={{ $to->toDateString() }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
@@ -76,7 +78,7 @@
             @endforeach
             </tbody>
         </table>
-        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {{ __('Worked hours are the sum of (check-out − check-in) for each day with a complete record. Use the buttons to export to Excel or print.') }}</p>
+        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {{ __('Expected = the hours due per their schedule on the days worked; Worked = the hours actually completed; Balance = the difference (a chronic late arrival or early leave shows as a negative). Use the buttons to export to Excel or print.') }}</p>
     </div>
 </div>
 @endsection

@@ -208,6 +208,24 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   3 h después) y breaks tipo ZKTeco (entrada / salida a break / retorno / salida)
   requieren el modelo de **marcas múltiples** por día — otra fase.
 
+### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Saldo
+El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) compara tres
+cosas por empleado en el periodo:
+- **Horas esperadas** (`Schedule::expectedMinutesFor(weekday)`): la "jornada" que
+  debía — largo del turno en horario **fijo**, o la **meta diaria** en **flexible**.
+  Se suma **solo en los días efectivamente trabajados** (con entrada y salida), para
+  que un día corto salga como déficit y no se mezcle con las faltas.
+- **Horas trabajadas**: las realmente cumplidas (recortadas al turno en fijo, §1.4b).
+- **Saldo** = trabajadas − esperadas (negativo = llegó tarde / salió antes de forma
+  habitual; positivo = trabajó de más).
+
+Punto clave a entender: **la tolerancia solo afecta la ETIQUETA** (PUNTUAL/TARDANZA),
+no las horas. Las horas siempre se cuentan desde la marca real (por el recorte), así
+un profesor que entra 4 min tarde sale PUNTUAL pero su Saldo baja 4 min/día — el
+reporte lo delata. El control del tiempo se hace **a posteriori en Reportes** (no en
+tiempo real en la fila): el supervisor observa puntualidad (tardanzas + minutos) y
+cumplimiento (esperadas vs trabajadas + saldo).
+
 ### 1.4b Horas trabajadas: recorte al horario (`settings.clamp_worked_hours`)
 Las horas de los reportes se calculan en `Attendance::workedMinutes(?$shift)`:
 - **ACTIVADO (por defecto)**: las horas se **recortan al turno** — ventana pagada =

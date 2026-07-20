@@ -81,7 +81,7 @@
 
 <div class="section">II. {{ __('Period Summary') }}</div>
 <table class="summary">
-    <tr><th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th><th>{{ __('Worked hours') }}</th></tr>
+    <tr><th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th><th>{{ __('Expected hours') }}</th><th>{{ __('Worked hours') }}</th><th>{{ __('Balance') }}</th></tr>
     <tr>
         <td>{{ $summary['days'] }}</td>
         <td style="color:#28a745">{{ $summary['on_time'] }}</td>
@@ -89,7 +89,9 @@
         <td style="color:#d39e00">{{ $summary['late_minutes'] }}</td>
         <td style="color:#dc3545">{{ $summary['absent'] }}</td>
         <td style="color:#17a2b8">{{ $summary['excused'] }}</td>
+        <td>{{ $summary['expected_hours'] }} hrs</td>
         <td>{{ $summary['hours'] }} hrs</td>
+        <td style="color:{{ $summary['balance_minutes'] < 0 ? '#dc3545' : '#28a745' }};font-weight:bold">{{ $summary['balance'] }}</td>
     </tr>
 </table>
 

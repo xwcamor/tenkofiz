@@ -44,6 +44,32 @@ class Schedule extends Model
         return $this->days->firstWhere('weekday', $weekday);
     }
 
+    /**
+     * Minutes the person is EXPECTED to work on a given weekday. For a flexible
+     * schedule that is the daily hour target; for a fixed one it is the shift
+     * length (overnight-aware). 0 when they do not work that day. This is the
+     * "jornada laboral" the report compares actual worked minutes against.
+     */
+    public function expectedMinutesFor(int $weekday): int
+    {
+        if ($this->isFlexible()) {
+            return (int) ($this->target_minutes ?? 0);
+        }
+
+        $shift = $this->worksOn($weekday);
+        if (!$shift) {
+            return 0;
+        }
+
+        $start = \Carbon\Carbon::parse('2000-01-01 '.$shift->start_time);
+        $end = \Carbon\Carbon::parse('2000-01-01 '.$shift->end_time);
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay(); // overnight shift
+        }
+
+        return (int) $start->diffInMinutes($end);
+    }
+
     /** Short summary such as "Mon–Sat 08:00–17:00" or "Custom" when days differ */
     public function daysSummary(): string
     {
