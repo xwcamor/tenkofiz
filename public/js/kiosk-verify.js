@@ -45,18 +45,22 @@ function drawBox(box, color) {
  * position and distance so recognition and the liveness gesture read clean
  * landmarks — fewer failed verifications and fewer drops to the evidence phase.
  * It is a GUIDE only: it never blocks marking, it just helps the person frame. */
+// Face-shaped oval (vertical), sized to the visible circle so it reads as a target
+// to FILL by coming closer — the way phone Face-ID / bank kiosks do it.
 function ovalGeom() {
-    const w = overlay.width, h = overlay.height;
-    return { cx: w / 2, cy: h * 0.47, rx: w * 0.30, ry: h * 0.40 };
+    const W = overlay.width, H = overlay.height, R = Math.min(W, H) / 2;
+    return { cx: W / 2, cy: H / 2, rx: R * 0.62, ry: R * 0.82 };
 }
 const videoFrame = document.querySelector('.video-frame');
 function drawGuideOval(ok) {
     const ctx = overlay.getContext('2d');
     const { cx, cy, rx, ry } = ovalGeom();
     ctx.save();
-    ctx.setLineDash([14, 11]);
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = ok ? '#28a745' : 'rgba(255,255,255,.8)';
+    ctx.setLineDash([16, 12]);
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = ok ? '#28a745' : 'rgba(255,255,255,.9)';
+    ctx.shadowColor = 'rgba(0,0,0,.5)';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
@@ -64,20 +68,26 @@ function drawGuideOval(ok) {
     // On the white camera page the circular frame border echoes the state
     if (videoFrame) videoFrame.classList.toggle('face-ok', !!ok);
 }
-// Whether the face sits properly inside the VISIBLE circle. The camera is shown
-// cropped to a circle (object-fit: cover centers the frame), so the visible circle
-// in canvas coordinates is centred with radius = min(W,H)/2. We require the face to
-// be centred in it and at a sensible size — this is what makes the circle actually
-// matter (recognition itself reads the whole frame, so without this check a face
-// half-out of the circle would still validate).
-function faceWellPlaced(box) {
+
+/* Placement relative to the visible circle → drives the come-closer / center /
+ * hold-still coaching. The oval is a TARGET TO FILL: the person must be close
+ * enough that the face fills a good part of the circle, and centred. This is
+ * what makes the circle meaningful (and sets a consistent capture distance —
+ * ~50 cm on a tablet) instead of accepting a tiny far-away face. Returns:
+ * 'none' | 'far' | 'close' | 'offcenter' | 'ok'. */
+function facePlacement(box) {
+    if (!box) return 'none';
     const W = overlay.width, H = overlay.height;
     const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2;
     const bcx = box.x + box.width / 2, bcy = box.y + box.height / 2;
-    const centered = Math.hypot(bcx - cx, bcy - cy) < R * 0.40;
-    const sized = box.height > R * 0.50 && box.height < R * 1.55; // not too far, not too close
-    return centered && sized;
+    const off = Math.hypot(bcx - cx, bcy - cy);
+    const h = box.height;
+    if (h < R * 0.85) return 'far';        // face too small → come closer
+    if (h > R * 1.75) return 'close';      // face too big → back off a little
+    if (off > R * 0.45) return 'offcenter';
+    return 'ok';
 }
+function faceWellPlaced(box) { return facePlacement(box) === 'ok'; }
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 function setProgress(pct) { document.getElementById('verifyProgress').style.width = pct + '%'; }
 function setCountdown(seconds) {
@@ -283,21 +293,27 @@ async function runVerify() {
             setFaceChip(!!det);
             if (!det) {
                 drawGuideOval(false);
-                show('info', spinner + I18N.placeFaceInOval);
+                show('info', '<i class="fas fa-user-circle"></i> ' + I18N.placeFaceInOval);
                 debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(200);
                 continue;
             }
             sawFace = true;
 
-            // The circle must actually matter: until the face is properly inside
-            // it, we neither confirm identity nor run the gesture. This is what
-            // stops a mark from succeeding with the face half-out of the circle.
-            const placed = faceWellPlaced(det.detection.box);
-            drawGuideOval(placed);
+            // The circle must actually matter: until the face FILLS it and is
+            // centred, we neither confirm identity nor run the gesture. This sets a
+            // consistent capture distance and stops a mark from succeeding with a
+            // tiny far-away or half-out face (recognition reads the whole frame).
+            const place = facePlacement(det.detection.box);
+            drawGuideOval(place === 'ok');
             if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
-            if (!placed) {
-                show('info', spinner + I18N.placeFaceInOval);
+            if (place !== 'ok') {
+                const coach = place === 'far' ? I18N.comeCloser2
+                    : place === 'close' ? I18N.moveBack
+                    : I18N.centerFace;
+                const icon = place === 'far' ? 'fa-arrow-up-right-dots'
+                    : place === 'close' ? 'fa-arrows-to-dot' : 'fa-crosshairs';
+                show('warning', `<i class="fas ${icon}"></i> ` + coach);
                 debugUpdate(headPose(det.landmarks), lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(120);
                 continue;

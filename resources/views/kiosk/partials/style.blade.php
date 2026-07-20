@@ -93,8 +93,18 @@
     }
     /* Countdown shown BELOW the circle, big and readable on white */
     body.kiosk-cam .kiosk-countdown {
-        font-size: 2rem; font-weight: 800; color: #2e75b6;
+        font-size: 2.2rem; font-weight: 800; color: #2e75b6;
         line-height: 1; margin: .6rem auto .1rem;
     }
-    body.kiosk-cam #result .alert { font-size: 1.05rem; }
+    /* Big, high-contrast instruction banner (readable from a distance) */
+    body.kiosk-cam #result .alert {
+        font-size: 1.35rem; font-weight: 700; line-height: 1.3;
+        padding: .8rem 1.4rem; border-radius: 14px; border: 0;
+        max-width: 520px; box-shadow: 0 6px 20px rgba(20, 50, 90, .10);
+    }
+    body.kiosk-cam #result .alert-info { background: #e7f1fb; color: #14508a; }
+    body.kiosk-cam #result .alert-warning { background: #fff3cd; color: #8a5a00; }
+    body.kiosk-cam #result .alert-success { background: #d7f3df; color: #17663a; }
+    body.kiosk-cam #result .alert-secondary { background: #eef2f7; color: #33475b; }
+    body.kiosk-cam #result .alert i { margin-right: .4rem; }
 </style>
