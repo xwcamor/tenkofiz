@@ -84,6 +84,7 @@
         background: #dfe7f1;
         transition: border-color .2s;
     }
+    body.kiosk-cam .video-frame.face-adjust { border-color: #e0a800; }
     body.kiosk-cam .video-frame.face-ok { border-color: #28a745; }
     body.kiosk-cam .video-frame video,
     body.kiosk-cam .video-frame canvas {

@@ -59,39 +59,23 @@ function drawBox(box, color) {
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 }
 
-/* ---------- face-placement guide (oval, RENIEC-style) ----------
- * A dashed vertical oval over the video: white while the face is missing or
- * poorly framed, green when it is centered and at a good size. It standardizes
- * position and distance so recognition and the liveness gesture read clean
- * landmarks — fewer failed verifications and fewer drops to the evidence phase.
- * It is a GUIDE only: it never blocks marking, it just helps the person frame. */
-// Face-shaped oval (vertical), sized to the visible circle so it reads as a target
-// to FILL by coming closer — the way phone Face-ID / bank kiosks do it.
-function ovalGeom() {
-    const W = overlay.width, H = overlay.height, R = Math.min(W, H) / 2;
-    return { cx: W / 2, cy: H / 2, rx: R * 0.62, ry: R * 0.82 };
-}
+/* ---------- face-placement guide (RENIEC-style) ----------
+ * The circular camera frame itself is the guide: its border reacts to what the
+ * camera detects (blue searching, amber adjusting, green ready). The person
+ * fills the circle by coming closer, the way phone Face-ID / bank kiosks work. */
 const videoFrame = document.querySelector('.video-frame');
 let lastOvalGreenAt = 0;
-function drawGuideOval(ok) {
-    // Keep the green a short while after the last good frame so the border does
-    // not blink green/white when detection jitters right at the threshold.
-    if (ok) lastOvalGreenAt = Date.now();
-    const green = ok || (Date.now() - lastOvalGreenAt < 400);
-    const ctx = overlay.getContext('2d');
-    const { cx, cy, rx, ry } = ovalGeom();
-    ctx.save();
-    ctx.setLineDash([16, 12]);
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = green ? '#28a745' : 'rgba(255,255,255,.9)';
-    ctx.shadowColor = 'rgba(0,0,0,.5)';
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    // On the white camera page the circular frame border echoes the (smoothed) state
-    if (videoFrame) videoFrame.classList.toggle('face-ok', green);
+/* Single guide: the circular FRAME border reacts to what the camera detects —
+ * blue while searching/positioning, amber while adjusting, green when ready.
+ * (No second dashed oval drawn on the canvas: one clean indicator, not two.)
+ *   state: 'idle' | 'adjust' | 'ok'  */
+function setRing(state) {
+    if (!videoFrame) return;
+    // Hold the green briefly so the border does not blink at the threshold.
+    if (state === 'ok') lastOvalGreenAt = Date.now();
+    const green = state === 'ok' || (Date.now() - lastOvalGreenAt < 400);
+    videoFrame.classList.toggle('face-ok', green);
+    videoFrame.classList.toggle('face-adjust', !green && state === 'adjust');
 }
 
 /* Placement relative to the visible circle → drives the come-closer / center /
@@ -120,7 +104,6 @@ function facePlacement(box) {
     lastPlace = place;
     return place;
 }
-function faceWellPlaced(box) { return facePlacement(box) === 'ok'; }
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 function setProgress(pct) { document.getElementById('verifyProgress').style.width = pct + '%'; }
 function setCountdown(seconds) {
@@ -211,8 +194,8 @@ function challengeMet(challenge, pose, pitchBaseline) {
     return pitchBaseline > 0 && Math.abs(pose.pitch - pitchBaseline) / pitchBaseline >= NOD_DELTA;
 }
 function challengeLabel(challenge) {
-    if (challenge === 'turn') return '<i class="fas fa-arrows-alt-h"></i> ' + I18N.challengeTurn;
-    return '<i class="fas fa-arrows-alt-v"></i> ' + I18N.challengeNod;
+    if (challenge === 'turn') return '<i class="fas fa-arrows-left-right"></i> ' + I18N.challengeTurn;
+    return '<i class="fas fa-arrows-up-down"></i> ' + I18N.challengeNod;
 }
 // The gesture instruction is shown in the status box below the circle (readable on
 // the white background); there is no longer any text overlaid on the video.
@@ -328,8 +311,8 @@ async function runVerify() {
             if (!det) {
                 // No face and "too far" share ONE message/stage, so a face blinking
                 // in and out of detection does not swap the text back and forth.
-                drawGuideOval(false);
-                coach('far', 'warning', '<i class="fas fa-arrow-up-right-dots"></i> ' + I18N.comeCloser2);
+                setRing('idle');
+                coach('far', 'warning', '<i class="fas fa-magnifying-glass-plus"></i> ' + I18N.comeCloser2);
                 debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(200);
                 continue;
@@ -341,14 +324,14 @@ async function runVerify() {
             // consistent capture distance and stops a mark from succeeding with a
             // tiny far-away or half-out face (recognition reads the whole frame).
             const place = facePlacement(det.detection.box);
-            drawGuideOval(place === 'ok');
+            setRing(place === 'ok' ? 'ok' : 'adjust');
             if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
             if (place !== 'ok') {
                 const c = place === 'close'
-                    ? ['close', 'fa-arrows-to-dot', I18N.moveBack]
+                    ? ['close', 'fa-magnifying-glass-minus', I18N.moveBack]
                     : place === 'offcenter'
                         ? ['offcenter', 'fa-crosshairs', I18N.centerFace]
-                        : ['far', 'fa-arrow-up-right-dots', I18N.comeCloser2];
+                        : ['far', 'fa-magnifying-glass-plus', I18N.comeCloser2];
                 coach(c[0], 'warning', `<i class="fas ${c[1]}"></i> ` + c[2]);
                 debugUpdate(headPose(det.landmarks), lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(120);
@@ -448,11 +431,11 @@ async function evidencePhase() {
         setFaceChip(!!det);
 
         if (det) {
-            drawGuideOval(faceWellPlaced(det.detection.box));
+            setRing('ok');
             setCountdown(null);
             return autoMarkByDocument(); // face on camera -> snapshot is meaningful evidence
         }
-        drawGuideOval(false);
+        setRing('idle');
         await wait(200);
     }
 
@@ -547,8 +530,8 @@ async function waitForAnyFace(ms) {
         let det;
         try { det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks(); } catch (e) { det = null; }
         clearOverlay();
-        if (det) { drawGuideOval(faceWellPlaced(det.detection.box)); return true; }
-        drawGuideOval(false);
+        if (det) { setRing('ok'); return true; }
+        setRing('idle');
         await wait(250);
     }
     return false;
@@ -603,7 +586,7 @@ async function enrollNow() {
         for (let attempt = 0; attempt < 6 && !detection; attempt++) {
             try { detection = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { /* retry */ }
             clearOverlay();
-            drawGuideOval(detection ? faceWellPlaced(detection.detection.box) : false);
+            setRing(detection ? 'ok' : 'idle');
             if (!detection) await wait(500);
         }
         if (!detection) {
