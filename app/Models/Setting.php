@@ -10,6 +10,7 @@ class Setting extends Model
         'company_id',
         'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'country', 'locale', 'cutoff_day', 'kiosk_token', 'kiosk_enroll_pin',
         'early_check_in_minutes', 'early_departure_minutes', 'min_checkout_minutes', 'clamp_worked_hours',
+        'kiosk_breaks_enabled', 'break_required', 'break_limit_minutes',
         'kiosk_device_hash', 'kiosk_pair_code', 'kiosk_pair_expires_at',
         'kiosk_fast_mode', 'kiosk_liveness', 'kiosk_face_threshold', 'kiosk_verify_seconds',
     ];
@@ -19,6 +20,9 @@ class Setting extends Model
         'early_departure_minutes' => 'integer',
         'min_checkout_minutes' => 'integer',
         'clamp_worked_hours' => 'boolean',
+        'kiosk_breaks_enabled' => 'boolean',
+        'break_required' => 'boolean',
+        'break_limit_minutes' => 'integer',
         'kiosk_pair_expires_at' => 'datetime',
         'kiosk_fast_mode' => 'boolean',
         'kiosk_liveness' => 'boolean',

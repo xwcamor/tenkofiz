@@ -211,6 +211,30 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   3 h después) y breaks tipo ZKTeco (entrada / salida a break / retorno / salida)
   requieren el modelo de **marcas múltiples** por día — otra fase.
 
+### 1.4f Control de breaks (marcas múltiples, `settings.kiosk_breaks_enabled`)
+Por workspace (Ajustes). **Apagado por defecto** → el flujo sigue idéntico (1
+entrada + 1 salida). Encendido:
+- Secuencia acotada: ENTRADA → (el kiosco **pregunta** "¿Salir a break o Marcar
+  salida?" en la 2ª marca) → si break: SALIDA-BREAK, RETORNO, SALIDA. Máximo 4
+  marcas (1 break). Nada de N marcas.
+- `break_required`: la 2ª marca es siempre el break (sin preguntar).
+- **Las horas del break se restan** de las trabajadas (`Attendance::workedMinutes`
+  resta `breakMinutes`).
+- `break_limit_minutes`: si el break supera el límite, el reporte/lista solo marca
+  **"tiempo excedido (Nmin)"** — nunca penaliza, solo para análisis
+  (`breakExceededMinutes`).
+- **Guarda de salida anticipada**: si la próxima marca sería una SALIDA final y es
+  claramente antes del fin (usa `early_departure_minutes`), el kiosco pide
+  **confirmación** ("¿Seguro que es tu salida? No podrás volver a marcar hoy") antes
+  de la cámara (`earlyExitWarning`).
+- **Día abierto**: si hay ENTRADA pero nunca SALIDA en un día pasado, la lista lo
+  marca en **rojo "Abierta"** (distinto de FALTA) → revisar o justificar
+  (`Attendance::isOpen`).
+- La secuencia real de cada punch queda en el log (`attendance_marks`, §1.4e):
+  CHECK_IN / BREAK_OUT / BREAK_IN / CHECK_OUT.
+- **Pendiente (fase aparte)**: doble turno el mismo día (mañana + noche) — cambia la
+  regla de "cerrar el día" y roza dos horarios por persona.
+
 ### 1.4e Log de marcas (ZKTeco-style, `attendance_marks`)
 Cada marca exitosa del kiosco se guarda además como una fila en `attendance_marks`
 (empleado, `marked_at`, `kind`, `method`, ip/agente), enlazada a la asistencia del

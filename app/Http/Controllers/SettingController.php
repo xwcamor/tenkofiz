@@ -30,6 +30,7 @@ class SettingController extends Controller
             'early_check_in_minutes' => ['nullable', 'integer', 'min:0', 'max:720'],
             'early_departure_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'min_checkout_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
+            'break_limit_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'kiosk_enroll_pin' => ['nullable', 'digits_between:4,8'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
         ]);
@@ -39,6 +40,9 @@ class SettingController extends Controller
         $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 0;
         $data['early_departure_minutes'] = $data['early_departure_minutes'] ?? 0;
         $data['min_checkout_minutes'] = $data['min_checkout_minutes'] ?? 30;
+        $data['kiosk_breaks_enabled'] = $request->boolean('kiosk_breaks_enabled');
+        $data['break_required'] = $request->boolean('break_required');
+        $data['break_limit_minutes'] = $data['break_limit_minutes'] ?? 60;
         $data['clamp_worked_hours'] = $request->boolean('clamp_worked_hours');
         $data['kiosk_fast_mode'] = $request->boolean('kiosk_fast_mode');
         $data['kiosk_liveness'] = $request->boolean('kiosk_liveness');

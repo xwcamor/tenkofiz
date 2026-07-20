@@ -16,6 +16,13 @@
         <span style="width:74px"></span>
     </div>
 
+    {{-- Break/check-out choice or early-exit confirmation (shown before the camera) --}}
+    <div id="actionChoice" class="kiosk-card mt-2" style="max-width:520px;display:none">
+        <h5 class="text-white mb-1" id="actionChoiceTitle"></h5>
+        <p class="kiosk-help small mb-3" id="actionChoiceBody" style="display:none"></p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap" id="actionChoiceButtons"></div>
+    </div>
+
     <div class="video-frame">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="overlay"></canvas>
@@ -88,6 +95,8 @@
     window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
     window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 10));
+    window.KIOSK_NEXT_ACTION = @json($nextAction);
+    window.KIOSK_EARLY_EXIT_WARN = @json($earlyExitWarn);
     window.KIOSK_I18N = {
         loadingModels: @json(__('Loading recognition models...')),
         startingCamera: @json(__('Starting camera...')),
@@ -103,6 +112,15 @@
         recorded: @json(__('recorded')),
         checkIn: @json(__('CHECK-IN')),
         checkOut: @json(__('CHECK-OUT')),
+        breakOut: @json(__('BREAK START')),
+        breakIn: @json(__('BREAK END')),
+        chooseTitle: @json(__('What do you want to mark?')),
+        chooseBreak: @json(__('Leave for break')),
+        chooseOut: @json(__('Check out')),
+        earlyExitTitle: @json(__('Are you sure this is your CHECK-OUT?')),
+        earlyExitBody: @json(__('It is earlier than your scheduled end. You will not be able to mark again today.')),
+        earlyExitYes: @json(__('Yes, check me out')),
+        cancel: @json(__('Cancel')),
         couldNotRecord: @json(__('Could not record.')),
         connectionError: @json(__('Connection error with the server. Retrying in a few seconds...')),
         startError: @json(__('Startup error:')),

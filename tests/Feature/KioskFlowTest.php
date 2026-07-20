@@ -172,6 +172,51 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
     }
 
+    public function test_break_flow_records_and_subtracts_break_time(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 13:00:00'); // Thursday, Lima 08:00 (General 08–17)
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        \App\Models\Setting::forCompany($employee->company_id)->update([
+            'kiosk_breaks_enabled' => true, 'min_checkout_minutes' => 0, 'break_limit_minutes' => 60,
+        ]);
+
+        // 1) Check-in
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_IN');
+
+        // 2) Second mark without a choice → the kiosk must ask (safety net 422)
+        \Carbon\Carbon::setTestNow('2026-07-16 17:00:00'); // Lima 12:00
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])
+            ->assertStatus(422)->assertJsonPath('choose', true);
+
+        // 2b) Chose "break"
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788', 'action' => 'break'])
+            ->assertOk()->assertJsonPath('type', 'BREAK_OUT');
+
+        // 3) Return from break (Lima 13:00)
+        \Carbon\Carbon::setTestNow('2026-07-16 18:00:00');
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'BREAK_IN');
+
+        // 4) Final check-out (Lima 17:00)
+        \Carbon\Carbon::setTestNow('2026-07-16 22:00:00');
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
+
+        $att = \App\Models\Attendance::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
+        $this->assertSame(60, $att->breakMinutes());       // 12:00–13:00
+        $this->assertSame(480, $att->workedMinutes());     // 9h − 1h break = 8h
+    }
+
+    public function test_breaks_off_keeps_the_classic_two_mark_flow(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 13:00:00');
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_breaks_enabled' => false, 'min_checkout_minutes' => 0]);
+
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_IN');
+        \Carbon\Carbon::setTestNow('2026-07-16 17:00:00');
+        // No "choose" prompt when breaks are off — the second mark is the check-out
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
+    }
+
     public function test_minimum_checkout_interval_is_configurable(): void
     {
         \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday

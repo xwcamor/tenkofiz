@@ -95,7 +95,63 @@ class KioskController extends Controller
             'site' => $site,
             'enrollPinConfigured' => (bool) app_setting()->kiosk_enroll_pin,
             'enrollUnlocked' => $this->enrollUnlocked($request),
+            'nextAction' => $this->nextMarkAction($employee),
+            'earlyExitWarn' => $this->earlyExitWarning($employee),
         ]);
+    }
+
+    /**
+     * What the person's NEXT kiosk mark will be, so the camera page can adapt its
+     * UI (e.g. ask "break or check-out?"). Best-effort for the UI — performMark is
+     * still the authority. Returns 'CHECK_IN'|'BREAK_OUT'|'BREAK_IN'|'CHECK_OUT'|
+     * 'AMBIGUOUS'|'DONE'.
+     */
+    private function nextMarkAction(Employee $employee): string
+    {
+        $setting = app_setting();
+        $today = company_now()->toDateString();
+        $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', $today)->first();
+
+        if (!$attendance || is_null($attendance->check_in)) {
+            return 'CHECK_IN';
+        }
+        if ($attendance->check_out) {
+            return 'DONE';
+        }
+        if ($setting->kiosk_breaks_enabled) {
+            if ($attendance->break_out && is_null($attendance->break_in)) {
+                return 'BREAK_IN';
+            }
+            if (is_null($attendance->break_out)) {
+                return $setting->break_required ? 'BREAK_OUT' : 'AMBIGUOUS';
+            }
+        }
+
+        return 'CHECK_OUT';
+    }
+
+    /**
+     * True when the person's next mark would be a FINAL check-out clearly earlier
+     * than their scheduled end — the kiosk then asks them to confirm ("are you
+     * sure this is your check-out?") so a stray mark does not hurt them.
+     */
+    private function earlyExitWarning(Employee $employee): bool
+    {
+        $setting = app_setting();
+        $grace = (int) $setting->early_departure_minutes;
+        if ($grace <= 0 || !in_array($this->nextMarkAction($employee), ['CHECK_OUT'], true)) {
+            return false;
+        }
+
+        $now = company_now();
+        $shift = $employee->schedule?->worksOn($now->dayOfWeek);
+        if (!$shift || $employee->schedule->isFlexible()) {
+            return false;
+        }
+
+        $scheduledEnd = \Carbon\Carbon::parse($now->toDateString().' '.$shift->end_time, company_timezone());
+
+        return $now->lessThan($scheduledEnd->copy()->subMinutes($grace));
     }
 
     /** Supervisor enrollment as its own page (no stacked modals over the camera) */
@@ -476,6 +532,48 @@ class KioskController extends Controller
                 'employee' => $employee->full_name,
                 'time' => $now->format('h:i a'),
             ]);
+        }
+
+        // ---- Break control (only when enabled and the day is still open) ----
+        if ($setting->kiosk_breaks_enabled && is_null($attendance->check_out)) {
+            // They are RETURNING from break (break started, not yet returned)
+            if ($attendance->break_out && is_null($attendance->break_in)) {
+                $breakOut = \Carbon\Carbon::parse($today.' '.$attendance->break_out, company_timezone());
+                if ($breakOut->diffInMinutes($now) < 1) {
+                    return response()->json(['ok' => false, 'message' => __('You just marked your break. Try again in a moment.')], 422);
+                }
+                $attendance->update(['break_in' => $currentTime] + $device);
+                $this->recordMark($request, $employee, $attendance, 'BREAK_IN', $method);
+
+                return response()->json([
+                    'ok' => true, 'type' => 'BREAK_IN',
+                    'status' => $attendance->status, 'status_label' => __($attendance->status),
+                    'employee' => $employee->full_name, 'time' => $now->format('h:i a'),
+                ]);
+            }
+
+            // No break taken yet: this second mark is either "leave for break" or
+            // the final check-out. break_required forces the break; otherwise the
+            // kiosk must send the person's choice (action=break|out).
+            if (is_null($attendance->break_out)) {
+                $action = $request->input('action'); // 'break' | 'out' | null
+                if ($setting->break_required || $action === 'break') {
+                    $attendance->update(['break_out' => $currentTime] + $device);
+                    $this->recordMark($request, $employee, $attendance, 'BREAK_OUT', $method);
+
+                    return response()->json([
+                        'ok' => true, 'type' => 'BREAK_OUT',
+                        'status' => $attendance->status, 'status_label' => __($attendance->status),
+                        'employee' => $employee->full_name, 'time' => $now->format('h:i a'),
+                    ]);
+                }
+                if ($action !== 'out') {
+                    // Ambiguous — the kiosk should have asked. Safety net.
+                    return response()->json(['ok' => false, 'choose' => true,
+                        'message' => __('Choose whether you are leaving for a break or checking out.')], 422);
+                }
+                // action === 'out' falls through to the final check-out below
+            }
         }
 
         if (is_null($attendance->check_out)) {

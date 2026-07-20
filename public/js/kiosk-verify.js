@@ -28,6 +28,12 @@ let cameraOk = false;
 let verifying = false;   // guards against double loops (retry spam)
 let refs = null;         // this person's enrolled descriptors
 
+// Break control: what the next mark is, and the person's choice when ambiguous.
+const NEXT_ACTION = window.KIOSK_NEXT_ACTION || 'CHECK_IN';
+const EARLY_EXIT_WARN = !!window.KIOSK_EARLY_EXIT_WARN;
+let MARK_ACTION = null;      // 'break' | 'out' once chosen (ambiguous case)
+let earlyConfirmed = false;  // the person confirmed an early check-out
+
 let shownType = null, shownHtml = null;
 function show(type, html) {
     // Skip identical re-renders: rewriting the same HTML every frame restarts the
@@ -255,13 +261,57 @@ async function start() {
 }
 
 function begin() {
-    if (window.HAS_FACE) { runVerify(); return; }
+    if (window.HAS_FACE) {
+        // Break control: if this second mark could be a break OR a check-out, ask
+        // the person first. And warn before a clearly-early check-out so a stray
+        // mark does not hurt them. Only then run the camera verification.
+        if (NEXT_ACTION === 'AMBIGUOUS' && !MARK_ACTION) { promptBreakOrOut(); return; }
+        if (EARLY_EXIT_WARN && NEXT_ACTION === 'CHECK_OUT' && !earlyConfirmed) { promptEarlyExit(); return; }
+        hideActionChoice();
+        runVerify();
+        return;
+    }
     // No enrolled face: the ONLY way to mark is enrolling right here first
     // (document marking is reserved for enrolled people whose recognition fails).
     const card = document.getElementById('enrollCard');
     if (card) card.style.display = '';
     show('info', '<i class="fas fa-user-plus"></i> ' + I18N.enrollFirst);
     showActions(false, false); // just Cancel; the enroll card is the path forward
+}
+
+/* ---------- break / early-exit choice panel (shown before the camera) ---------- */
+function hideActionChoice() { document.getElementById('actionChoice').style.display = 'none'; }
+function showChoice(title, body, buttons) {
+    document.getElementById('actionChoiceTitle').innerHTML = title;
+    const b = document.getElementById('actionChoiceBody');
+    if (body) { b.textContent = body; b.style.display = ''; } else { b.style.display = 'none'; }
+    const wrap = document.getElementById('actionChoiceButtons');
+    wrap.innerHTML = '';
+    buttons.forEach(btn => {
+        const el = document.createElement('button');
+        el.className = 'btn ' + btn.cls + ' px-4 m-1';
+        el.innerHTML = btn.label;
+        el.onclick = btn.onClick;
+        wrap.appendChild(el);
+    });
+    document.getElementById('actionChoice').style.display = '';
+    show('secondary', I18N.chooseTitle);
+}
+function promptBreakOrOut() {
+    showChoice(I18N.chooseTitle, null, [
+        { label: '<i class="fas fa-mug-hot"></i> ' + I18N.chooseBreak, cls: 'btn-warning',
+          onClick: () => { MARK_ACTION = 'break'; hideActionChoice(); runVerify(); } },
+        { label: '<i class="fas fa-right-from-bracket"></i> ' + I18N.chooseOut, cls: 'btn-primary',
+          onClick: () => { MARK_ACTION = 'out'; hideActionChoice(); runVerify(); } },
+    ]);
+}
+function promptEarlyExit() {
+    showChoice('<i class="fas fa-triangle-exclamation text-warning"></i> ' + I18N.earlyExitTitle, I18N.earlyExitBody, [
+        { label: '<i class="fas fa-check"></i> ' + I18N.earlyExitYes, cls: 'btn-danger',
+          onClick: () => { earlyConfirmed = true; hideActionChoice(); runVerify(); } },
+        { label: I18N.cancel, cls: 'btn-outline-light',
+          onClick: () => { window.location.href = window.HOME_URL; } },
+    ]);
 }
 
 /* ---------- 1:1 verification with a real, configurable window ---------- */
@@ -455,6 +505,7 @@ async function autoMarkByDocument() {
         const { data } = await postJson(window.MARK_DNI_URL, {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
+            action: MARK_ACTION,
         });
         if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);
@@ -482,6 +533,7 @@ async function commitFacial(distance) {
         const { data } = await postJson(window.MARK_URL, {
             employee_id: Number(window.EMPLOYEE.id),
             distance: distance.toFixed(4),
+            action: MARK_ACTION,
         });
         finishWithResult(data);
     } catch (e) {
@@ -511,6 +563,7 @@ async function markByDocument() {
         const { data } = await postJson(window.MARK_DNI_URL, {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
+            action: MARK_ACTION,
         });
         if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);
@@ -540,9 +593,15 @@ async function waitForAnyFace(ms) {
 function finishWithResult(data, note) {
     clearOverlay();
     if (data.ok) {
-        const color = data.status === 'LATE' ? 'warning' : 'success';
-        const typeLabel = data.type === 'CHECK_IN' ? I18N.checkIn : I18N.checkOut;
-        show(color, `<i class="fas fa-check-circle"></i> <strong>${typeLabel}</strong> ${I18N.recorded}: ${data.employee}<br>${data.time} — ${data.status_label}` + (note ? `<br><small>${note}</small>` : ''));
+        const isBreak = data.type === 'BREAK_OUT' || data.type === 'BREAK_IN';
+        const color = isBreak ? 'info' : (data.status === 'LATE' ? 'warning' : 'success');
+        const typeLabel = data.type === 'CHECK_IN' ? I18N.checkIn
+            : data.type === 'CHECK_OUT' ? I18N.checkOut
+            : data.type === 'BREAK_OUT' ? I18N.breakOut
+            : data.type === 'BREAK_IN' ? I18N.breakIn : data.type;
+        // Break marks have no punctuality status to show
+        const tail = isBreak ? '' : ` — ${data.status_label}`;
+        show(color, `<i class="fas fa-check-circle"></i> <strong>${typeLabel}</strong> ${I18N.recorded}: ${data.employee}<br>${data.time}${tail}` + (note ? `<br><small>${note}</small>` : ''));
     } else {
         show('warning', '<i class="fas fa-info-circle"></i> ' + (data.message || I18N.couldNotRecord));
     }

@@ -13,7 +13,7 @@ class Attendance extends Model
     public const STATUSES = ['ON_TIME', 'LATE', 'ABSENT', 'EXCUSED'];
 
     protected $fillable = [
-        'employee_id', 'date', 'check_in', 'check_out',
+        'employee_id', 'date', 'check_in', 'check_out', 'break_out', 'break_in',
         'status', 'expected_minutes', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
     ];
 
@@ -70,7 +70,37 @@ class Attendance extends Model
             }
         }
 
-        return (int) $start->diffInMinutes($end);
+        // The break time (if any) is not worked time — subtract it.
+        return max(0, (int) $start->diffInMinutes($end) - $this->breakMinutes());
+    }
+
+    /** Minutes spent on break this day (0 when there was none) */
+    public function breakMinutes(): int
+    {
+        if (!$this->break_out || !$this->break_in) {
+            return 0;
+        }
+
+        $date = $this->date->toDateString();
+        $out = \Carbon\Carbon::parse($date.' '.$this->break_out);
+        $in = \Carbon\Carbon::parse($date.' '.$this->break_in);
+        if ($in->lessThan($out)) {
+            $in->addDay();
+        }
+
+        return (int) $out->diffInMinutes($in);
+    }
+
+    /** How many minutes the break went over the company limit (0 if within) */
+    public function breakExceededMinutes(int $limit): int
+    {
+        return $limit > 0 ? max(0, $this->breakMinutes() - $limit) : 0;
+    }
+
+    /** Checked in but never checked out — an abandoned/unclosed day (for review) */
+    public function isOpen(): bool
+    {
+        return $this->check_in && !$this->check_out;
     }
 
     /**

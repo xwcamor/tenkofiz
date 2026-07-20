@@ -27,19 +27,15 @@
         'ABSENT' => 'danger',
         default => 'info',
     };
-    // Worked hours for a single row: (check-out − check-in), handling overnight shifts
+    // Worked hours for a single row (break time already subtracted by the model)
     $workedHours = function ($attendance) {
         if (!$attendance->check_in || !$attendance->check_out) {
             return '—';
         }
-        $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
-        $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
-        if ($end->lessThan($start)) {
-            $end->addDay();
-        }
-        $minutes = (int) $start->diffInMinutes($end);
+        $minutes = $attendance->workedMinutes();
         return sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60);
     };
+    $breakLimit = (int) (app_setting()->break_limit_minutes ?? 60);
 @endphp
 
 <div class="card card-primary card-outline">
@@ -102,7 +98,20 @@
                                 <button class="btn btn-xs btn-outline-secondary ml-1" title="{{ __('Show raw punches (kiosk log)') }}" onclick="toggleMarks({{ $attendance->id }})"><i class="fas fa-stream"></i> {{ $attendance->marks->count() }}</button>
                             @endif
                         </td>
-                        <td>{{ $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—' }}</td>
+                        <td>
+                            @if($attendance->check_out)
+                                {{ substr($attendance->check_out, 0, 5) }}
+                            @elseif($attendance->isOpen() && $attendance->date->lt(\Carbon\Carbon::today()))
+                                <span class="badge badge-danger" title="{{ __('Checked in but never checked out — review or justify') }}"><i class="fas fa-triangle-exclamation"></i> {{ __('Open') }}</span>
+                            @else
+                                —
+                            @endif
+                            @if($attendance->breakMinutes() > 0)
+                                <br><small class="{{ $breakLimit > 0 && $attendance->breakExceededMinutes($breakLimit) > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}" title="{{ __('Break :out–:in', ['out' => substr($attendance->break_out,0,5), 'in' => substr($attendance->break_in,0,5)]) }}">
+                                    <i class="fas fa-mug-hot"></i> {{ $attendance->breakMinutes() }}m{{ $breakLimit > 0 && $attendance->breakExceededMinutes($breakLimit) > 0 ? ' ('.__('exceeded :n', ['n' => $attendance->breakExceededMinutes($breakLimit)]).')' : '' }}
+                                </small>
+                            @endif
+                        </td>
                         <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
                         <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                         <td>
@@ -143,7 +152,13 @@
                                 @foreach($attendance->marks as $mark)
                                     <span class="badge badge-light border mr-1">
                                         {{ to_user_tz($mark->marked_at)->format('H:i:s') }} ·
-                                        {{ $mark->kind === 'CHECK_IN' ? __('Check-in') : __('Check-out') }} ·
+                                        @switch($mark->kind)
+                                            @case('CHECK_IN'){{ __('Check-in') }}@break
+                                            @case('CHECK_OUT'){{ __('Check-out') }}@break
+                                            @case('BREAK_OUT'){{ __('Break start') }}@break
+                                            @case('BREAK_IN'){{ __('Break end') }}@break
+                                            @default{{ $mark->kind }}
+                                        @endswitch ·
                                         {{ __($mark->method) }}
                                     </span>
                                 @endforeach

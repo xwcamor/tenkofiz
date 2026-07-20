@@ -92,6 +92,24 @@
                         @error('min_checkout_minutes')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                         <small class="text-muted">{{ __('Right after checking in a second mark is ignored (it would just be a duplicate). E.g. 30: they can only check out 30 min after checking in. Lower it (e.g. 5) to allow genuine early exits — an emergency, a mistaken early mark. 0 = no wait.') }}</small>
                     </div>
+                    {{-- Break control (multiple marks per day) --}}
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="kiosk_breaks_enabled" value="1" class="custom-control-input" id="kioskBreaksEnabled" @checked(old('kiosk_breaks_enabled', $setting->kiosk_breaks_enabled)) onchange="document.getElementById('breakOptions').style.display=this.checked?'':'none'">
+                        <label class="custom-control-label" for="kioskBreaksEnabled">{{ __('Control breaks (allow leaving for break and back)') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('OFF (default): one check-in and one check-out per day. ON: the kiosk asks "break or check-out?" on the second mark; the break time is subtracted from worked hours.') }}</small>
+                    <div id="breakOptions" style="{{ old('kiosk_breaks_enabled', $setting->kiosk_breaks_enabled) ? '' : 'display:none' }}">
+                        <div class="custom-control custom-switch mb-2 ml-3">
+                            <input type="checkbox" name="break_required" value="1" class="custom-control-input" id="breakRequired" @checked(old('break_required', $setting->break_required))>
+                            <label class="custom-control-label" for="breakRequired">{{ __('Break is mandatory (the second mark is always the break)') }}</label>
+                        </div>
+                        <div class="form-group ml-3">
+                            <label>{{ __('Break limit (minutes)') }}</label>
+                            <input type="number" name="break_limit_minutes" min="0" max="480" value="{{ old('break_limit_minutes', $setting->break_limit_minutes ?? 60) }}" class="form-control @error('break_limit_minutes') is-invalid @enderror" style="max-width:160px">
+                            @error('break_limit_minutes')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                            <small class="text-muted">{{ __('If the break goes over this, the report just flags "time exceeded" — it never penalizes, only for analysis. 0 = no limit.') }}</small>
+                        </div>
+                    </div>
                     <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="clamp_worked_hours" value="1" class="custom-control-input" id="clampWorkedHours" @checked(old('clamp_worked_hours', $setting->clamp_worked_hours))>
                         <label class="custom-control-label" for="clampWorkedHours">{{ __('Count worked hours within the schedule only (recommended)') }}</label>
