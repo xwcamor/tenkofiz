@@ -118,7 +118,7 @@
         chooseBreak: @json(__('Leave for break')),
         chooseOut: @json(__('Check out')),
         earlyExitTitle: @json(__('Are you sure this is your CHECK-OUT?')),
-        earlyExitBody: @json(__('It is earlier than your scheduled end. You will not be able to mark again today.')),
+        earlyExitBody: @json(__('It is earlier than your scheduled end. Only your time worked up to now will count, and you will not be able to mark again today.')),
         earlyExitYes: @json(__('Yes, check me out')),
         cancel: @json(__('Cancel')),
         couldNotRecord: @json(__('Could not record.')),

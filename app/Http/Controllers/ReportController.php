@@ -125,7 +125,7 @@ class ReportController extends Controller
             $employeeMinutes = 0;
 
             foreach ($employee->attendances as $attendance) {
-                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
+                $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
                 $dayMinutes = $attendance->workedMinutes($shift);
                 $employeeMinutes += $dayMinutes;
 
@@ -192,7 +192,7 @@ class ReportController extends Controller
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
                 $weekday = $attendance->date->dayOfWeek;
-                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($weekday) : null;
+                $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
                 $minutes += $attendance->workedMinutes($shift);
 
                 // Expected minutes (the "jornada") only on days actually worked, so a
@@ -287,7 +287,7 @@ class ReportController extends Controller
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
             $weekday = $attendance->date->dayOfWeek;
-            $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($weekday) : null;
+            $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
             $minutes += $attendance->workedMinutes($shift);
 
             if ($attendance->check_in && $attendance->check_out) {

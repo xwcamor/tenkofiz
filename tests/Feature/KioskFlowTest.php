@@ -264,6 +264,29 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->fresh()->expected_minutes);
     }
 
+    public function test_worked_hours_use_frozen_shift_bounds_after_a_schedule_change(): void
+    {
+        // Full day worked, clamp on: 08:00–17:00 shift = 9h
+        \Carbon\Carbon::setTestNow('2026-07-16 13:00:00'); // Thursday, Lima 08:00
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['clamp_worked_hours' => true, 'min_checkout_minutes' => 0]);
+
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk(); // check-in 08:00
+        \Carbon\Carbon::setTestNow('2026-07-16 22:00:00'); // Lima 17:00
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk(); // check-out 17:00
+
+        $att = \App\Models\Attendance::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
+        $this->assertSame('08:00:00', $att->shift_start); // frozen at check-in
+        $this->assertSame(540, $att->workedMinutes($att->clampShift($employee->schedule))); // 9h
+
+        // Change the schedule to a shorter 08:00–13:00 shift AFTER the fact
+        $employee->schedule->days()->update(['end_time' => '13:00:00']);
+        $employee->schedule->load('days');
+
+        // Worked hours for the past day still use the FROZEN 17:00 end → 9h, not 5h
+        $this->assertSame(540, $att->fresh()->workedMinutes($att->fresh()->clampShift($employee->schedule->fresh('days'))));
+    }
+
     public function test_expected_minutes_reflect_the_schedule_type(): void
     {
         $fixed = Schedule::withoutGlobalScopes()->first(); // General 08:00–17:00 = 9h

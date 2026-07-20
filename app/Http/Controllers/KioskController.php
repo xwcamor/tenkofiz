@@ -516,10 +516,12 @@ class KioskController extends Controller
             $attendance->fill([
                 'check_in' => $currentTime,
                 'status' => $status,
-                // Freeze the expected minutes for the day (the "jornada") so later
-                // schedule changes never rewrite this day's balance — same idea as
-                // freezing the status above.
+                // Freeze the expected minutes AND the shift bounds for the day so a
+                // later schedule change never rewrites this day's balance or worked
+                // hours — same idea as freezing the status above.
                 'expected_minutes' => $employee->schedule?->expectedMinutesFor($now->dayOfWeek),
+                'shift_start' => ($todayShift && $employee->schedule->isFixed()) ? $todayShift->start_time : null,
+                'shift_end' => ($todayShift && $employee->schedule->isFixed()) ? $todayShift->end_time : null,
                 'method' => $method,
             ] + $extra + $device)->save();
             $this->recordMark($request, $employee, $attendance, 'CHECK_IN', $method);

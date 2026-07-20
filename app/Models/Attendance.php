@@ -14,7 +14,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id', 'date', 'check_in', 'check_out', 'break_out', 'break_in',
-        'status', 'expected_minutes', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
+        'status', 'expected_minutes', 'shift_start', 'shift_end', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
     ];
 
     // 'date:Y-m-d' stores a pure date string (no time). Without the explicit
@@ -72,6 +72,20 @@ class Attendance extends Model
 
         // The break time (if any) is not worked time — subtract it.
         return max(0, (int) $start->diffInMinutes($end) - $this->breakMinutes());
+    }
+
+    /**
+     * The shift to clamp worked hours against: the bounds FROZEN at check-in when
+     * present (immune to later schedule changes), otherwise the current schedule
+     * as a fallback for legacy rows. null = no clamp (flexible / no shift).
+     */
+    public function clampShift(?Schedule $currentSchedule): ?ScheduleDay
+    {
+        if ($this->shift_start && $this->shift_end) {
+            return new ScheduleDay(['start_time' => $this->shift_start, 'end_time' => $this->shift_end]);
+        }
+
+        return $currentSchedule?->isFixed() ? $currentSchedule->worksOn($this->date->dayOfWeek) : null;
     }
 
     /** Minutes spent on break this day (0 when there was none) */

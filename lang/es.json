@@ -956,7 +956,6 @@
     "Leave for break": "Salir a break",
     "Check out": "Marcar salida",
     "Are you sure this is your CHECK-OUT?": "¿Seguro que es tu SALIDA?",
-    "It is earlier than your scheduled end. You will not be able to mark again today.": "Es antes de tu hora de fin. No podrás volver a marcar hoy.",
     "Yes, check me out": "Sí, marcar mi salida",
     "Control breaks (allow leaving for break and back)": "Controlar breaks (permitir salir a break y volver)",
     "OFF (default): one check-in and one check-out per day. ON: the kiosk asks \"break or check-out?\" on the second mark; the break time is subtracted from worked hours.": "Desactivado (por defecto): una entrada y una salida por día. Activado: el kiosco pregunta \"¿break o salida?\" en la segunda marca; el tiempo de break se resta de las horas trabajadas.",
@@ -969,5 +968,6 @@
     "Break start": "Inicio de break",
     "Break end": "Fin de break",
     "You just marked your break. Try again in a moment.": "Acabas de marcar tu break. Inténtalo en un momento.",
-    "Choose whether you are leaving for a break or checking out.": "Elige si sales a break o marcas tu salida."
+    "Choose whether you are leaving for a break or checking out.": "Elige si sales a break o marcas tu salida.",
+    "It is earlier than your scheduled end. Only your time worked up to now will count, and you will not be able to mark again today.": "Es antes de tu hora de fin. Solo se contará tu tiempo trabajado hasta ahora, y no podrás volver a marcar hoy."
 }
