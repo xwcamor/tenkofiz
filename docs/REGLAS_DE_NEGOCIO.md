@@ -208,6 +208,16 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   3 h después) y breaks tipo ZKTeco (entrada / salida a break / retorno / salida)
   requieren el modelo de **marcas múltiples** por día — otra fase.
 
+### 1.4e Log de marcas (ZKTeco-style, `attendance_marks`)
+Cada marca exitosa del kiosco se guarda además como una fila en `attendance_marks`
+(empleado, `marked_at`, `kind`, `method`, ip/agente), enlazada a la asistencia del
+día. Es **aditivo**: NO cambia cómo se calcula la asistencia (sigue el modelo
+entrada/salida), solo preserva la **secuencia cruda de marcas** por empleado por
+día — el fundamento para (futuro) detección de breaks y ya hoy la vista de logs.
+En Asistencias, cada fila puede **expandir** ("Marcas del día") y mostrar cada punch
+con hora, tipo y método (`Attendance::marks()`, `AttendanceMark`). El registro es
+best-effort (un fallo al loguear el punch nunca bloquea la marca).
+
 ### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Saldo
 El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) compara tres
 cosas por empleado en el periodo:

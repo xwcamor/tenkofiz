@@ -172,6 +172,23 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
     }
 
+    public function test_every_mark_is_appended_to_the_raw_punch_log(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+
+        // Check-in
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk();
+        // Check-out (past the minimum interval)
+        \Carbon\Carbon::setTestNow('2026-07-16 18:00:00');
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk();
+
+        $marks = \App\Models\AttendanceMark::withoutGlobalScopes()->where('employee_id', $employee->id)->orderBy('marked_at')->get();
+        $this->assertCount(2, $marks); // both punches logged, additively
+        $this->assertSame(['CHECK_IN', 'CHECK_OUT'], $marks->pluck('kind')->all());
+        $this->assertNotNull($marks->first()->attendance_id); // linked to the day
+    }
+
     public function test_expected_minutes_are_frozen_on_check_in(): void
     {
         \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday, General schedule 08:00–17:00 (9h)

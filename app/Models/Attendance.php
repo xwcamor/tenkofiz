@@ -27,6 +27,12 @@ class Attendance extends Model
         return $this->belongsTo(Employee::class)->withTrashed();
     }
 
+    /** Raw punch log for this day (ZKTeco-style), in chronological order */
+    public function marks()
+    {
+        return $this->hasMany(AttendanceMark::class)->orderBy('marked_at');
+    }
+
     /**
      * Minutes actually worked this day. When a $shift is passed, the window is
      * CLAMPED to the schedule — paid time is max(check-in, shift start) →

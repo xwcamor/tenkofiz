@@ -20,7 +20,7 @@ class AttendanceController extends Controller
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
         // Server-side pagination: this table grows without bounds
-        $attendances = Attendance::with('employee')
+        $attendances = Attendance::with('employee', 'marks')
             ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])

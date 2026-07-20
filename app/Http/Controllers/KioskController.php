@@ -359,6 +359,29 @@ class KioskController extends Controller
         return null;
     }
 
+    /**
+     * Append a raw punch to the ZKTeco-style log (additive; never affects the
+     * in/out computation). Kept out of the response path so a logging hiccup can
+     * never block a mark.
+     */
+    private function recordMark(Request $request, Employee $employee, Attendance $attendance, string $kind, string $method): void
+    {
+        try {
+            \App\Models\AttendanceMark::create([
+                'company_id' => $employee->company_id,
+                'employee_id' => $employee->id,
+                'attendance_id' => $attendance->id,
+                'marked_at' => now(),
+                'kind' => $kind,
+                'method' => $method,
+                'ip' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            ]);
+        } catch (\Throwable $e) {
+            // Logging the punch is best-effort; the attendance itself is already saved.
+        }
+    }
+
     /** Shared business rules for facial and DNI marking */
     private function performMark(Request $request, Employee $employee, string $method, array $extra = [])
     {
@@ -394,6 +417,7 @@ class KioskController extends Controller
                 $earlyNote = $this->earlyDepartureNote($setting, $openOvernight->note, $scheduledEnd, $now);
 
                 $openOvernight->update(['check_out' => $currentTime] + $earlyNote + $device);
+                $this->recordMark($request, $employee, $openOvernight, 'CHECK_OUT', $method);
 
                 return response()->json([
                     'ok' => true,
@@ -442,6 +466,7 @@ class KioskController extends Controller
                 'expected_minutes' => $employee->schedule?->expectedMinutesFor($now->dayOfWeek),
                 'method' => $method,
             ] + $extra + $device)->save();
+            $this->recordMark($request, $employee, $attendance, 'CHECK_IN', $method);
 
             return response()->json([
                 'ok' => true,
@@ -479,6 +504,7 @@ class KioskController extends Controller
 
             // Second mark = CHECK-OUT (keep the check-in evidence if it exists)
             $attendance->update(['check_out' => $currentTime] + $earlyNote + array_filter($extra) + $device);
+            $this->recordMark($request, $employee, $attendance, 'CHECK_OUT', $method);
 
             return response()->json([
                 'ok' => true,

@@ -97,7 +97,11 @@
                     <tr>
                         <td>{{ $attendance->date->format('d/m/Y') }}</td>
                         <td>{{ $attendance->employee->full_name }}</td>
-                        <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}</td>
+                        <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}
+                            @if($attendance->marks->isNotEmpty())
+                                <button class="btn btn-xs btn-outline-secondary ml-1" title="{{ __('Show raw punches (kiosk log)') }}" onclick="toggleMarks({{ $attendance->id }})"><i class="fas fa-stream"></i> {{ $attendance->marks->count() }}</button>
+                            @endif
+                        </td>
                         <td>{{ $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—' }}</td>
                         <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
                         <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
@@ -131,6 +135,21 @@
                             </form>
                         </td>
                     </tr>
+                    @if($attendance->marks->isNotEmpty())
+                        <tr id="marks-{{ $attendance->id }}" style="display:none">
+                            <td></td>
+                            <td colspan="8" class="bg-light">
+                                <small class="text-muted mr-1"><i class="fas fa-stream"></i> {{ __('Raw punches (kiosk log):') }}</small>
+                                @foreach($attendance->marks as $mark)
+                                    <span class="badge badge-light border mr-1">
+                                        {{ to_user_tz($mark->marked_at)->format('H:i:s') }} ·
+                                        {{ $mark->kind === 'CHECK_IN' ? __('Check-in') : __('Check-out') }} ·
+                                        {{ __($mark->method) }}
+                                    </span>
+                                @endforeach
+                            </td>
+                        </tr>
+                    @endif
                 @endif
             @empty
                 <tr><td colspan="{{ $showDeleted ? 6 : 9 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No records in the period') }}</td></tr>
@@ -246,6 +265,11 @@
 
 @push('scripts')
 <script>
+function toggleMarks(id) {
+    const row = document.getElementById('marks-' + id);
+    if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
 function openManualModal() {
     $('#manualModal').modal('show');
 }
