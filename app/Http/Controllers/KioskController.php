@@ -15,7 +15,7 @@ class KioskController extends Controller
     /** Euclidean distance threshold: lower = more similar (0.55 balances accuracy and light tolerance) */
     public const THRESHOLD = 0.55;
 
-    /** Minimum minutes that must pass between check-in and check-out (avoids double marking) */
+    /** Default minimum minutes between check-in and check-out (configurable per company) */
     public const MIN_MINUTES_BEFORE_CHECKOUT = 30;
 
     /** How long the enrollment mode stays unlocked after entering the PIN */
@@ -482,8 +482,9 @@ class KioskController extends Controller
             // Enforce a minimum time since check-in (business rule against double marking)
             $checkIn = \Carbon\Carbon::parse($today.' '.$attendance->check_in, company_timezone());
             $elapsedMinutes = (int) $checkIn->diffInMinutes($now);
+            $minCheckout = $setting->min_checkout_minutes ?? self::MIN_MINUTES_BEFORE_CHECKOUT;
 
-            if ($elapsedMinutes < self::MIN_MINUTES_BEFORE_CHECKOUT) {
+            if ($elapsedMinutes < $minCheckout) {
                 // Do not reveal the exact wait time (internal rule against double marking)
                 return response()->json([
                     'ok' => false,

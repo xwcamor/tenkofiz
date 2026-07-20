@@ -169,8 +169,11 @@ Se evalúan en este orden:
      (mensaje: "entra a las 08:00, puede marcar desde las 07:00"). **0 = sin
      restricción** (marca a cualquier hora). Configurable en Ajustes.
 5. **Segunda marca = SALIDA**, con dos reglas:
-   - **Regla dura**: deben pasar al menos **30 minutos** desde la entrada
-     (`KioskController::MIN_MINUTES_BEFORE_CHECKOUT`) para evitar dobles marcas.
+   - **Mínimo entre entrada y salida** (`settings.min_checkout_minutes`, por defecto
+     **30**): una segunda marca antes de ese lapso se ignora (sería un duplicado).
+     Configurable por empresa — bajarlo (ej. 5, o 0) permite **salidas reales
+     anticipadas** (emergencias, marca temprana por error) sin bloquear a la persona.
+     El default `KioskController::MIN_MINUTES_BEFORE_CHECKOUT` es el respaldo.
    - **Aviso de salida anticipada** (`settings.early_departure_minutes`): si es
      > 0 y la salida ocurre más de X minutos antes de la hora de fin, la marca se
      guarda igual pero con una observación automática ("Salida anticipada (N min

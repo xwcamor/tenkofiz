@@ -946,5 +946,8 @@
     "Attendance report": "Reporte de asistencia",
     "Attendance detail": "Detalle de asistencia",
     "Raw punches (kiosk log):": "Marcas del día (log del kiosco):",
-    "Show raw punches (kiosk log)": "Ver marcas del día (log del kiosco)"
+    "Show raw punches (kiosk log)": "Ver marcas del día (log del kiosco)",
+    "Minimum minutes between check-in and check-out": "Minutos mínimos entre entrada y salida",
+    "avoids a double mark; lower it to be lenient with early exits": "evita doble marca; bájalo para ser flexible con salidas anticipadas",
+    "Right after checking in a second mark is ignored (it would just be a duplicate). E.g. 30: they can only check out 30 min after checking in. Lower it (e.g. 5) to allow genuine early exits — an emergency, a mistaken early mark. 0 = no wait.": "Justo después de entrar, una segunda marca se ignora (sería un duplicado). Ej. 30: solo puede marcar salida 30 min después de entrar. Bájalo (ej. 5) para permitir salidas reales anticipadas — una emergencia, una marca temprana por error. 0 = sin espera."
 }

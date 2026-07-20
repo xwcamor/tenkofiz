@@ -172,6 +172,21 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
     }
 
+    public function test_minimum_checkout_interval_is_configurable(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['min_checkout_minutes' => 0]);
+
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_IN');
+
+        // Only 2 minutes later — with the default 30 this would be rejected; at 0 it checks out
+        \Carbon\Carbon::setTestNow('2026-07-16 14:32:00');
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])
+            ->assertOk()
+            ->assertJsonPath('type', 'CHECK_OUT');
+    }
+
     public function test_every_mark_is_appended_to_the_raw_punch_log(): void
     {
         \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday

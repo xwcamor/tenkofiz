@@ -86,6 +86,12 @@
                             <small class="text-muted">{{ __('If the check-out happens more than this many minutes before the scheduled end, the mark is kept but flagged with an automatic note for the supervisor. It never blocks the check-out. 0 = disabled.') }}</small>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>{{ __('Minimum minutes between check-in and check-out') }} <small class="text-muted">({{ __('avoids a double mark; lower it to be lenient with early exits') }})</small></label>
+                        <input type="number" name="min_checkout_minutes" min="0" max="480" value="{{ old('min_checkout_minutes', $setting->min_checkout_minutes ?? 30) }}" class="form-control @error('min_checkout_minutes') is-invalid @enderror" style="max-width:160px">
+                        @error('min_checkout_minutes')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                        <small class="text-muted">{{ __('Right after checking in a second mark is ignored (it would just be a duplicate). E.g. 30: they can only check out 30 min after checking in. Lower it (e.g. 5) to allow genuine early exits — an emergency, a mistaken early mark. 0 = no wait.') }}</small>
+                    </div>
                     <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="clamp_worked_hours" value="1" class="custom-control-input" id="clampWorkedHours" @checked(old('clamp_worked_hours', $setting->clamp_worked_hours))>
                         <label class="custom-control-label" for="clampWorkedHours">{{ __('Count worked hours within the schedule only (recommended)') }}</label>
