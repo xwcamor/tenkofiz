@@ -151,6 +151,56 @@ class KioskFlowTest extends TestCase
         $this->assertSame($before->kiosk_verify_seconds, $after->kiosk_verify_seconds);
     }
 
+    // ---------- Worked-hours clamping to the schedule ----------
+
+    public function test_worked_minutes_are_clamped_to_the_schedule(): void
+    {
+        $schedule = Schedule::withoutGlobalScopes()->first(); // General schedule 08:00–17:00
+        $shift = $schedule->worksOn(4); // Thursday
+        $employee = $this->makeEmployee();
+
+        $attendance = \App\Models\Attendance::withoutGlobalScopes()->create([
+            'employee_id' => $employee->id,
+            'date' => '2026-07-16', // Thursday
+            'check_in' => '06:00:00', // marked 2h early
+            'check_out' => '18:00:00', // left 1h late
+            'status' => 'ON_TIME',
+            'method' => 'FACIAL',
+        ]);
+
+        $this->assertSame(720, $attendance->workedMinutes());        // raw = 12h
+        $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
+    }
+
+    // ---------- Keypad pre-check: fail fast before the camera ----------
+
+    public function test_lookup_warns_when_it_is_too_early_to_check_in(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 10:00:00'); // Thursday 05:00 Lima; shift starts 08:00
+        $employee = $this->makeEmployee();
+        \App\Models\Setting::forCompany($employee->company_id)->update(['early_check_in_minutes' => 120]); // earliest 06:00 Lima
+
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])
+            ->assertStatus(422)
+            ->assertJsonPath('ok', false);
+
+        // Rejected at the keypad: never sent to the camera
+        $this->assertNull(session('kiosk_verify_doc'));
+    }
+
+    public function test_lookup_allows_marking_inside_the_window(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 12:30:00'); // Thursday 07:30 Lima; inside the 06:00+ window
+        $employee = $this->makeEmployee();
+        \App\Models\Setting::forCompany($employee->company_id)->update(['early_check_in_minutes' => 120]);
+
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertSame('55667788', session('kiosk_verify_doc'));
+    }
+
     // ---------- Rule (Carlos): document marking only for enrolled faces ----------
 
     public function test_document_marking_is_rejected_for_employees_without_an_enrolled_face(): void

@@ -28,6 +28,46 @@ class Attendance extends Model
     }
 
     /**
+     * Minutes actually worked this day. When a $shift is passed, the window is
+     * CLAMPED to the schedule — paid time is max(check-in, shift start) →
+     * min(check-out, shift end) — so marking early or leaving late never inflates
+     * the total. Without a $shift it is the raw check-out − check-in. Overnight
+     * shifts and marks (end before start) roll the end to the next day.
+     */
+    public function workedMinutes(?ScheduleDay $shift = null): int
+    {
+        if (!$this->check_in || !$this->check_out) {
+            return 0;
+        }
+
+        $date = $this->date->toDateString();
+        $start = \Carbon\Carbon::parse($date.' '.$this->check_in);
+        $end = \Carbon\Carbon::parse($date.' '.$this->check_out);
+        if ($end->lessThan($start)) {
+            $end->addDay(); // overnight mark
+        }
+
+        if ($shift) {
+            $schedStart = \Carbon\Carbon::parse($date.' '.$shift->start_time);
+            $schedEnd = \Carbon\Carbon::parse($date.' '.$shift->end_time);
+            if ($schedEnd->lessThanOrEqualTo($schedStart)) {
+                $schedEnd->addDay(); // overnight shift
+            }
+            if ($start->lessThan($schedStart)) {
+                $start = $schedStart;
+            }
+            if ($end->greaterThan($schedEnd)) {
+                $end = $schedEnd;
+            }
+            if ($end->lessThanOrEqualTo($start)) {
+                return 0;
+            }
+        }
+
+        return (int) $start->diffInMinutes($end);
+    }
+
+    /**
      * Marks ABSENT every active employee whose schedule works on that weekday
      * and who has no attendance record on the given date. Skips holidays,
      * days off per schedule, approved vacations and already excused days.

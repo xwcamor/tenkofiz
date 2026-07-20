@@ -108,21 +108,16 @@ class ReportController extends Controller
         ]));
         $sheet->mergeCells('A2:G2');
 
+        $clamp = (bool) app_setting()->clamp_worked_hours;
+
         $rowIndex = 3;
         foreach ($employees as $employee) {
             $employeeMinutes = 0;
 
             foreach ($employee->attendances as $attendance) {
-                $dayMinutes = 0;
-                if ($attendance->check_in && $attendance->check_out) {
-                    $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
-                    $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
-                    if ($end->lessThan($start)) {
-                        $end->addDay(); // overnight shift
-                    }
-                    $dayMinutes = (int) $start->diffInMinutes($end);
-                    $employeeMinutes += $dayMinutes;
-                }
+                $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+                $dayMinutes = $attendance->workedMinutes($shift);
+                $employeeMinutes += $dayMinutes;
 
                 $sheet->fromArray([
                     $employee->full_name,
@@ -171,26 +166,22 @@ class ReportController extends Controller
 
     private function buildRows($from, $to)
     {
+        $clamp = (bool) app_setting()->clamp_worked_hours;
+
         $employees = Employee::with([
             'area', 'position', 'site', 'schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()]),
             'vacations' => fn ($q) => $q->where('status', 'APPROVED'),
         ])->where('is_active', true)->orderBy('last_name')->get();
 
-        return $employees->map(function ($employee) {
+        return $employees->map(function ($employee) use ($clamp) {
             $attendances = $employee->attendances;
 
             $minutes = 0;
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
-                if ($attendance->check_in && $attendance->check_out) {
-                    $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
-                    $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
-                    if ($end->lessThan($start)) {
-                        $end->addDay(); // overnight shift
-                    }
-                    $minutes += $start->diffInMinutes($end);
-                }
+                $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+                $minutes += $attendance->workedMinutes($shift);
 
                 // Late minutes: how far past the scheduled start the check-in was
                 if ($attendance->status === 'LATE' && $attendance->check_in) {
@@ -263,18 +254,14 @@ class ReportController extends Controller
             ->get();
 
         $employee->load('schedule.days', 'site', 'area', 'position');
+        $clamp = (bool) $setting->clamp_worked_hours;
 
         $minutes = 0;
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
-            if ($attendance->check_in && $attendance->check_out) {
-                $start = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
-                $end = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_out);
-                if ($end->lessThan($start)) {
-                    $end->addDay(); // overnight shift
-                }
-                $minutes += $start->diffInMinutes($end);
-            }
+            $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+            $minutes += $attendance->workedMinutes($shift);
+
             if ($attendance->status === 'LATE' && $attendance->check_in) {
                 $shift = $employee->schedule?->worksOn($attendance->date->dayOfWeek);
                 if ($shift) {

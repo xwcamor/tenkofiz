@@ -923,5 +923,7 @@
     "Bring your face into the circle": "Acerca tu rostro al círculo",
     "Come closer — fill the circle with your face": "Acércate — llena el círculo con tu rostro",
     "Move back a little": "Aléjate un poco",
-    "Center your face in the circle": "Centra tu rostro en el círculo"
+    "Center your face in the circle": "Centra tu rostro en el círculo",
+    "Count worked hours within the schedule only (recommended)": "Contar solo las horas dentro del horario (recomendado)",
+    "ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents \"marking at 6am to rack up hours\". OFF: hours are the raw check-out minus check-in.": "ACTIVADO: las horas pagadas se limitan al turno — desde la hora de entrada del horario (aunque haya marcado antes) hasta la hora de salida del horario (aunque haya marcado después). La puntualidad se sigue evaluando con la marca real. Esto evita el \"marcar a las 6am para acumular horas\". DESACTIVADO: las horas son la resta cruda salida menos entrada."
 }

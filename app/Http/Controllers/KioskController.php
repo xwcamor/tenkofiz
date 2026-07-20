@@ -57,6 +57,12 @@ class KioskController extends Controller
             ], 404);
         }
 
+        // Fail fast: if they plainly cannot mark now (holiday, vacation, too early),
+        // say so here instead of after the whole camera step.
+        if ($preCheck = $this->keypadPreCheck($employee)) {
+            return response()->json(['ok' => false, 'message' => $preCheck], 422);
+        }
+
         $request->session()->put('kiosk_verify_doc', $employee->document_number);
         $request->session()->put('kiosk_verify_until', now()->addSeconds(self::VERIFY_SESSION_SECONDS)->timestamp);
 
@@ -273,6 +279,86 @@ class KioskController extends Controller
         return $this->performMark($request, $employee, 'DNI', ['evidence_photo' => $evidencePath]);
     }
 
+    /**
+     * "You cannot mark right now" reasons that apply to any mark (check-in or
+     * check-out): today is a holiday, or the employee is on approved vacation.
+     * Shared by lookup() (friendly pre-check at the keypad) and performMark()
+     * (the authoritative guard). Returns the message, or null when clear.
+     */
+    private function hardBlockMessage(Employee $employee, \Carbon\Carbon $now): ?string
+    {
+        $today = $now->toDateString();
+
+        if ($holiday = Holiday::onDate($today)) {
+            return __('Today is a holiday (:name): attendance marking is not required.', ['name' => $holiday->name]);
+        }
+
+        if ($employee->onVacation($today)) {
+            return __(':name is on vacation: attendance marking is not required.', ['name' => $employee->full_name]);
+        }
+
+        return null;
+    }
+
+    /**
+     * "Too early to check in" message for the configured early-check-in window,
+     * or null when the mark is within the allowed window. Only meaningful for a
+     * CHECK-IN. Shared by lookup() and performMark().
+     */
+    private function earlyCheckInMessage($setting, Employee $employee, \App\Models\ScheduleDay $shift, \Carbon\Carbon $now): ?string
+    {
+        if ($setting->early_check_in_minutes <= 0) {
+            return null;
+        }
+
+        $start = \Carbon\Carbon::parse($now->toDateString().' '.$shift->start_time, company_timezone());
+        $earliest = $start->copy()->subMinutes($setting->early_check_in_minutes);
+
+        if ($now->lessThan($earliest)) {
+            return __(':name starts at :start. You can check in from :earliest.', [
+                'name' => $employee->full_name,
+                'start' => $start->format('h:i a'),
+                'earliest' => $earliest->format('h:i a'),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Friendly pre-check for the keypad step: if this person plainly cannot mark
+     * right now (holiday, vacation, too early for their shift) we say so HERE,
+     * before sending them to the camera. Returns the message or null. The
+     * authoritative enforcement still lives in performMark — this only saves the
+     * person from doing the whole face step to be rejected at the end.
+     */
+    private function keypadPreCheck(Employee $employee): ?string
+    {
+        $now = company_now();
+
+        if ($message = $this->hardBlockMessage($employee, $now)) {
+            return $message;
+        }
+
+        // The early-check-in window applies only to a CHECK-IN. Determine whether
+        // the next mark would be one: no attendance today AND no open overnight
+        // shift from yesterday waiting to be closed as a check-out.
+        $today = $now->toDateString();
+        $hasToday = Attendance::where('employee_id', $employee->id)->whereDate('date', $today)->exists();
+        $openOvernight = Attendance::where('employee_id', $employee->id)
+            ->whereDate('date', $now->copy()->subDay()->toDateString())
+            ->whereNotNull('check_in')->whereNull('check_out')->exists();
+
+        if (!$hasToday && !$openOvernight) {
+            $shift = $employee->schedule?->worksOn($now->dayOfWeek);
+            if ($shift) {
+                return $this->earlyCheckInMessage(app_setting(), $employee, $shift, $now);
+            }
+        }
+
+        return null;
+    }
+
     /** Shared business rules for facial and DNI marking */
     private function performMark(Request $request, Employee $employee, string $method, array $extra = [])
     {
@@ -282,20 +368,10 @@ class KioskController extends Controller
         $currentTime = $now->format('H:i:s');
         $setting = app_setting();
 
-        // Blocked on holidays
-        if ($holiday = Holiday::onDate($today)) {
-            return response()->json([
-                'ok' => false,
-                'message' => __('Today is a holiday (:name): attendance marking is not required.', ['name' => $holiday->name]),
-            ], 422);
-        }
-
-        // Blocked while the employee is on approved vacation
-        if ($employee->onVacation($today)) {
-            return response()->json([
-                'ok' => false,
-                'message' => __(':name is on vacation: attendance marking is not required.', ['name' => $employee->full_name]),
-            ], 422);
+        // Blocked on holidays or approved vacation (same rules pre-checked at the
+        // keypad so the person is told BEFORE the camera opens — see lookup()).
+        if ($blockMessage = $this->hardBlockMessage($employee, $now)) {
+            return response()->json(['ok' => false, 'message' => $blockMessage], 422);
         }
 
         // Kiosk device audit trail
@@ -345,19 +421,10 @@ class KioskController extends Controller
             if ($todayShift) {
                 $start = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone());
 
-                // Early check-in window: reject marks made too long before the shift starts
-                if ($setting->early_check_in_minutes > 0) {
-                    $earliest = $start->copy()->subMinutes($setting->early_check_in_minutes);
-                    if ($now->lessThan($earliest)) {
-                        return response()->json([
-                            'ok' => false,
-                            'message' => __(':name starts at :start. You can check in from :earliest.', [
-                                'name' => $employee->full_name,
-                                'start' => $start->format('h:i a'),
-                                'earliest' => $earliest->format('h:i a'),
-                            ]),
-                        ], 422);
-                    }
+                // Early check-in window: reject marks made too long before the shift
+                // starts (also pre-checked at the keypad, see lookup()).
+                if ($earlyMessage = $this->earlyCheckInMessage($setting, $employee, $todayShift, $now)) {
+                    return response()->json(['ok' => false, 'message' => $earlyMessage], 422);
                 }
 
                 if ($now->greaterThan($start->copy()->addMinutes($employee->schedule->tolerance_minutes))) {

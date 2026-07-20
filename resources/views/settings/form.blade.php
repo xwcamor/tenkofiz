@@ -86,6 +86,11 @@
                             <small class="text-muted">{{ __('If the check-out happens more than this many minutes before the scheduled end, the mark is kept but flagged with an automatic note for the supervisor. It never blocks the check-out. 0 = disabled.') }}</small>
                         </div>
                     </div>
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="clamp_worked_hours" value="1" class="custom-control-input" id="clampWorkedHours" @checked(old('clamp_worked_hours', $setting->clamp_worked_hours))>
+                        <label class="custom-control-label" for="clampWorkedHours">{{ __('Count worked hours within the schedule only (recommended)') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents "marking at 6am to rack up hours". OFF: hours are the raw check-out minus check-in.') }}</small>
                     <div class="form-group">
                         <label>{{ __('Kiosk enrollment PIN') }} <small class="text-muted">({{ __('4-8 digits; empty = enrollment mode disabled') }})</small></label>
                         <input name="kiosk_enroll_pin" value="{{ old('kiosk_enroll_pin', $setting->kiosk_enroll_pin) }}" class="form-control @error('kiosk_enroll_pin') is-invalid @enderror" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off">

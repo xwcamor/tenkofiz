@@ -182,6 +182,29 @@ Se evalúan en este orden:
 Cada marca guarda auditoría del dispositivo: IP y user-agent (`attendances.ip`,
 `attendances.user_agent`).
 
+**Pre-aviso en el teclado (fallar rápido)**: las tres razones de "no puedes marcar
+ahora" — **feriado**, **vacaciones** y **demasiado temprano** (ventana anticipada,
+solo aplica a la ENTRADA) — se revisan también en `POST /kiosk/lookup`, **antes**
+de abrir la cámara. Si aplica, se rechaza en el teclado con el mensaje, sin hacerle
+perder los segundos de reconocimiento. La validación autoritativa sigue en
+`performMark` (nadie puede saltársela); son helpers compartidos
+(`hardBlockMessage`, `earlyCheckInMessage`, `keypadPreCheck`). Para decidir si la
+próxima marca es ENTRADA (y aplicar la ventana), el pre-aviso mira que no haya
+registro hoy ni un turno nocturno abierto de ayer.
+
+### 1.4b Horas trabajadas: recorte al horario (`settings.clamp_worked_hours`)
+Las horas de los reportes se calculan en `Attendance::workedMinutes(?$shift)`:
+- **ACTIVADO (por defecto)**: las horas se **recortan al turno** — ventana pagada =
+  `máx(entrada, inicio del horario)` → `mín(salida, fin del horario)`. Así, marcar
+  antes (p.ej. 6am con turno 8am) o quedarse después **no infla** las horas. La
+  **puntualidad se sigue midiendo con la marca real** (esto no cambia). Cierra el
+  hueco del "marco temprano para hacer horas".
+- **DESACTIVADO**: horas crudas = `salida − entrada`.
+- Días sin turno (marca en día no laborable) y turnos nocturnos: se cuenta crudo
+  (no hay ventana de horario contra la cual recortar). Configurable en Ajustes.
+- Los **minutos tarde** se miden desde la hora de inicio del horario (no desde el
+  fin de la tolerancia): 8:15 con tolerancia 10 → TARDANZA y **15 min** tarde.
+
 ### 1.5 Seguridad del kiosco (POR SEDE)
 La seguridad es **por sede**: cada sede (tablet) tiene su propio token y su propio
 dispositivo vinculado (`app/Http/Middleware/VerifyKioskToken.php`). El middleware

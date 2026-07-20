@@ -37,6 +37,7 @@ class SettingController extends Controller
         $data['cutoff_day'] = $data['cutoff_day'] ?? null;
         $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 0;
         $data['early_departure_minutes'] = $data['early_departure_minutes'] ?? 0;
+        $data['clamp_worked_hours'] = $request->boolean('clamp_worked_hours');
         $data['kiosk_fast_mode'] = $request->boolean('kiosk_fast_mode');
         $data['kiosk_liveness'] = $request->boolean('kiosk_liveness');
         // Recognition calibration (threshold + verify seconds) is core: it is
