@@ -114,6 +114,14 @@ capas de texto (orden del reto, conteo) son divs encima, no se voltean, y quedan
 legibles. La detección lee los píxeles crudos de la cámara, así que el espejo de la
 vista no afecta el reconocimiento ni el reto.
 
+**Pantalla de cámara limpia (fondo blanco + círculo)**: la página de verificación
+(`<body class="kiosk-cam">`) usa un fondo blanco sin distracciones y la cámara
+**recortada a un círculo** (RENIEC/banco), no el rectángulo con todo el cuarto
+detrás. El video y el canvas comparten caja y `object-fit: cover`, así el óvalo guía
+sigue alineado con el rostro dentro del círculo; el borde del círculo se pone verde
+cuando el encuadre es bueno. El teclado y las demás páginas del kiosko mantienen el
+tema oscuro.
+
 ### 1.2d Óvalo guía de encuadre (tipo RENIEC)
 Sobre el video se dibuja un **óvalo punteado** (canvas `#overlay`): blanco mientras
 no hay rostro o está mal encuadrado, **verde** cuando está centrado y a buen tamaño

@@ -58,4 +58,40 @@
     .progress.kiosk-progress { height: 6px; background: #1d2a3a; max-width: 560px; margin: .5rem auto 0; }
     .consent-box { text-align: left; font-size: .8rem; color: #b9c4d2; background: #0d141d; border: 1px solid #2b3a4e; border-radius: 10px; padding: .7rem .8rem; max-height: 150px; overflow-y: auto; }
     .person-chip { background: #1d2a3a; border: 1px solid #2b3a4e; border-radius: 999px; display: inline-block; padding: .35rem 1.1rem; color: #dbe6f3; font-weight: 600; }
+
+    /* ---------- Clean white camera page (only the circular camera) ----------
+       Applied only on the verify page (<body class="kiosk-cam">): a distraction-
+       free white screen with the live camera cropped to a circle, RENIEC-style.
+       The keypad and other kiosk pages keep the dark theme. */
+    body.kiosk-cam { background: #f4f7fb; color: #22303f; }
+    body.kiosk-cam .person-chip { background: #eaf1f9; border-color: #cdddef; color: #1f4b73; }
+    body.kiosk-cam .btn-outline-light { color: #33475b; border-color: #b7c5d6; }
+    body.kiosk-cam .kiosk-help { color: #5b6b7d; }
+    body.kiosk-cam .form-check-label.text-light { color: #33475b !important; }
+    body.kiosk-cam .consent-box { color: #33475b; background: #f0f4f9; border-color: #cdddef; }
+    body.kiosk-cam .kiosk-card { background: #fff; border-color: #d7e0ec; box-shadow: 0 8px 30px rgba(20, 50, 90, .08); }
+    body.kiosk-cam .kiosk-card h6.text-white { color: #22303f !important; }
+    body.kiosk-cam .alert-secondary { background: #eef2f7; color: #33475b; border-color: #dbe3ec; }
+    /* Camera cropped to a circle. video + canvas share the same box and aspect,
+       both object-fit:cover, so the guide oval drawn on the canvas stays aligned
+       with the face inside the circle. */
+    body.kiosk-cam .video-frame {
+        width: min(78vw, 360px);
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        border: 5px solid #2e75b6;
+        box-shadow: 0 16px 44px rgba(20, 50, 90, .20);
+        background: #dfe7f1;
+        transition: border-color .2s;
+    }
+    body.kiosk-cam .video-frame.face-ok { border-color: #28a745; }
+    body.kiosk-cam .video-frame video,
+    body.kiosk-cam .video-frame canvas {
+        position: absolute; inset: 0;
+        width: 100%; height: 100%;
+        object-fit: cover;
+    }
+    /* Keep the overlays safely inside the circle (corners are clipped) */
+    body.kiosk-cam #countdown { top: 7%; left: 0; right: 0; text-align: center; }
+    body.kiosk-cam #challenge { bottom: 8%; }
 </style>

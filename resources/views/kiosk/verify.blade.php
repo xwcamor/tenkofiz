@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ vendor_asset('vendor/fontawesome/css/all.min.css', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css') }}">
     @include('kiosk.partials.style')
 </head>
-<body>
+<body class="kiosk-cam">
 <div class="container py-3 text-center">
     <div class="d-flex justify-content-between align-items-center mb-2" style="max-width:560px;margin:0 auto">
         <a href="{{ route('kiosk') }}" class="btn btn-sm btn-outline-light"><i class="fas fa-arrow-left"></i> {{ __('Back') }}</a>

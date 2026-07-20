@@ -49,6 +49,7 @@ function ovalGeom() {
     const w = overlay.width, h = overlay.height;
     return { cx: w / 2, cy: h * 0.47, rx: w * 0.30, ry: h * 0.40 };
 }
+const videoFrame = document.querySelector('.video-frame');
 function drawGuideOval(ok) {
     const ctx = overlay.getContext('2d');
     const { cx, cy, rx, ry } = ovalGeom();
@@ -60,6 +61,8 @@ function drawGuideOval(ok) {
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    // On the white camera page the circular frame border echoes the state
+    if (videoFrame) videoFrame.classList.toggle('face-ok', !!ok);
 }
 function faceWellPlaced(box) {
     const { cx, cy, rx, ry } = ovalGeom();
