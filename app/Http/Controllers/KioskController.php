@@ -349,8 +349,8 @@ class KioskController extends Controller
             ->whereDate('date', $now->copy()->subDay()->toDateString())
             ->whereNotNull('check_in')->whereNull('check_out')->exists();
 
-        if (!$hasToday && !$openOvernight) {
-            $shift = $employee->schedule?->worksOn($now->dayOfWeek);
+        if (!$hasToday && !$openOvernight && $employee->schedule?->isFixed()) {
+            $shift = $employee->schedule->worksOn($now->dayOfWeek);
             if ($shift) {
                 return $this->earlyCheckInMessage(app_setting(), $employee, $shift, $now);
             }
@@ -418,7 +418,9 @@ class KioskController extends Controller
                 // but say so explicitly instead of looking like a normal "on time".
                 $extra['note'] = trim((($extra['note'] ?? '').' '.__('Mark on a non-working day according to their schedule.')));
             }
-            if ($todayShift) {
+            // Flexible schedules have no fixed start: no early-check-in window and no
+            // tardiness — the person only has to complete their daily hour target.
+            if ($todayShift && $employee->schedule->isFixed()) {
                 $start = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone());
 
                 // Early check-in window: reject marks made too long before the shift

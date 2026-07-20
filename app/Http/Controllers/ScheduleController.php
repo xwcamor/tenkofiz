@@ -57,7 +57,9 @@ class ScheduleController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())],
+            'type' => ['required', Rule::in([Schedule::TYPE_FIXED, Schedule::TYPE_FLEXIBLE])],
             'tolerance_minutes' => ['required', 'integer', 'min:0', 'max:60'],
+            'target_hours' => ['nullable', 'numeric', 'min:0.5', 'max:24'],
             'days' => ['required', 'array'],
             'days.*.on' => ['nullable', 'boolean'],
             'days.*.start' => ['nullable', 'date_format:H:i'],
@@ -66,10 +68,25 @@ class ScheduleController extends Controller
             'days.required' => __('Select at least one working day.'),
         ]);
 
+        $flexible = $data['type'] === Schedule::TYPE_FLEXIBLE;
+
+        if ($flexible && empty($data['target_hours'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'target_hours' => __('A flexible schedule needs a daily hour target.'),
+            ]);
+        }
+
         $days = [];
         foreach (range(0, 6) as $weekday) {
             $day = $data['days'][$weekday] ?? null;
             if (!($day['on'] ?? false)) {
+                continue;
+            }
+            if ($flexible) {
+                // Flexible: only WHICH days are worked matters (for absences); the
+                // times are not used to judge punctuality, so store placeholders.
+                $days[] = ['weekday' => $weekday, 'start_time' => '00:00', 'end_time' => '00:00'];
+
                 continue;
             }
             if (empty($day['start']) || empty($day['end']) || $day['start'] === $day['end']) {
@@ -89,7 +106,9 @@ class ScheduleController extends Controller
         return [
             [
                 'name' => $data['name'],
-                'tolerance_minutes' => $data['tolerance_minutes'],
+                'type' => $data['type'],
+                'tolerance_minutes' => $flexible ? 0 : $data['tolerance_minutes'],
+                'target_minutes' => $flexible ? (int) round($data['target_hours'] * 60) : null,
                 'is_active' => $schedule ? $request->boolean('is_active') : true,
             ],
             $days,

@@ -15,18 +15,22 @@
                         @unless($schedule->is_active)<span class="badge badge-secondary ml-1">{{ __('Inactive') }}</span>@endunless
                     </td>
                     <td class="text-muted">{{ $schedule->daysSummary() }}
-                        @if($schedule->days->contains(fn ($d) => $d->crossesMidnight()))
+                        @if($schedule->isFlexible())
+                            <span class="badge badge-warning ml-1"><i class="fas fa-hourglass-half"></i> {{ __('By hours') }}</span>
+                        @elseif($schedule->days->contains(fn ($d) => $d->crossesMidnight()))
                             <span class="badge badge-info ml-1" title="{{ __('A shift that ends past midnight') }}"><i class="fas fa-moon"></i> {{ __('overnight') }}</span>
                         @endif
                     </td>
-                    <td>{{ $schedule->tolerance_minutes }} min</td>
+                    <td>{{ $schedule->isFlexible() ? '—' : $schedule->tolerance_minutes.' min' }}</td>
                     <td><span class="badge badge-info">{{ $schedule->employees_count }}</span></td>
                     <td>
                         @php
                             $payload = json_encode([
                                 'action' => route('schedules.update', $schedule),
                                 'name' => $schedule->name,
+                                'type' => $schedule->type,
                                 'tolerance_minutes' => $schedule->tolerance_minutes,
+                                'target_hours' => $schedule->target_minutes ? round($schedule->target_minutes / 60, 2) : '',
                                 'is_active' => $schedule->is_active,
                                 'days' => $schedule->days->mapWithKeys(fn ($d) => [$d->weekday => [
                                     'start' => substr($d->start_time, 0, 5),
@@ -65,8 +69,16 @@
                     @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Working days and hours') }}</label>
-                    <small class="text-muted d-block mb-2">{{ __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).') }}</small>
+                    <label>{{ __('Schedule type') }}</label>
+                    <select name="type" id="scheduleType" class="form-control" onchange="applyScheduleType(this.value)">
+                        <option value="fixed" @selected(old('type', 'fixed') === 'fixed')>{{ __('Fixed — start time with tolerance (tardiness applies)') }}</option>
+                        <option value="flexible" @selected(old('type') === 'flexible')>{{ __('Flexible — complete an hour target (no tardiness)') }}</option>
+                    </select>
+                    <small class="text-muted">{{ __('Flexible: no fixed start, no tardiness — the person just has to complete their daily hours (teachers, consultants, part-time).') }}</small>
+                </div>
+                <div class="form-group">
+                    <label>{{ __('Working days') }} <span id="scheduleHoursLabel">{{ __('and hours') }}</span></label>
+                    <small class="text-muted d-block mb-2" id="scheduleOvernightNote">{{ __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).') }}</small>
                     @error('days')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
                     @php $weekdays = [1 => __('Monday'), 2 => __('Tuesday'), 3 => __('Wednesday'), 4 => __('Thursday'), 5 => __('Friday'), 6 => __('Saturday'), 0 => __('Sunday')]; @endphp
                     @foreach($weekdays as $weekday => $label)
@@ -76,15 +88,21 @@
                                        @checked(old("days.$weekday.on"))>
                                 <label class="custom-control-label" for="day{{ $weekday }}">{{ $label }}</label>
                             </div>
-                            <input type="time" name="days[{{ $weekday }}][start]" id="dayStart{{ $weekday }}" value="{{ old("days.$weekday.start") }}" class="form-control form-control-sm" style="width:110px">
-                            <span class="text-muted">–</span>
-                            <input type="time" name="days[{{ $weekday }}][end]" id="dayEnd{{ $weekday }}" value="{{ old("days.$weekday.end") }}" class="form-control form-control-sm" style="width:110px">
+                            <input type="time" name="days[{{ $weekday }}][start]" id="dayStart{{ $weekday }}" value="{{ old("days.$weekday.start") }}" class="form-control form-control-sm fixed-time" style="width:110px">
+                            <span class="text-muted fixed-time">–</span>
+                            <input type="time" name="days[{{ $weekday }}][end]" id="dayEnd{{ $weekday }}" value="{{ old("days.$weekday.end") }}" class="form-control form-control-sm fixed-time" style="width:110px">
                         </div>
                     @endforeach
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="scheduleToleranceRow">
                     <label>{{ __('Tardiness tolerance (minutes)') }}</label>
                     <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 10) }}" class="form-control" min="0" max="60" required>
+                </div>
+                <div class="form-group" id="scheduleTargetRow" style="display:none">
+                    <label>{{ __('Daily hour target') }}</label>
+                    <input type="number" step="0.5" name="target_hours" id="scheduleTarget" value="{{ old('target_hours') }}" class="form-control @error('target_hours') is-invalid @enderror" min="0.5" max="24" style="max-width:160px">
+                    @error('target_hours')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                    <small class="text-muted">{{ __('Hours the person must complete each working day. Reports show worked hours against this target.') }}</small>
                 </div>
                 <div class="custom-control custom-switch" id="scheduleActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="scheduleActive" @checked(old('is_active', true))>
@@ -104,15 +122,27 @@
 <script>
 const SCHEDULE_STORE_URL = @json(route('schedules.store'));
 
+function applyScheduleType(type) {
+    const flexible = type === 'flexible';
+    document.getElementById('scheduleToleranceRow').style.display = flexible ? 'none' : '';
+    document.getElementById('scheduleTargetRow').style.display = flexible ? '' : 'none';
+    document.getElementById('scheduleOvernightNote').style.display = flexible ? 'none' : '';
+    document.getElementById('scheduleHoursLabel').style.display = flexible ? 'none' : '';
+    document.querySelectorAll('.fixed-time').forEach(el => el.style.display = flexible ? 'none' : '');
+}
+
 function openScheduleModal(data = null) {
     const form = document.getElementById('scheduleForm');
     form.action = data ? data.action : SCHEDULE_STORE_URL;
     document.getElementById('scheduleFormAction').value = form.action;
     document.getElementById('scheduleMethod').value = data ? 'PUT' : 'POST';
     document.getElementById('scheduleName').value = data ? data.name : '';
+    document.getElementById('scheduleType').value = data ? (data.type || 'fixed') : 'fixed';
     document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 10;
+    document.getElementById('scheduleTarget').value = data ? (data.target_hours || '') : '';
     document.getElementById('scheduleActive').checked = data ? !!data.is_active : true;
     document.getElementById('scheduleActiveRow').style.display = data ? '' : 'none';
+    applyScheduleType(document.getElementById('scheduleType').value);
 
     for (let weekday = 0; weekday <= 6; weekday++) {
         const dayData = data && data.days ? data.days[weekday] : null;
@@ -139,6 +169,7 @@ document.querySelectorAll('.day-toggle').forEach(toggle => {
 });
 
 @if($errors->any())
+    applyScheduleType(document.getElementById('scheduleType').value);
     $('#scheduleModal').modal('show');
 @endif
 </script>

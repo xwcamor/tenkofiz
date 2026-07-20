@@ -201,6 +201,46 @@ class KioskFlowTest extends TestCase
         $this->assertSame('55667788', session('kiosk_verify_doc'));
     }
 
+    // ---------- Flexible schedule (by hours, no tardiness) ----------
+
+    private function makeFlexibleEmployee(): Employee
+    {
+        $schedule = Schedule::withoutGlobalScopes()->create([
+            'company_id' => Schedule::withoutGlobalScopes()->first()->company_id,
+            'name' => 'Flexible '.uniqid(),
+            'type' => Schedule::TYPE_FLEXIBLE,
+            'tolerance_minutes' => 0,
+            'target_minutes' => 480, // 8h/day
+        ]);
+        foreach ([1, 2, 3, 4, 5] as $weekday) {
+            $schedule->days()->create(['weekday' => $weekday, 'start_time' => '00:00:00', 'end_time' => '00:00:00']);
+        }
+
+        return $this->makeEmployee(['schedule_id' => $schedule->id, 'face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+    }
+
+    public function test_flexible_schedule_never_marks_tardiness(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 20:00:00'); // Thursday 15:00 Lima — very "late" for a fixed shift
+        $this->makeFlexibleEmployee();
+
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])
+            ->assertOk()
+            ->assertJsonPath('status', 'ON_TIME'); // flexible: no tardiness ever
+    }
+
+    public function test_flexible_schedule_ignores_the_early_check_in_window(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 09:00:00'); // Thursday 04:00 Lima — extremely early
+        $employee = $this->makeFlexibleEmployee();
+        \App\Models\Setting::forCompany($employee->company_id)->update(['early_check_in_minutes' => 120]);
+
+        // A fixed schedule would be rejected this early; flexible has no start to be early against
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+    }
+
     // ---------- Rule (Carlos): document marking only for enrolled faces ----------
 
     public function test_document_marking_is_rejected_for_employees_without_an_enrolled_face(): void

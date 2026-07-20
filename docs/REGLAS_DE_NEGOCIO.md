@@ -192,6 +192,22 @@ perder los segundos de reconocimiento. La validación autoritativa sigue en
 próxima marca es ENTRADA (y aplicar la ventana), el pre-aviso mira que no haya
 registro hoy ni un turno nocturno abierto de ayer.
 
+### 1.4c Tipo de horario: Fijo vs Flexible (`schedules.type`)
+El tipo vive en el **horario** (no en la empresa), así un mismo workspace mezcla
+ambos (p.ej. colegio: admins fijos + profesores flexibles).
+- **Fijo** (`fixed`, por defecto): hora de entrada + tolerancia deciden PUNTUAL/
+  TARDANZA; aplica la ventana de marcado anticipado; las horas se recortan al turno
+  si `clamp_worked_hours` está activo. Es todo lo descrito arriba.
+- **Flexible** (`flexible`): **sin hora de entrada fija → sin tardanza** (siempre
+  PUNTUAL) y **sin ventana anticipada**. Solo importa cumplir una **meta de horas
+  por día** (`schedules.target_minutes`). Las horas NO se recortan (no hay ventana
+  de turno). Los `ScheduleDay` se guardan solo para saber QUÉ días trabaja (marcado
+  de ausencias); sus horas 00:00 son marcador de posición. Cubre profesores,
+  consultores y medio tiempo. `Schedule::isFlexible()/isFixed()`.
+- **Pendiente/futuro**: bloques separados el mismo día (profesor con un curso y otro
+  3 h después) y breaks tipo ZKTeco (entrada / salida a break / retorno / salida)
+  requieren el modelo de **marcas múltiples** por día — otra fase.
+
 ### 1.4b Horas trabajadas: recorte al horario (`settings.clamp_worked_hours`)
 Las horas de los reportes se calculan en `Attendance::workedMinutes(?$shift)`:
 - **ACTIVADO (por defecto)**: las horas se **recortan al turno** — ventana pagada =

@@ -925,5 +925,16 @@
     "Move back a little": "Aléjate un poco",
     "Center your face in the circle": "Centra tu rostro en el círculo",
     "Count worked hours within the schedule only (recommended)": "Contar solo las horas dentro del horario (recomendado)",
-    "ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents \"marking at 6am to rack up hours\". OFF: hours are the raw check-out minus check-in.": "ACTIVADO: las horas pagadas se limitan al turno — desde la hora de entrada del horario (aunque haya marcado antes) hasta la hora de salida del horario (aunque haya marcado después). La puntualidad se sigue evaluando con la marca real. Esto evita el \"marcar a las 6am para acumular horas\". DESACTIVADO: las horas son la resta cruda salida menos entrada."
+    "ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents \"marking at 6am to rack up hours\". OFF: hours are the raw check-out minus check-in.": "ACTIVADO: las horas pagadas se limitan al turno — desde la hora de entrada del horario (aunque haya marcado antes) hasta la hora de salida del horario (aunque haya marcado después). La puntualidad se sigue evaluando con la marca real. Esto evita el \"marcar a las 6am para acumular horas\". DESACTIVADO: las horas son la resta cruda salida menos entrada.",
+    "By hours": "Por horas",
+    ":h h/day target": "meta :h h/día",
+    "by hours": "por horas",
+    "Schedule type": "Tipo de horario",
+    "Fixed — start time with tolerance (tardiness applies)": "Fijo — hora de entrada con tolerancia (aplica tardanza)",
+    "Flexible — complete an hour target (no tardiness)": "Flexible — cumplir una meta de horas (sin tardanza)",
+    "Flexible: no fixed start, no tardiness — the person just has to complete their daily hours (teachers, consultants, part-time).": "Flexible: sin hora fija ni tardanza — solo debe cumplir sus horas del día (profesores, consultores, medio tiempo).",
+    "and hours": "y horas",
+    "Daily hour target": "Meta de horas por día",
+    "Hours the person must complete each working day. Reports show worked hours against this target.": "Horas que debe cumplir cada día laborable. Los reportes muestran las horas trabajadas contra esta meta.",
+    "A flexible schedule needs a daily hour target.": "Un horario flexible necesita una meta de horas por día."
 }

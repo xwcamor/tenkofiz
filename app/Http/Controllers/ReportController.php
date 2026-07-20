@@ -115,7 +115,7 @@ class ReportController extends Controller
             $employeeMinutes = 0;
 
             foreach ($employee->attendances as $attendance) {
-                $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
                 $dayMinutes = $attendance->workedMinutes($shift);
                 $employeeMinutes += $dayMinutes;
 
@@ -180,7 +180,7 @@ class ReportController extends Controller
             $minutes = 0;
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
-                $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+                $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
                 $minutes += $attendance->workedMinutes($shift);
 
                 // Late minutes: how far past the scheduled start the check-in was
@@ -259,7 +259,7 @@ class ReportController extends Controller
         $minutes = 0;
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
-            $shift = $clamp ? $employee->schedule?->worksOn($attendance->date->dayOfWeek) : null;
+            $shift = ($clamp && $employee->schedule?->isFixed()) ? $employee->schedule->worksOn($attendance->date->dayOfWeek) : null;
             $minutes += $attendance->workedMinutes($shift);
 
             if ($attendance->status === 'LATE' && $attendance->check_in) {
