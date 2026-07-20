@@ -47,17 +47,23 @@ class ReportController extends Controller
             __('Worked days'), __('On time'), __('Late'), __('Late minutes'),
             __('Absences'), __('Excused'), __('Expected hours'), __('Worked hours'), __('Balance'), __('Vacation days'),
         ];
-        foreach ($headers as $index => $header) {
-            $sheet->setCellValue([$index + 1, 1], $header);
-        }
-        $sheet->getStyle('A1:Q1')->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
-        ]);
-        $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
+        // Title on row 1, column headers on row 2 directly above the data (no
+        // stray line between the headers and the rows).
+        $sheet->setCellValue('A1', __('Attendance report').' · '.__('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A2:Q2');
+        $sheet->mergeCells('A1:Q1');
+        $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 12]]);
+
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 2], $header);
+        }
+        $sheet->getStyle('A2:Q2')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
+            'alignment' => ['vertical' => 'center', 'wrapText' => true],
+        ]);
+        $sheet->freezePane('A3'); // keep the header visible while scrolling
 
         $rowIndex = 3;
         foreach ($rows as $row) {
@@ -96,17 +102,21 @@ class ReportController extends Controller
         $sheet->setTitle(__('Detail'));
 
         $headers = [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out'), __('Worked hours'), __('Status')];
+
+        $sheet->setCellValue('A1', __('Attendance detail').' · '.__('Period: from :from to :to — Issued: :issued', [
+            'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
+        ]));
+        $sheet->mergeCells('A1:G1');
+        $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 12]]);
+
         foreach ($headers as $index => $header) {
-            $sheet->setCellValue([$index + 1, 1], $header);
+            $sheet->setCellValue([$index + 1, 2], $header);
         }
-        $sheet->getStyle('A1:G1')->applyFromArray([
+        $sheet->getStyle('A2:G2')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
         ]);
-        $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
-            'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
-        ]));
-        $sheet->mergeCells('A2:G2');
+        $sheet->freezePane('A3');
 
         $clamp = (bool) app_setting()->clamp_worked_hours;
 
@@ -187,8 +197,10 @@ class ReportController extends Controller
 
                 // Expected minutes (the "jornada") only on days actually worked, so a
                 // short day (late in / early out) shows as a deficit vs what was due.
+                // Prefer the value frozen at check-in; fall back to a live compute for
+                // older rows without a snapshot.
                 if ($attendance->check_in && $attendance->check_out) {
-                    $expectedMinutes += $employee->schedule?->expectedMinutesFor($weekday) ?? 0;
+                    $expectedMinutes += $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
                 }
 
                 // Late minutes: how far past the scheduled start the check-in was
@@ -279,7 +291,7 @@ class ReportController extends Controller
             $minutes += $attendance->workedMinutes($shift);
 
             if ($attendance->check_in && $attendance->check_out) {
-                $expectedMinutes += $employee->schedule?->expectedMinutesFor($weekday) ?? 0;
+                $expectedMinutes += $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
             }
 
             if ($attendance->status === 'LATE' && $attendance->check_in) {

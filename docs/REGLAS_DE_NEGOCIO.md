@@ -219,6 +219,13 @@ cosas por empleado en el periodo:
 - **Saldo** = trabajadas − esperadas (negativo = llegó tarde / salió antes de forma
   habitual; positivo = trabajó de más).
 
+**Horas esperadas congeladas**: al registrar la ENTRADA se guarda
+`attendances.expected_minutes` (la jornada de ese día), igual que se congela el
+estado. Así, cambiar el horario después **no reescribe** el saldo de días pasados
+(los reportes usan el valor congelado; filas viejas sin snapshot caen al cálculo en
+vivo). Con esto, ni la tardanza ni las horas esperadas del pasado se mueven al
+reasignar un horario.
+
 Punto clave a entender: **la tolerancia solo afecta la ETIQUETA** (PUNTUAL/TARDANZA),
 no las horas. Las horas siempre se cuentan desde la marca real (por el recorte), así
 un profesor que entra 4 min tarde sale PUNTUAL pero su Saldo baja 4 min/día — el

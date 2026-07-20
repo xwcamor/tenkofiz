@@ -436,6 +436,10 @@ class KioskController extends Controller
             $attendance->fill([
                 'check_in' => $currentTime,
                 'status' => $status,
+                // Freeze the expected minutes for the day (the "jornada") so later
+                // schedule changes never rewrite this day's balance — same idea as
+                // freezing the status above.
+                'expected_minutes' => $employee->schedule?->expectedMinutesFor($now->dayOfWeek),
                 'method' => $method,
             ] + $extra + $device)->save();
 

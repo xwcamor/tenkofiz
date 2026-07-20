@@ -172,6 +172,21 @@ class KioskFlowTest extends TestCase
         $this->assertSame(540, $attendance->workedMinutes($shift));  // clamped 08–17 = 9h
     }
 
+    public function test_expected_minutes_are_frozen_on_check_in(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday, General schedule 08:00–17:00 (9h)
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk();
+
+        $attendance = \App\Models\Attendance::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
+        $this->assertSame(540, $attendance->expected_minutes); // 9h frozen at check-in
+
+        // Changing the schedule later must NOT rewrite the frozen expectation
+        $employee->schedule->days()->update(['end_time' => '13:00:00']); // now a 5h shift
+        $this->assertSame(540, $attendance->fresh()->expected_minutes);
+    }
+
     public function test_expected_minutes_reflect_the_schedule_type(): void
     {
         $fixed = Schedule::withoutGlobalScopes()->first(); // General 08:00–17:00 = 9h

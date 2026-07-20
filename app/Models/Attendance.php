@@ -14,7 +14,7 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id', 'date', 'check_in', 'check_out',
-        'status', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
+        'status', 'expected_minutes', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',
     ];
 
     // 'date:Y-m-d' stores a pure date string (no time). Without the explicit
