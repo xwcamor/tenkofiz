@@ -125,10 +125,13 @@ tema oscuro.
 ### 1.2d Óvalo guía de encuadre (tipo RENIEC)
 Sobre el video se dibuja un **óvalo punteado** (canvas `#overlay`): blanco mientras
 no hay rostro o está mal encuadrado, **verde** cuando está centrado y a buen tamaño
-(`faceWellPlaced`). Es solo una GUÍA visual — nunca bloquea la marca — pero
-estandariza posición y distancia, así el reconocimiento y el gesto de vida leen
-landmarks limpios: menos verificaciones fallidas y menos caídas a la fase de
-evidencia. Aparece en verificación, en la fase de evidencia, en el auto-enrolamiento
+(`faceWellPlaced`, calculado respecto al círculo visible con `object-fit: cover`).
+En la página de cámara el **encuadre SÍ es obligatorio**: hasta que la cara está
+bien dentro del círculo no se confirma identidad ni se corre el gesto (el
+reconocimiento lee el cuadro completo, así que sin este chequeo una cara a medio
+salir del círculo igual validaría — eso es lo que se evita). Los textos
+(instrucción del gesto y conteo) van **debajo del círculo**, sobre el fondo blanco,
+para que se lean; ya no hay texto encima del video. Aparece en verificación, en la fase de evidencia, en el auto-enrolamiento
 (`/kiosk/verify`) y en el enrolamiento de supervisor (`/kiosk/enroll`, con un bucle
 guía continuo). En el enrolamiento importa doble: muestras bien centradas producen
 una plantilla facial mejor para siempre.

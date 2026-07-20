@@ -64,11 +64,18 @@ function drawGuideOval(ok) {
     // On the white camera page the circular frame border echoes the state
     if (videoFrame) videoFrame.classList.toggle('face-ok', !!ok);
 }
+// Whether the face sits properly inside the VISIBLE circle. The camera is shown
+// cropped to a circle (object-fit: cover centers the frame), so the visible circle
+// in canvas coordinates is centred with radius = min(W,H)/2. We require the face to
+// be centred in it and at a sensible size — this is what makes the circle actually
+// matter (recognition itself reads the whole frame, so without this check a face
+// half-out of the circle would still validate).
 function faceWellPlaced(box) {
-    const { cx, cy, rx, ry } = ovalGeom();
+    const W = overlay.width, H = overlay.height;
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2;
     const bcx = box.x + box.width / 2, bcy = box.y + box.height / 2;
-    const centered = Math.abs(bcx - cx) < rx * 0.55 && Math.abs(bcy - cy) < ry * 0.5;
-    const sized = box.height > ry * 0.9 && box.height < ry * 1.95; // not too far, not too close
+    const centered = Math.hypot(bcx - cx, bcy - cy) < R * 0.40;
+    const sized = box.height > R * 0.50 && box.height < R * 1.55; // not too far, not too close
     return centered && sized;
 }
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -164,8 +171,11 @@ function challengeLabel(challenge) {
     if (challenge === 'turn') return '<i class="fas fa-arrows-alt-h"></i> ' + I18N.challengeTurn;
     return '<i class="fas fa-arrows-alt-v"></i> ' + I18N.challengeNod;
 }
+// The gesture instruction is shown in the status box below the circle (readable on
+// the white background); there is no longer any text overlaid on the video.
 function setChallenge(challenge) {
     const el = document.getElementById('challenge');
+    if (!el) return;
     if (!challenge) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.innerHTML = challengeLabel(challenge);
@@ -280,14 +290,24 @@ async function runVerify() {
             }
             sawFace = true;
 
+            // The circle must actually matter: until the face is properly inside
+            // it, we neither confirm identity nor run the gesture. This is what
+            // stops a mark from succeeding with the face half-out of the circle.
+            const placed = faceWellPlaced(det.detection.box);
+            drawGuideOval(placed);
+            if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
+            if (!placed) {
+                show('info', spinner + I18N.placeFaceInOval);
+                debugUpdate(headPose(det.landmarks), lastDistance, identityOk, challenge, pitchBaseline);
+                await wait(120);
+                continue;
+            }
+
             if (!identityOk) {
                 const d = Math.min(...refs.map(r => faceapi.euclideanDistance(r, det.descriptor)));
                 lastDistance = d;
                 if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; }
             }
-            // Green oval when the face is well framed; the detection box only in debug
-            drawGuideOval(faceWellPlaced(det.detection.box));
-            if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
 
             const pose = headPose(det.landmarks);
             if (LIVENESS && !challengeDone && identityOk) {

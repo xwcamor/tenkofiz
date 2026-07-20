@@ -91,7 +91,10 @@
         width: 100%; height: 100%;
         object-fit: cover;
     }
-    /* Keep the overlays safely inside the circle (corners are clipped) */
-    body.kiosk-cam #countdown { top: 7%; left: 0; right: 0; text-align: center; }
-    body.kiosk-cam #challenge { bottom: 8%; }
+    /* Countdown shown BELOW the circle, big and readable on white */
+    body.kiosk-cam .kiosk-countdown {
+        font-size: 2rem; font-weight: 800; color: #2e75b6;
+        line-height: 1; margin: .6rem auto .1rem;
+    }
+    body.kiosk-cam #result .alert { font-size: 1.05rem; }
 </style>

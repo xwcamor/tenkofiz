@@ -19,11 +19,9 @@
     <div class="video-frame">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="overlay"></canvas>
-        {{-- Live countdown of the current phase, over the video --}}
-        <div id="countdown" style="position:absolute;top:8px;right:14px;font-size:2.4rem;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85);display:none"></div>
-        {{-- Random liveness challenge instruction, big over the video --}}
-        <div id="challenge" style="position:absolute;left:0;right:0;bottom:12px;font-size:1.35rem;font-weight:700;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.9);display:none"></div>
     </div>
+    {{-- Countdown BELOW the circle (readable), not over the camera --}}
+    <div id="countdown" class="kiosk-countdown" style="display:none"></div>
     <div class="progress kiosk-progress"><div class="progress-bar bg-info" id="verifyProgress" style="width:0%"></div></div>
     {{-- Face presence indicator: instant feedback while searching --}}
     <div class="mt-2" id="faceChip" style="display:none">
