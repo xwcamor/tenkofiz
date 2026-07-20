@@ -62,9 +62,18 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4 form-group">
+                        <div class="col-md-3 form-group">
                             <label>{{ __('Hire date') }}</label>
                             <input type="date" name="hire_date" value="{{ old('hire_date', $employee->hire_date?->toDateString()) }}" class="form-control">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>{{ __('Contract type') }}</label>
+                            <select name="contract_type" class="form-control @error('contract_type') is-invalid @enderror">
+                                @foreach(\App\Models\Employee::CONTRACT_TYPES as $key => $label)
+                                    <option value="{{ $key }}" @selected(old('contract_type', $employee->contract_type ?? 'full_time') === $key)>{{ __($label) }}</option>
+                                @endforeach
+                            </select>
+                            @error('contract_type')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
                         <div class="col-md-2 form-group">
                             <label>{{ __('Vacation days/year') }}</label>

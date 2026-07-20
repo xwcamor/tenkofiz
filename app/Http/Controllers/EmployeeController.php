@@ -354,12 +354,16 @@ class EmployeeController extends Controller
             // site-bound users depend on it). The site must be of THIS company.
             'site_id' => ['required', Rule::exists('sites', 'id')->where('company_id', current_company_id())],
             'hire_date' => ['nullable', 'date'],
+            'contract_type' => ['nullable', Rule::in(array_keys(Employee::CONTRACT_TYPES))],
             'vacation_days_per_year' => ['required', 'integer', 'min:0', 'max:60'],
             'schedule_id' => ['required', 'exists:schedules,id'],
         ], [
             'document_number.unique' => __('That document number is already registered to another employee.'),
             'schedule_id.required' => __('You must assign a schedule to the employee (needed to compute tardiness).'),
             'site_id.required' => __('You must assign a site to the employee (the kiosk and reports are organized by site).'),
-        ]) + ['is_active' => $employee ? $request->boolean('is_active') : true];
+        ]) + [
+            'contract_type' => $request->input('contract_type') ?: 'full_time',
+            'is_active' => $employee ? $request->boolean('is_active') : true,
+        ];
     }
 }

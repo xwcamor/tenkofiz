@@ -32,11 +32,23 @@ class Employee extends Model
         'PASSPORT' => 'Passport',
     ];
 
+    /** HR contract type (informative; does not affect attendance timing) */
+    public const CONTRACT_TYPES = [
+        'full_time' => 'Full-time',
+        'part_time' => 'Part-time',
+    ];
+
     protected $fillable = [
         'company_id', 'user_id', 'schedule_id', 'area_id', 'position_id', 'site_id', 'document_type', 'document_number',
-        'first_name', 'last_name', 'hire_date', 'vacation_days_per_year', 'face_descriptor',
+        'first_name', 'last_name', 'hire_date', 'contract_type', 'vacation_days_per_year', 'face_descriptor',
         'biometric_consent_at', 'is_active', 'delete_reason',
     ];
+
+    /** Translatable label of the contract type */
+    public function contractTypeLabel(): string
+    {
+        return __(self::CONTRACT_TYPES[$this->contract_type] ?? self::CONTRACT_TYPES['full_time']);
+    }
 
     protected $casts = [
         'hire_date' => 'date',

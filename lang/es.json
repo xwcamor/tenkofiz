@@ -936,5 +936,8 @@
     "and hours": "y horas",
     "Daily hour target": "Meta de horas por día",
     "Hours the person must complete each working day. Reports show worked hours against this target.": "Horas que debe cumplir cada día laborable. Los reportes muestran las horas trabajadas contra esta meta.",
-    "A flexible schedule needs a daily hour target.": "Un horario flexible necesita una meta de horas por día."
+    "A flexible schedule needs a daily hour target.": "Un horario flexible necesita una meta de horas por día.",
+    "Contract type": "Tipo de contrato",
+    "Full-time": "Tiempo completo",
+    "Part-time": "Medio tiempo"
 }

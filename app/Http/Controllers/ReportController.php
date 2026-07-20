@@ -43,31 +43,31 @@ class ReportController extends Controller
         $sheet->setTitle(__('Report'));
 
         $headers = [
-            __('Employee'), __('Document'), __('Site'), __('Address'), __('Area'), __('Position'),
+            __('Employee'), __('Document'), __('Contract type'), __('Site'), __('Address'), __('Area'), __('Position'),
             __('Worked days'), __('On time'), __('Late'), __('Late minutes'),
             __('Absences'), __('Excused'), __('Worked hours'), __('Vacation days'),
         ];
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 1], $header);
         }
-        $sheet->getStyle('A1:N1')->applyFromArray([
+        $sheet->getStyle('A1:O1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
         ]);
         $sheet->setCellValue('A2', __('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A2:N2');
+        $sheet->mergeCells('A2:O2');
 
         $rowIndex = 3;
         foreach ($rows as $row) {
             $sheet->fromArray([
-                $row['employee'], $row['document'], $row['site'], $row['site_address'], $row['area'], $row['position'],
+                $row['employee'], $row['document'], $row['contract_type'], $row['site'], $row['site_address'], $row['area'], $row['position'],
                 $row['worked_days'], $row['on_time'], $row['late'], $row['late_minutes'],
                 $row['absent'], $row['excused'], $row['worked_hours'], $row['vacation_days'],
             ], null, 'A'.$rowIndex++);
         }
-        foreach (range('A', 'N') as $column) {
+        foreach (range('A', 'O') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -199,6 +199,7 @@ class ReportController extends Controller
                 'employee' => $employee->full_name,
                 'document' => $employee->document_type.' '.$employee->document_number,
                 'document_number' => $employee->document_number,
+                'contract_type' => $employee->contractTypeLabel(),
                 'area' => $employee->area?->name ?? '—',
                 'position' => $employee->position?->name ?? '—',
                 'site' => $employee->site?->name ?? '—',

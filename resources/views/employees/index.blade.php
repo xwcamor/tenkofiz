@@ -171,7 +171,11 @@ async function linkUser(id, name) {
                 @else
                     <tr>
                         <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
-                        <td>{{ $employee->full_name }}</td>
+                        <td>{{ $employee->full_name }}
+                            @if($employee->contract_type === 'part_time')
+                                <span class="badge badge-warning ml-1" title="{{ __('Contract type') }}"><i class="fas fa-hourglass-half"></i> {{ __('Part-time') }}</span>
+                            @endif
+                        </td>
                         <td>
                             @if($employee->site)
                                 <span class="badge badge-info"><i class="fas fa-map-marker-alt"></i> {{ $employee->site->name }}</span>
