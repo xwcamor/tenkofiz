@@ -49,6 +49,11 @@
     }
     .video-frame video, .video-frame canvas { display: block; width: 100%; height: auto; }
     .video-frame canvas { position: absolute; top: 0; left: 0; }
+    /* Natural selfie mirror on EVERY device (some tablets flip the feed, others
+       don't — this standardizes it). Only the video and the drawing canvas are
+       mirrored; the instruction/countdown overlays are plain divs on top, so
+       their text stays readable. Face detection reads the raw pixels, unaffected. */
+    .video-frame video, .video-frame canvas { transform: scaleX(-1); }
     #result { min-height: 90px; }
     .progress.kiosk-progress { height: 6px; background: #1d2a3a; max-width: 560px; margin: .5rem auto 0; }
     .consent-box { text-align: left; font-size: .8rem; color: #b9c4d2; background: #0d141d; border: 1px solid #2b3a4e; border-radius: 10px; padding: .7rem .8rem; max-height: 150px; overflow-y: auto; }

@@ -907,8 +907,6 @@
     "No face was detected — nothing was recorded. Returning to the kiosk...": "No se detectó ningún rostro — no se registró nada. Volviendo al kiosco...",
     "Mark on a non-working day according to their schedule.": "Marca en día no laborable según su horario.",
     "No active employee found with that document number. Ask an administrator to register them first.": "No se encontró un empleado activo con ese documento. Pide a un administrador que lo registre primero.",
-    "Turn your head to the LEFT": "Gira la cabeza a la IZQUIERDA",
-    "Turn your head to the RIGHT": "Gira la cabeza a la DERECHA",
     "Nod — move your head up and down": "Asiente — mueve la cabeza arriba y abajo",
     "Require a liveness challenge (random gesture) — blocks marking with a photo or a video": "Exigir reto de vida (gesto aleatorio) — impide marcar con una foto o un video",
     "After recognizing the face, the kiosk asks for one random gesture (turn your head left / right, or nod). A printed photo cannot move and a pre-recorded video cannot know which gesture will be asked. Without a completed gesture, the mark falls back to document + evidence photo.": "Tras reconocer el rostro, el kiosco pide un gesto al azar (girar la cabeza a la izquierda / derecha, o asentir). Una foto impresa no puede moverse y un video pregrabado no puede saber qué gesto se pedirá. Si el gesto no se completa, la marca pasa a documento + foto de evidencia.",
@@ -921,5 +919,6 @@
     "Recognition calibration updated for workspace :name": "Se actualizó la calibración de reconocimiento del workspace :name",
     "Recognition calibration for \":name\" updated.": "Calibración de reconocimiento de \":name\" actualizada.",
     "Core calibration of this workspace's kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.": "Calibración core de los kioscos de este workspace. Los administradores del workspace nunca ven estos valores: un umbral mal puesto deja pasar a cualquiera como cualquiera.",
-    "Place your face inside the oval": "Coloca tu rostro dentro del óvalo"
+    "Place your face inside the oval": "Coloca tu rostro dentro del óvalo",
+    "Turn your head to one side": "Gira la cabeza hacia un lado"
 }

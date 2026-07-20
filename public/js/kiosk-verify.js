@@ -145,21 +145,20 @@ function headPose(landmarks) {
 }
 function isFrontal(pose) { return pose.yaw > 0.72 && pose.yaw < 1.4; }
 
-// 'left'/'right' are the PERSON's left and right. In the (unmirrored) camera
-// image their left side sits on the image's right, so turning left pushes the
-// nose tip toward the right jaw extreme and the yaw ratio RISES.
+// Direction-agnostic on purpose: 'turn' accepts a head turn to EITHER side. Some
+// tablets mirror the camera feed and others do not, which would invert a fixed
+// left/right instruction and confuse people; "turn your head to a side" works the
+// same no matter how the device mirrors, and is easier to follow under pressure.
 function pickChallenge(except = null) {
-    const options = ['left', 'right', 'nod'].filter(c => c !== except);
+    const options = ['turn', 'nod'].filter(c => c !== except);
     return options[Math.floor(Math.random() * options.length)];
 }
 function challengeMet(challenge, pose, pitchBaseline) {
-    if (challenge === 'left') return pose.yaw >= YAW_TURN;
-    if (challenge === 'right') return pose.yaw <= 1 / YAW_TURN;
+    if (challenge === 'turn') return pose.yaw >= YAW_TURN || pose.yaw <= 1 / YAW_TURN;
     return pitchBaseline > 0 && Math.abs(pose.pitch - pitchBaseline) / pitchBaseline >= NOD_DELTA;
 }
 function challengeLabel(challenge) {
-    if (challenge === 'left') return '<i class="fas fa-arrow-left"></i> ' + I18N.challengeTurnLeft;
-    if (challenge === 'right') return I18N.challengeTurnRight + ' <i class="fas fa-arrow-right"></i>';
+    if (challenge === 'turn') return '<i class="fas fa-arrows-alt-h"></i> ' + I18N.challengeTurn;
     return '<i class="fas fa-arrows-alt-v"></i> ' + I18N.challengeNod;
 }
 function setChallenge(challenge) {
@@ -183,7 +182,7 @@ function debugUpdate(pose, distance, identityOk, challenge, pitchBaseline) {
     debugSamples++;
     if (now - debugWindowStart > 1000) { debugHz = debugSamples; debugSamples = 0; debugWindowStart = now; }
     debugBox.innerHTML =
-        `yaw: <b>${pose ? pose.yaw.toFixed(2) : '—'}</b> (izq ≥ ${YAW_TURN} | der ≤ ${(1 / YAW_TURN).toFixed(2)})<br>` +
+        `yaw: <b>${pose ? pose.yaw.toFixed(2) : '—'}</b> (gira: ≥ ${YAW_TURN} o ≤ ${(1 / YAW_TURN).toFixed(2)})<br>` +
         `pitch: ${pose ? pose.pitch.toFixed(2) : '—'} | base: ${pitchBaseline ? pitchBaseline.toFixed(2) : '—'} (±${NOD_DELTA * 100}%)<br>` +
         `reto: ${challenge || '—'} | muestras/s: ${debugHz}<br>` +
         `identidad: ${identityOk ? 'OK' : 'buscando'}${distance !== null ? ' (dist ' + distance.toFixed(3) + ' / max ' + THRESHOLD + ')' : ''}`;

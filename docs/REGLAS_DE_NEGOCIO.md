@@ -86,10 +86,13 @@ El antiguo parpadeo (EAR) fue reemplazado: fallaba con lentes y obligaba a pegar
 a la tablet (los ojos son pocos píxeles a distancia de fila). Ahora, tras
 confirmar la identidad y ver la cara de frente unos instantes, el kiosco pide **un
 gesto al azar** con orden grande sobre el video:
-- **Gira la cabeza a la IZQUIERDA / DERECHA**: pose por geometría de los 68
-  landmarks (posición de la punta de la nariz entre los extremos de la mandíbula).
-  Una cabeza real 3D gira con perspectiva ASIMÉTRICA; una foto plana girada solo se
-  comprime uniformemente y nunca cruza el umbral (`YAW_TURN`).
+- **Gira la cabeza hacia un lado** (cualquier dirección, `'turn'`): pose por
+  geometría de los 68 landmarks (posición de la punta de la nariz entre los extremos
+  de la mandíbula). Es **agnóstico a la dirección** a propósito: algunas tablets
+  espejan la cámara y otras no, lo que invertiría un "izquierda/derecha" fijo y
+  confunde a la gente; "gira a un lado" funciona igual sin importar el espejo. Una
+  cabeza real 3D gira con perspectiva ASIMÉTRICA (`yaw` cruza `YAW_TURN` por
+  cualquier lado); una foto plana girada solo se comprime uniformemente y no dispara.
 - **Asiente (arriba/abajo)**: proporción vertical ojos→nariz vs nariz→mentón contra
   la línea base propia de la persona; inclinar o mover una foto escala ambas por
   igual y no dispara.
@@ -103,6 +106,13 @@ gesto al azar** con orden grande sobre el video:
 - Se descartó el reto de "mostrar dedos/mano": la mano no está amarrada a la cara
   (foto de Juan + la mano del tramposo pasaría). Los gestos de cara los debe hacer
   la MISMA cara que se verifica.
+
+**Espejo de la vista**: el video y el canvas del óvalo se muestran espejados
+(selfie natural, `transform: scaleX(-1)` en `kiosk/partials/style`) de forma
+consistente en TODA tablet — así se ve parejo aunque el hardware no espeje. Las
+capas de texto (orden del reto, conteo) son divs encima, no se voltean, y quedan
+legibles. La detección lee los píxeles crudos de la cámara, así que el espejo de la
+vista no afecta el reconocimiento ni el reto.
 
 ### 1.2d Óvalo guía de encuadre (tipo RENIEC)
 Sobre el video se dibuja un **óvalo punteado** (canvas `#overlay`): blanco mientras
