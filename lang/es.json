@@ -920,5 +920,6 @@
     "Save calibration": "Guardar calibración",
     "Recognition calibration updated for workspace :name": "Se actualizó la calibración de reconocimiento del workspace :name",
     "Recognition calibration for \":name\" updated.": "Calibración de reconocimiento de \":name\" actualizada.",
-    "Core calibration of this workspace's kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.": "Calibración core de los kioscos de este workspace. Los administradores del workspace nunca ven estos valores: un umbral mal puesto deja pasar a cualquiera como cualquiera."
+    "Core calibration of this workspace's kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.": "Calibración core de los kioscos de este workspace. Los administradores del workspace nunca ven estos valores: un umbral mal puesto deja pasar a cualquiera como cualquiera.",
+    "Place your face inside the oval": "Coloca tu rostro dentro del óvalo"
 }

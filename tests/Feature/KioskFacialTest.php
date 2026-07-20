@@ -84,4 +84,21 @@ class KioskFacialTest extends TestCase
         $this->postJson('/kiosk/mark', ['employee_id' => $employee->id, 'distance' => 0.40])
             ->assertOk()->assertJsonPath('type', 'CHECK_IN');
     }
+
+    public function test_facial_mark_stores_no_evidence_photo(): void
+    {
+        $employee = $this->enrolledEmployee();
+        Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+
+        // Even if a client tried to send a photo, a FACIAL mark never stores one
+        $this->postJson('/kiosk/mark', [
+            'employee_id' => $employee->id,
+            'distance' => 0.30,
+            'photo' => 'data:image/jpeg;base64,'.base64_encode(str_repeat('x', 500)),
+        ])->assertOk();
+
+        $attendance = \App\Models\Attendance::where('employee_id', $employee->id)->first();
+        $this->assertSame('FACIAL', $attendance->method);
+        $this->assertNull($attendance->evidence_photo);
+    }
 }

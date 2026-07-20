@@ -95,6 +95,7 @@
         startingCamera: @json(__('Starting camera...')),
         lookAtCamera: @json(__('Confirming it is you, :name...')),
         comeCloser: @json(__('Move closer and look at the camera, :name...')),
+        placeFaceInOval: @json(__('Place your face inside the oval')),
         challengeTurnLeft: @json(__('Turn your head to the LEFT')),
         challengeTurnRight: @json(__('Turn your head to the RIGHT')),
         challengeNod: @json(__('Nod — move your head up and down')),

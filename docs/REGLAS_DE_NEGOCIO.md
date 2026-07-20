@@ -104,10 +104,27 @@ gesto al azar** con orden grande sobre el video:
   (foto de Juan + la mano del tramposo pasaría). Los gestos de cara los debe hacer
   la MISMA cara que se verifica.
 
-### 1.3 Marcado por DNI (respaldo)
-- Cuando corresponde (ver §1.2), la marca sale por `KioskController::markByDni` con
-  una **foto de evidencia** en `public/uploads/kiosk_evidence/` y método `DNI` para
-  que un supervisor la verifique en Asistencias (badge amarillo + foto).
+### 1.2d Óvalo guía de encuadre (tipo RENIEC)
+Sobre el video se dibuja un **óvalo punteado** (canvas `#overlay`): blanco mientras
+no hay rostro o está mal encuadrado, **verde** cuando está centrado y a buen tamaño
+(`faceWellPlaced`). Es solo una GUÍA visual — nunca bloquea la marca — pero
+estandariza posición y distancia, así el reconocimiento y el gesto de vida leen
+landmarks limpios: menos verificaciones fallidas y menos caídas a la fase de
+evidencia. Aparece en verificación, en la fase de evidencia, en el auto-enrolamiento
+(`/kiosk/verify`) y en el enrolamiento de supervisor (`/kiosk/enroll`, con un bucle
+guía continuo). En el enrolamiento importa doble: muestras bien centradas producen
+una plantilla facial mejor para siempre.
+
+### 1.3 Marcado por DNI (respaldo) y política de fotos
+- **Marca FACIAL → NO guarda foto** (decisión de negocio para ahorrar disco): la
+  distancia de coincidencia registrada + el gesto de vida completado ya son prueba
+  suficiente; una instantánea por cada marca exitosa solo acumularía bytes. El
+  cliente ni siquiera la envía y `KioskController::mark` no la acepta.
+- **Marca DNI (respaldo) → SÍ guarda foto de evidencia**: cuando corresponde (ver
+  §1.2), la marca sale por `KioskController::markByDni` con una foto en
+  `public/uploads/kiosk_evidence/` y método `DNI`, para que un supervisor la
+  verifique en Asistencias (badge amarillo + foto). La foto existe **solo cuando
+  hay algo que revisar**.
 - Las evidencias se purgan a los 90 días (`kiosk:purge-evidence`, ver §6).
 - **Enrolamiento sin tapar la cámara**: tanto el auto-enrolamiento en `/kiosk/verify`
   como el modo supervisor en `/kiosk/enroll` son páginas con la cámara fija arriba y

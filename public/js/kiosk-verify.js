@@ -38,6 +38,36 @@ function drawBox(box, color) {
     ctx.strokeStyle = color; ctx.lineWidth = 4;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 }
+
+/* ---------- face-placement guide (oval, RENIEC-style) ----------
+ * A dashed vertical oval over the video: white while the face is missing or
+ * poorly framed, green when it is centered and at a good size. It standardizes
+ * position and distance so recognition and the liveness gesture read clean
+ * landmarks — fewer failed verifications and fewer drops to the evidence phase.
+ * It is a GUIDE only: it never blocks marking, it just helps the person frame. */
+function ovalGeom() {
+    const w = overlay.width, h = overlay.height;
+    return { cx: w / 2, cy: h * 0.47, rx: w * 0.30, ry: h * 0.40 };
+}
+function drawGuideOval(ok) {
+    const ctx = overlay.getContext('2d');
+    const { cx, cy, rx, ry } = ovalGeom();
+    ctx.save();
+    ctx.setLineDash([14, 11]);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = ok ? '#28a745' : 'rgba(255,255,255,.8)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+}
+function faceWellPlaced(box) {
+    const { cx, cy, rx, ry } = ovalGeom();
+    const bcx = box.x + box.width / 2, bcy = box.y + box.height / 2;
+    const centered = Math.abs(bcx - cx) < rx * 0.55 && Math.abs(bcy - cy) < ry * 0.5;
+    const sized = box.height > ry * 0.9 && box.height < ry * 1.95; // not too far, not too close
+    return centered && sized;
+}
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 function setProgress(pct) { document.getElementById('verifyProgress').style.width = pct + '%'; }
 function setCountdown(seconds) {
@@ -240,7 +270,8 @@ async function runVerify() {
             clearOverlay();
             setFaceChip(!!det);
             if (!det) {
-                show('info', spinner + I18N.comeCloser.replace(':name', window.EMPLOYEE.name));
+                drawGuideOval(false);
+                show('info', spinner + I18N.placeFaceInOval);
                 debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
                 await wait(200);
                 continue;
@@ -252,7 +283,9 @@ async function runVerify() {
                 lastDistance = d;
                 if (d <= THRESHOLD) { identityOk = true; matchedDistance = d; }
             }
-            drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
+            // Green oval when the face is well framed; the detection box only in debug
+            drawGuideOval(faceWellPlaced(det.detection.box));
+            if (DEBUG) drawBox(det.detection.box, identityOk ? '#28a745' : '#ffc107');
 
             const pose = headPose(det.landmarks);
             if (LIVENESS && !challengeDone && identityOk) {
@@ -341,10 +374,11 @@ async function evidencePhase() {
         setFaceChip(!!det);
 
         if (det) {
-            drawBox(det.detection.box, '#ffc107');
+            drawGuideOval(faceWellPlaced(det.detection.box));
             setCountdown(null);
             return autoMarkByDocument(); // face on camera -> snapshot is meaningful evidence
         }
+        drawGuideOval(false);
         await wait(200);
     }
 
@@ -383,12 +417,14 @@ function retryVerify() {
 
 /* ---------- marking ---------- */
 async function commitFacial(distance) {
+    // A FACIAL mark saves NO photo: the match distance + completed liveness
+    // gesture are proof enough, and a snapshot per successful mark would just
+    // pile up bytes on disk. Photos are kept only for the DNI fallback below.
     show('info', spinner + I18N.savingSlow);
     try {
         const { data } = await postJson(window.MARK_URL, {
             employee_id: Number(window.EMPLOYEE.id),
             distance: distance.toFixed(4),
-            photo: captureSnapshot(),
         });
         finishWithResult(data);
     } catch (e) {
@@ -437,7 +473,8 @@ async function waitForAnyFace(ms) {
         let det;
         try { det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks(); } catch (e) { det = null; }
         clearOverlay();
-        if (det) { drawBox(det.detection.box, '#28a745'); return true; }
+        if (det) { drawGuideOval(faceWellPlaced(det.detection.box)); return true; }
+        drawGuideOval(false);
         await wait(250);
     }
     return false;
@@ -491,6 +528,8 @@ async function enrollNow() {
         let detection = null;
         for (let attempt = 0; attempt < 6 && !detection; attempt++) {
             try { detection = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { /* retry */ }
+            clearOverlay();
+            drawGuideOval(detection ? faceWellPlaced(detection.detection.box) : false);
             if (!detection) await wait(500);
         }
         if (!detection) {
