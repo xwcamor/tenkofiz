@@ -114,6 +114,44 @@ if (!function_exists('current_period')) {
     }
 }
 
+if (!function_exists('last_closed_period')) {
+    /**
+     * The most recent COMPLETE payroll period [start, end] — the one that already
+     * closed. This is the sensible default for reports (you review/pay a finished
+     * period), whereas current_period() (still open, ending in the future) is for
+     * live monitoring. Cut-off 19, viewed on Jul 21 → [Jun 20, Jul 19]. Without a
+     * cut-off day it is the previous calendar month.
+     */
+    function last_closed_period(?\Carbon\CarbonInterface $reference = null): array
+    {
+        $today = ($reference ?? company_now())->copy()->startOfDay();
+        $cutoff = null;
+
+        try {
+            $cutoff = app_setting()->cutoff_day;
+        } catch (\Throwable) {
+            // DB not migrated yet
+        }
+
+        if (!$cutoff) {
+            $prev = $today->copy()->subMonthNoOverflow();
+
+            return [$prev->copy()->startOfMonth(), $prev->copy()->endOfMonth()->startOfDay()];
+        }
+
+        // End at the most recent cut-off day that has already passed.
+        if ($today->day > $cutoff) {
+            $end = $today->copy()->day($cutoff);
+            $start = $today->copy()->subMonthNoOverflow()->day($cutoff)->addDay();
+        } else {
+            $end = $today->copy()->subMonthNoOverflow()->day($cutoff);
+            $start = $today->copy()->subMonthsNoOverflow(2)->day($cutoff)->addDay();
+        }
+
+        return [$start, $end];
+    }
+}
+
 if (!function_exists('vendor_asset')) {
     /**
      * Local-first asset: serves the file from public/ when it exists (run

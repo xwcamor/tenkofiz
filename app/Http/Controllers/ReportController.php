@@ -336,7 +336,10 @@ class ReportController extends Controller
     /** Default range = current payroll cut-off period (configured in Settings) */
     private function range(Request $request): array
     {
-        [$periodStart, $periodEnd] = current_period();
+        // Reports default to the LAST CLOSED payroll period (the finished one you
+        // review/pay), not the current open period — e.g. cut-off 19 viewed on
+        // Jul 21 defaults to Jun 20 – Jul 19. The from/to inputs override it.
+        [$periodStart, $periodEnd] = last_closed_period();
 
         return [
             $request->date('from') ?? $periodStart,

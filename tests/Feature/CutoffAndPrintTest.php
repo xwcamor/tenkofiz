@@ -67,6 +67,35 @@ class CutoffAndPrintTest extends TestCase
         $this->assertSame('2026-07-31', $end->toDateString());
     }
 
+    public function test_last_closed_period_is_the_finished_one(): void
+    {
+        $this->seedBase();
+        Setting::instance()->update(['cutoff_day' => 19]);
+        app()->forgetInstance('app.setting');
+
+        // Jul 21 (past the 19th): the last CLOSED period is Jun 20 .. Jul 19
+        Carbon::setTestNow('2026-07-21 18:00:00');
+        [$start, $end] = last_closed_period();
+        $this->assertSame('2026-06-20', $start->toDateString());
+        $this->assertSame('2026-07-19', $end->toDateString());
+
+        // Jul 10 (before the 19th): the last closed period is May 20 .. Jun 19
+        Carbon::setTestNow('2026-07-10 18:00:00');
+        [$start, $end] = last_closed_period();
+        $this->assertSame('2026-05-20', $start->toDateString());
+        $this->assertSame('2026-06-19', $end->toDateString());
+    }
+
+    public function test_last_closed_period_defaults_to_previous_calendar_month(): void
+    {
+        $this->seedBase();
+
+        Carbon::setTestNow('2026-07-10 18:00:00');
+        [$start, $end] = last_closed_period();
+        $this->assertSame('2026-06-01', $start->toDateString());
+        $this->assertSame('2026-06-30', $end->toDateString());
+    }
+
     public function test_attendance_index_defaults_to_cutoff_period(): void
     {
         $this->seedBase();

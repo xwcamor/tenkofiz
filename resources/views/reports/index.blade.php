@@ -48,10 +48,11 @@
                 <a href="{{ route('reports.breaks', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-info ml-1" title="{{ __('Who took how long on break, and who went over the limit') }}"><i class="fas fa-mug-hot"></i> {{ __('Break analysis') }}</a>
             @endif
             @if(app_setting()->cutoff_day)
-                @php [$periodStart, $periodEnd] = current_period(); @endphp
-                <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">
-                    <i class="fas fa-cut"></i> {{ __('Current period') }}: {{ $periodStart->format('d/m') }} – {{ $periodEnd->format('d/m') }}
+                @php [$curStart, $curEnd] = current_period(); @endphp
+                <span class="badge badge-info ml-3" title="{{ __('Cut-off day :day (Settings). Reports default to the last closed period; use From/To for any range.', ['day' => app_setting()->cutoff_day]) }}">
+                    <i class="fas fa-cut"></i> {{ __('Cut-off :day', ['day' => app_setting()->cutoff_day]) }} · {{ __('showing') }} {{ $from->format('d/m/Y') }} – {{ $to->format('d/m/Y') }}
                 </span>
+                <a class="btn btn-xs btn-outline-secondary ml-1" href="{{ route('reports.index', array_filter(['from' => $curStart->toDateString(), 'to' => $curEnd->min(company_now())->toDateString(), 'site_id' => $siteId])) }}" title="{{ __('Switch to the current, in-progress period') }}">{{ __('Current period') }}</a>
             @endif
         </form>
     </div>
