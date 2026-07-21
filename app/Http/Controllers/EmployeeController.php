@@ -11,6 +11,11 @@ use App\Models\Schedule;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class EmployeeController extends Controller
 {
@@ -62,6 +67,81 @@ class EmployeeController extends Controller
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
+    }
+
+    /**
+     * Exports the employee roster to .xlsx — the same columns as the import
+     * template (Document, Names, Schedule, Site, Area, Position, Hire date) plus
+     * Status and Face, so it round-trips with the importer. Honors the current
+     * list filters (search / area / site / face / status), with AutoFilter on.
+     */
+    public function export(Request $request)
+    {
+        $search = trim((string) $request->input('q'));
+
+        $employees = Employee::with(['schedule', 'area', 'position', 'site'])
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+                $query->where(fn ($q) => $q
+                    ->where('document_number', 'like', $like)
+                    ->orWhere('first_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like));
+            })
+            ->when($request->filled('area_id'), fn ($q) => $q->where('area_id', $request->integer('area_id')))
+            ->when($request->filled('site_id'), fn ($q) => $q->where('site_id', $request->integer('site_id')))
+            ->when($request->input('face') === 'enrolled', fn ($q) => $q->whereNotNull('face_descriptor'))
+            ->when($request->input('face') === 'pending', fn ($q) => $q->whereNull('face_descriptor'))
+            ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false))
+            ->orderBy('last_name')->orderBy('first_name')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(__('Employees'));
+
+        $headers = [
+            'A' => __('Document number'), 'B' => __('First names'), 'C' => __('Last names'),
+            'D' => __('Schedule'), 'E' => __('Site'), 'F' => __('Area'), 'G' => __('Position'),
+            'H' => __('Hire date'), 'I' => __('Status'), 'J' => __('Face'),
+        ];
+        foreach ($headers as $col => $label) {
+            $sheet->setCellValue($col.'1', $label);
+        }
+        $sheet->getStyle('A1:J1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN]],
+        ]);
+
+        $row = 2;
+        foreach ($employees as $e) {
+            $sheet->setCellValueExplicit("A{$row}", $e->document_number, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue("B{$row}", $e->first_name);
+            $sheet->setCellValue("C{$row}", $e->last_name);
+            $sheet->setCellValue("D{$row}", $e->schedule?->name ?? '—');
+            $sheet->setCellValue("E{$row}", $e->site?->name ?? '—');
+            $sheet->setCellValue("F{$row}", $e->area?->name ?? '—');
+            $sheet->setCellValue("G{$row}", $e->position?->name ?? '—');
+            $sheet->setCellValue("H{$row}", $e->hire_date?->format('Y-m-d') ?? '');
+            $sheet->setCellValue("I{$row}", $e->is_active ? __('Active') : __('Inactive'));
+            $sheet->setCellValue("J{$row}", $e->hasFace() ? __('Enrolled') : __('Pending'));
+            $row++;
+        }
+
+        $sheet->getStyle('A2:A'.max(2, $row - 1))->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
+        foreach (['A' => 16, 'B' => 22, 'C' => 22, 'D' => 20, 'E' => 20, 'F' => 18, 'G' => 18, 'H' => 14, 'I' => 12, 'J' => 12] as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+        $sheet->setAutoFilter('A1:J'.max(1, $row - 1));
+        $sheet->freezePane('A2');
+
+        AuditLog::record('READ', 'Employees', __('The employee roster was exported (:count rows)', ['count' => $employees->count()]));
+
+        $file = tempnam(sys_get_temp_dir(), 'employees_export');
+        (new Xlsx($spreadsheet))->save($file);
+
+        return response()->download($file, 'employees_'.company_now()->format('Y-m-d').'.xlsx')->deleteFileAfterSend(true);
     }
 
     /**

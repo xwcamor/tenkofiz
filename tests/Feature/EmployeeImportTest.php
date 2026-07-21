@@ -40,6 +40,22 @@ class EmployeeImportTest extends TestCase
         $this->assertStringContainsString('spreadsheetml', $response->headers->get('content-type'));
     }
 
+    public function test_roster_exports_as_xlsx(): void
+    {
+        $admin = $this->admin();
+
+        // Import a couple of employees, then export the roster back out
+        $site = Site::first();
+        $this->actingAs($admin)->post('/employees-import', ['file' => $this->csv([
+            ['11112222', 'JOHN', 'DOE', 'Morning Shift', $site->name, 'Quality', 'Tester', '2026-01-15'],
+        ])]);
+
+        $response = $this->actingAs($admin)->get('/employees-export');
+
+        $response->assertOk();
+        $this->assertStringContainsString('spreadsheetml', $response->headers->get('content-type'));
+    }
+
     public function test_valid_file_imports_employees_and_creates_catalogs(): void
     {
         $admin = $this->admin();

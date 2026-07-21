@@ -52,7 +52,7 @@ verificación SSL en el código como "solución".
 
 - [ ] Revisa los permisos de cada perfil (Perfiles → editar → checkboxes de módulos). Ejemplo: decide si *Supervisor* ve **Ajustes del sistema** o no.
 - [ ] Cambia la contraseña del admin por defecto.
-- [ ] Importa los empleados con la **plantilla Excel** (Empleados → Importar) y luego enrola rostros (desde el admin o con el modo enrolamiento del kiosco).
+- [ ] Importa los empleados con la **plantilla Excel** (Empleados → Importar; incluye columna **Sede**) y luego enrola rostros (desde el admin o con el modo enrolamiento del kiosco). Con **Empleados → Exportar** bajas el padrón (con los filtros actuales) en Excel, con las mismas columnas del import.
 
 ## 4. Modelos de reconocimiento facial
 

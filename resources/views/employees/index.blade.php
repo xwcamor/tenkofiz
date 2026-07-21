@@ -9,6 +9,7 @@
                 <a href="{{ route('employees.index', ['deleted' => 1]) }}" class="btn btn-outline-secondary" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
             @endif
         @endif
+        <a href="{{ route('employees.export', request()->only(['q', 'area_id', 'site_id', 'face', 'status'])) }}" class="btn btn-default" title="{{ __('Download the roster (current filters) as Excel') }}"><i class="fas fa-file-export text-success"></i> {{ __('Export') }}</a>
         <button class="btn btn-default" onclick="$('#importModal').modal('show')"><i class="fas fa-file-excel text-success"></i> {{ __('Import') }}</button>
         <a href="{{ route('employees.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> {{ __('New employee') }}</a>
     </div>

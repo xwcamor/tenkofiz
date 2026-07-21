@@ -119,6 +119,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:employees')->group(function () {
         Route::get('dni-lookup/{dni}', [\App\Http\Controllers\DniLookupController::class, 'show'])->name('dni.lookup');
+        Route::get('employees-export', [EmployeeController::class, 'export'])->name('employees.export');
         Route::get('employees-import/template', [\App\Http\Controllers\EmployeeImportController::class, 'template'])->name('employees.import.template');
         Route::post('employees-import', [\App\Http\Controllers\EmployeeImportController::class, 'store'])->name('employees.import');
         Route::resource('employees', EmployeeController::class)->except(['show']);
