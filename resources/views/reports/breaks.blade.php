@@ -74,7 +74,8 @@
         {{-- Per-employee summary: the analysis dashboard, no need to expand anything --}}
         <h5 class="mt-2 mb-2"><i class="fas fa-users"></i> {{ __('By employee') }}</h5>
         <div class="table-responsive">
-            <table class="table table-bordered table-hover">
+            @if(count($summary))
+            <table class="table table-bordered table-hover data-table">
                 <thead class="thead-light">
                     <tr>
                         <th>{{ __('Employee') }}</th><th>{{ __('Site') }}</th>
@@ -84,7 +85,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                @forelse($summary as $s)
+                @foreach($summary as $s)
                     <tr @class(['table-warning' => $s['exceeded_days'] > 0])>
                         <td>{{ $s['employee'] }}</td>
                         <td>{{ $s['site'] }}</td>
@@ -95,18 +96,19 @@
                         <td class="text-center @if($s['exceeded_days'] > 0) text-danger font-weight-bold @endif">{{ $s['exceeded_days'] }}</td>
                         <td class="text-center @if($s['exceeded_min'] > 0) text-danger font-weight-bold @endif">{{ $s['exceeded_min'] ? $fmt($s['exceeded_min']) : '—' }}</td>
                     </tr>
-                @empty
-                    <tr><td colspan="8" class="text-center text-muted py-4">{{ __('No breaks recorded in this period.') }}</td></tr>
-                @endforelse
+                @endforeach
                 </tbody>
             </table>
+            @else
+                <p class="text-center text-muted py-4">{{ __('No breaks recorded in this period.') }}</p>
+            @endif
         </div>
 
         {{-- Full per-day detail (start / end / duration) --}}
         @if($detail->isNotEmpty())
             <h5 class="mt-4 mb-2"><i class="fas fa-list"></i> {{ __('Detail by day') }}</h5>
             <div class="table-responsive">
-                <table class="table table-sm table-bordered table-hover">
+                <table class="table table-sm table-bordered table-hover data-table">
                     <thead class="thead-light">
                         <tr>
                             <th>{{ __('Employee') }}</th><th>{{ __('Site') }}</th><th>{{ __('Date') }}</th>

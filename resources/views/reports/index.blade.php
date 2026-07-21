@@ -56,7 +56,7 @@
         </form>
     </div>
     <div class="card-body">
-        <table class="table table-bordered table-hover report-table">
+        <table class="table table-bordered table-hover report-table" data-server-sort>
             <thead>
                 <tr>
                     @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])

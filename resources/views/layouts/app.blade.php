@@ -348,27 +348,36 @@
     @endphp
     const DATATABLE_LANG = @json($dataTableLang);
 
-    // DataTables on every table with .data-table (client-side; used for small catalogs)
+    // DataTables on every table with .data-table (client-side; used for small catalogs).
+    // Tables that already sort server-side via th-sort carry data-server-sort so
+    // DataTables does NOT also order them (that would show duplicate arrows and
+    // override the server order); it still provides search + paging on those.
     $(function () {
-        $('.data-table').DataTable({
-            responsive: true,
-            pageLength: 10,
-            language: DATATABLE_LANG
+        $('.data-table').each(function () {
+            $(this).DataTable({
+                responsive: true,
+                pageLength: 10,
+                ordering: !this.hasAttribute('data-server-sort'),
+                language: DATATABLE_LANG
+            });
         });
     });
 
     // Report table: with export buttons (Excel / Print / Copy)
     $(function () {
-        $('.report-table').DataTable({
-            responsive: true,
-            pageLength: 25,
-            dom: "<'row'<'col-sm-6'B><'col-sm-6'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-5'i><'col-sm-7'p>>",
-            buttons: [
-                { extend: 'excelHtml5', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn btn-success btn-sm' },
-                { extend: 'print', text: '<i class="fas fa-print"></i> {{ __('Print') }}', className: 'btn btn-secondary btn-sm' },
-                { extend: 'copyHtml5', text: '<i class="fas fa-copy"></i> {{ __('Copy') }}', className: 'btn btn-info btn-sm' }
-            ],
-            language: DATATABLE_LANG
+        $('.report-table').each(function () {
+            $(this).DataTable({
+                responsive: true,
+                pageLength: 25,
+                ordering: !this.hasAttribute('data-server-sort'),
+                dom: "<'row'<'col-sm-6'B><'col-sm-6'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+                buttons: [
+                    { extend: 'excelHtml5', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn btn-success btn-sm' },
+                    { extend: 'print', text: '<i class="fas fa-print"></i> {{ __('Print') }}', className: 'btn btn-secondary btn-sm' },
+                    { extend: 'copyHtml5', text: '<i class="fas fa-copy"></i> {{ __('Copy') }}', className: 'btn btn-info btn-sm' }
+                ],
+                language: DATATABLE_LANG
+            });
         });
     });
 

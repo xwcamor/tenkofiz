@@ -37,7 +37,9 @@
         $schedule = $attendance->employee->schedule;
         $shift = $clampWorked ? $attendance->clampShift($schedule) : null;
         $expected = $attendance->expected_minutes ?? ($schedule?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0);
-        $minutes = $expected > 0 ? $attendance->compliedMinutes($expected, $shift) : $attendance->workedMinutes($shift);
+        // Identical rule to the report: complied = min(worked, expected). On a
+        // zero-quota day (non-working per schedule) this is 0, matching the report.
+        $minutes = $attendance->compliedMinutes($expected, $shift);
         return sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60);
     };
     $breakLimit = (int) (app_setting()->break_limit_minutes ?? 60);

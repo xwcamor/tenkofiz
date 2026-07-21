@@ -8,7 +8,7 @@
 
 <div class="card card-primary card-outline">
     <div class="card-body">
-        <table class="table table-bordered table-hover data-table">
+        <table class="table table-bordered table-hover data-table" data-server-sort>
             <thead><tr>
                 @include('partials.th-sort', ['key' => 'name', 'label' => __('Workspace')])
                 <th>{{ __('Plan') }}</th>

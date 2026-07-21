@@ -6,6 +6,23 @@
 @section('content')
 <div class="alert alert-info"><i class="fas fa-info-circle"></i> {!! __('Each site groups its own details and its kiosk security (link, token and paired tablets — one per area). A kiosk opened with a site link only recognizes and marks the employees of <strong>that site</strong>.') !!}</div>
 
+@if($sites->isNotEmpty())
+    {{-- Card layout keeps server-side ordering via this control (there are no
+         column headers to click here). --}}
+    <form method="GET" class="form-inline justify-content-end mb-2">
+        <label class="text-sm text-muted mr-2 mb-0">{{ __('Sort by') }}:</label>
+        <select name="sort" class="form-control form-control-sm mr-1" onchange="this.form.submit()">
+            <option value="name" @selected($sort === 'name')>{{ __('Name') }}</option>
+            <option value="employees" @selected($sort === 'employees')>{{ __('Employees') }}</option>
+            <option value="status" @selected($sort === 'status')>{{ __('Status') }}</option>
+        </select>
+        <select name="dir" class="form-control form-control-sm" onchange="this.form.submit()">
+            <option value="asc" @selected($dir === 'asc')>{{ __('Ascending') }}</option>
+            <option value="desc" @selected($dir === 'desc')>{{ __('Descending') }}</option>
+        </select>
+    </form>
+@endif
+
 @if($sites->isEmpty())
     <div class="card card-primary card-outline">
         <div class="card-body text-center text-muted py-5">
