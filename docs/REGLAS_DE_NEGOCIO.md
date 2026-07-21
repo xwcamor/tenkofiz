@@ -285,6 +285,39 @@ reporte lo delata. El control del tiempo se hace **a posteriori en Reportes** (n
 tiempo real en la fila): el supervisor observa puntualidad (tardanzas + minutos) y
 cumplimiento (esperadas vs trabajadas + saldo).
 
+### 1.4h Reporte de análisis de breaks (`ReportController::breaks`)
+Vista **solo de análisis** para RH/supervisor (módulo Reportes), aparece cuando
+`kiosk_breaks_enabled` está activo. Responde "quién tardó cuánto en su break y quién
+se pasó del límite" **sin desplegar detalle fila por fila**:
+- **KPIs de cabecera**: breaks tomados, break promedio, días sobre el límite, tiempo
+  total en exceso.
+- **Resumen por empleado** (el "dashboard"): días con break, total, promedio, break
+  más largo, días sobre el límite y tiempo en exceso; las filas con exceso se resaltan.
+- **Detalle por día**: hora de inicio, hora de fin, duración y una bandera
+  `Dentro del límite` / `Tiempo excedido (+N)`.
+- **Filtros**: periodo, **sede** y empleado. Export a **Excel** (con autofiltro).
+
+Regla de oro (§1.4f): **pasarse del límite nunca penaliza** — el tiempo de break se
+descuenta de las horas trabajadas, pero el exceso solo se marca para revisión. El
+límite se configura en Ajustes (`break_limit_minutes`; 0 = sin límite).
+
+### 1.4i Columna y filtro por sede + autofiltro en Excel
+- **Asistencias** y **Reportes** muestran la **columna Sede** y un **filtro por sede**
+  (además del filtro por empleado/periodo). Un usuario atado a una sede
+  (`isSiteBound`) solo ve su sede; los demás pueden elegir "Todas las sedes".
+- El **dashboard** de gerencia trae un **selector de sede** que enfoca todos los KPIs
+  y gráficos, y un **desglose por sede** (headcount y presentes de hoy por sucursal).
+- Todos los **Excel** generados (resumen, detalle, breaks) traen **autofiltro**
+  activado sobre la fila de encabezados para ordenar/filtrar dentro de Excel.
+
+### 1.4j Datos de demostración (`demo:workforce`)
+`php artisan demo:workforce` crea una plantilla realista para evaluar el sistema: 4
+empleados en 2 sedes, **uno con horario flexible**, con breaks activados, y genera
+asistencia de **mayo–junio** (con marcas crudas, breaks y ~15% de días que exceden el
+límite, para que el análisis tenga qué mostrar). Idempotente. Acepta `--company`,
+`--from`, `--to`. Reutiliza el generador día-a-día de `attendances:seed-demo`, que
+ahora también congela `expected_minutes`/turno y crea el log de marcas por día.
+
 ### 1.4b Horas trabajadas: recorte al horario (`settings.clamp_worked_hours`)
 Las horas de los reportes se calculan en `Attendance::workedMinutes(?$shift)`:
 - **ACTIVADO (por defecto)**: las horas se **recortan al turno** — ventana pagada =

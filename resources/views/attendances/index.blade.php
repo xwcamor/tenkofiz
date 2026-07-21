@@ -54,6 +54,14 @@
                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
                 @endforeach
             </select>
+            @if($sites->count() > 1)
+                <select name="site_id" class="form-control form-control-sm mr-3">
+                    <option value="">{{ __('All sites') }}</option>
+                    @foreach($sites as $site)
+                        <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
             @if(app_setting()->cutoff_day)
                 @php [$periodStart, $periodEnd] = current_period(); @endphp
@@ -71,7 +79,7 @@
             @if($showDeleted)
                 <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Status') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:120px">{{ __('Actions') }}</th></tr></thead>
             @else
-                <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:90px">{{ __('Actions') }}</th></tr></thead>
+                <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Site') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:90px">{{ __('Actions') }}</th></tr></thead>
             @endif
             <tbody>
             @forelse($attendances as $attendance)
@@ -93,6 +101,7 @@
                     <tr>
                         <td>{{ $attendance->date->format('d/m/Y') }}</td>
                         <td>{{ $attendance->employee->full_name }}</td>
+                        <td>{{ $attendance->employee->site?->name ?? '—' }}</td>
                         <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}
                             @if($attendance->marks->isNotEmpty())
                                 <button class="btn btn-xs btn-outline-secondary ml-1" title="{{ __('Show raw punches (kiosk log)') }}" onclick="toggleMarks({{ $attendance->id }})"><i class="fas fa-stream"></i> {{ $attendance->marks->count() }}</button>
@@ -147,7 +156,7 @@
                     @if($attendance->marks->isNotEmpty())
                         <tr id="marks-{{ $attendance->id }}" style="display:none">
                             <td></td>
-                            <td colspan="8" class="bg-light">
+                            <td colspan="9" class="bg-light">
                                 <small class="text-muted mr-1"><i class="fas fa-stream"></i> {{ __('Raw punches (kiosk log):') }}</small>
                                 @foreach($attendance->marks as $mark)
                                     <span class="badge badge-light border mr-1">
@@ -170,7 +179,7 @@
                     @endif
                 @endif
             @empty
-                <tr><td colspan="{{ $showDeleted ? 6 : 9 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No records in the period') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 6 : 10 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No records in the period') }}</td></tr>
             @endforelse
             </tbody>
         </table>

@@ -33,9 +33,20 @@
             <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm mr-3">
             <label class="mr-2">{{ __('To') }}</label>
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
+            @if($sites->count() > 1)
+                <select name="site_id" class="form-control form-control-sm mr-3">
+                    <option value="">{{ __('All sites') }}</option>
+                    @foreach($sites as $site)
+                        <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
-            <a href="{{ route('reports.export', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Summary (Excel)') }}</a>
-            <a href="{{ route('reports.exportDetail', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}" class="btn btn-sm btn-outline-success ml-1" title="{{ __('One row per employee per day, with times and worked hours') }}"><i class="fas fa-list"></i> {{ __('Detail (Excel)') }}</a>
+            <a href="{{ route('reports.export', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Summary (Excel)') }}</a>
+            <a href="{{ route('reports.exportDetail', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-success ml-1" title="{{ __('One row per employee per day, with times and worked hours') }}"><i class="fas fa-list"></i> {{ __('Detail (Excel)') }}</a>
+            @if(app_setting()->kiosk_breaks_enabled)
+                <a href="{{ route('reports.breaks', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-info ml-1" title="{{ __('Who took how long on break, and who went over the limit') }}"><i class="fas fa-mug-hot"></i> {{ __('Break analysis') }}</a>
+            @endif
             @if(app_setting()->cutoff_day)
                 @php [$periodStart, $periodEnd] = current_period(); @endphp
                 <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">

@@ -20,6 +20,20 @@
 {{-- ================= GLOBAL DASHBOARD (managers) ================= --}}
 @php $pendingTotal = $pendingVacations + $pendingJustifications; @endphp
 
+@if($sites->count() > 1)
+    {{-- Site focus: scope every KPI and chart below to one branch --}}
+    <form class="form-inline mb-3" method="GET">
+        <label class="mr-2 text-muted"><i class="fas fa-building"></i> {{ __('Site') }}</label>
+        <select name="site_id" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+            <option value="">{{ __('All sites') }}</option>
+            @foreach($sites as $site)
+                <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
+            @endforeach
+        </select>
+        @if($siteId)<a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-secondary">{{ __('Clear') }}</a>@endif
+    </form>
+@endif
+
 <div class="row">
     <div class="col-xl-3 col-md-6 mb-3">
         <div class="stat-card">
@@ -65,6 +79,31 @@
 
 @if($withoutFace > 0)
     <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> {{ __('There are :count employee(s) without an enrolled face: they will not be able to mark facial attendance.', ['count' => $withoutFace]) }}</div>
+@endif
+
+@if(!$siteId && $siteBreakdown->count() > 1)
+    {{-- Per-site snapshot: headcount and who is present today, branch by branch --}}
+    <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title"><i class="fas fa-building"></i> {{ __('By site — today') }}</h3></div>
+        <div class="card-body">
+            <div class="row">
+                @foreach($siteBreakdown as $s)
+                    <div class="col-md-4 col-lg-3 mb-2">
+                        <a href="{{ route('dashboard', ['site_id' => $sites->firstWhere('name', $s['name'])?->id]) }}" class="text-decoration-none">
+                            <div class="stat-card h-100">
+                                <div>
+                                    <div class="stat-label">{{ $s['name'] }}</div>
+                                    <div class="stat-value">{{ $s['present'] }}/{{ $s['employees'] }}</div>
+                                    <div class="stat-sub">{{ __('present today') }} · {{ $s['rate'] }}%</div>
+                                </div>
+                                <div class="stat-chip {{ $s['rate'] >= 80 ? 'chip-green' : ($s['rate'] >= 50 ? 'chip-amber' : 'chip-red') }}"><i class="fas fa-users"></i></div>
+                            </div>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
 @endif
 
 <div class="row">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -14,7 +15,9 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         [$from, $to] = $this->range($request);
-        $rows = $this->buildRows($from, $to);
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
+        $rows = $this->buildRows($from, $to, $siteId);
+        $sites = $this->visibleSites($request);
 
         // Chart 1: status distribution across the whole period
         $statusTotals = [
@@ -29,14 +32,15 @@ class ReportController extends Controller
         $hoursLabels = $topHours->pluck('employee');
         $hoursData = $topHours->map(fn ($r) => round($r['worked_minutes'] / 60, 1));
 
-        return view('reports.index', compact('rows', 'from', 'to', 'statusTotals', 'hoursLabels', 'hoursData'));
+        return view('reports.index', compact('rows', 'from', 'to', 'statusTotals', 'hoursLabels', 'hoursData', 'sites', 'siteId'));
     }
 
     /** Same report as a server-generated Excel file (full data, not just the visible page) */
     public function export(Request $request)
     {
         [$from, $to] = $this->range($request);
-        $rows = $this->buildRows($from, $to);
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
+        $rows = $this->buildRows($from, $to, $siteId);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -76,6 +80,8 @@ class ReportController extends Controller
         foreach (range('A', 'Q') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
+        // Enable Excel's column filters/sort on the header row + data
+        $sheet->setAutoFilter('A2:Q'.max(2, $rowIndex - 1));
 
         $file = tempnam(sys_get_temp_dir(), 'report');
         (new Xlsx($spreadsheet))->save($file);
@@ -91,11 +97,14 @@ class ReportController extends Controller
     public function exportDetail(Request $request)
     {
         [$from, $to] = $this->range($request);
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
 
         $employees = Employee::with([
             'area', 'position', 'schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date'),
-        ])->where('is_active', true)->orderBy('last_name')->get();
+        ])->where('is_active', true)
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->orderBy('last_name')->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -155,12 +164,146 @@ class ReportController extends Controller
         foreach (range('A', 'G') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
+        $sheet->setAutoFilter('A2:G'.max(2, $rowIndex - 1));
 
         $file = tempnam(sys_get_temp_dir(), 'report_detail');
         (new Xlsx($spreadsheet))->save($file);
 
         return response()->download($file, 'attendance_detail_'.$from->format('Ymd').'_'.$to->format('Ymd').'.xlsx')
             ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Break-time analysis (managers/HR): who took how long on break, and who went
+     * over the company limit. Read-only, for analysis — it never penalizes hours.
+     */
+    public function breaks(Request $request)
+    {
+        [$from, $to] = $this->range($request);
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
+        $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;
+
+        $data = $this->buildBreakData($from, $to, $siteId, $employeeId);
+        $sites = $this->visibleSites($request);
+        $selectedEmployee = $employeeId ? Employee::find($employeeId) : null;
+
+        return view('reports.breaks', $data + compact('from', 'to', 'sites', 'siteId', 'selectedEmployee'));
+    }
+
+    /** The same break analysis as an Excel file (with filters enabled) */
+    public function breaksExport(Request $request)
+    {
+        [$from, $to] = $this->range($request);
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
+        $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;
+
+        $data = $this->buildBreakData($from, $to, $siteId, $employeeId);
+        $limit = $data['limit'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(__('Breaks'));
+
+        $headers = [__('Employee'), __('Document'), __('Site'), __('Date'), __('Break start'), __('Break end'), __('Duration (min)'), __('Limit (min)'), __('Over limit (min)'), __('Status')];
+
+        $sheet->setCellValue('A1', __('Break analysis').' · '.__('Period: from :from to :to — Issued: :issued', [
+            'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
+        ]));
+        $sheet->mergeCells('A1:J1');
+        $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 12]]);
+
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue([$index + 1, 2], $header);
+        }
+        $sheet->getStyle('A2:J2')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
+            'alignment' => ['vertical' => 'center', 'wrapText' => true],
+        ]);
+        $sheet->freezePane('A3');
+
+        $rowIndex = 3;
+        foreach ($data['detail'] as $row) {
+            $sheet->fromArray([
+                $row['employee'], $row['document'], $row['site'], $row['date']->format('d/m/Y'),
+                $row['break_out'], $row['break_in'], $row['minutes'], $limit ?: '—',
+                $row['exceeded'] ?: '', $row['over'] ? __('Time exceeded') : __('Within limit'),
+            ], null, 'A'.$rowIndex++);
+        }
+        foreach (range('A', 'J') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+        $sheet->setAutoFilter('A2:J'.max(2, $rowIndex - 1));
+
+        $file = tempnam(sys_get_temp_dir(), 'report_breaks');
+        (new Xlsx($spreadsheet))->save($file);
+
+        return response()->download($file, 'break_analysis_'.$from->format('Ymd').'_'.$to->format('Ymd').'.xlsx')
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Shared break dataset: a per-day detail list and a per-employee summary
+     * (days with a break, total/avg/longest minutes, days and minutes over the
+     * limit). Only days that actually have a break are included.
+     */
+    private function buildBreakData($from, $to, ?int $siteId = null, ?int $employeeId = null): array
+    {
+        $limit = (int) (app_setting()->break_limit_minutes ?? 60);
+
+        $attendances = Attendance::with('employee.site')
+            ->inCurrentSite()
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->whereNotNull('break_out')
+            ->whereNotNull('break_in')
+            ->whereHas('employee', fn ($q) => $q->where('is_active', true)
+                ->when($siteId, fn ($e) => $e->where('site_id', $siteId))
+                ->when($employeeId, fn ($e) => $e->whereKey($employeeId)))
+            ->orderBy('date')
+            ->get();
+
+        $detail = $attendances->map(function ($att) use ($limit) {
+            $minutes = $att->breakMinutes();
+            $exceeded = $att->breakExceededMinutes($limit);
+
+            return [
+                'employee' => $att->employee->full_name,
+                'employee_id' => $att->employee_id,
+                'document' => $att->employee->document_number,
+                'site' => $att->employee->site?->name ?? '—',
+                'date' => $att->date,
+                'break_out' => substr($att->break_out, 0, 5),
+                'break_in' => substr($att->break_in, 0, 5),
+                'minutes' => $minutes,
+                'exceeded' => $exceeded,
+                'over' => $exceeded > 0,
+            ];
+        });
+
+        $summary = $detail->groupBy('employee_id')->map(function ($rows) {
+            $minutes = $rows->pluck('minutes');
+
+            return [
+                'employee' => $rows->first()['employee'],
+                'site' => $rows->first()['site'],
+                'days' => $rows->count(),
+                'total_min' => (int) $minutes->sum(),
+                'avg_min' => (int) round($minutes->avg()),
+                'max_min' => (int) $minutes->max(),
+                'exceeded_days' => $rows->where('over', true)->count(),
+                'exceeded_min' => (int) $rows->sum('exceeded'),
+            ];
+        })->sortByDesc('exceeded_min')->values();
+
+        // Headline KPIs across the whole (filtered) set
+        $kpis = [
+            'break_days' => $detail->count(),
+            'avg_min' => $detail->isEmpty() ? 0 : (int) round($detail->avg('minutes')),
+            'exceeded_days' => $detail->where('over', true)->count(),
+            'exceeded_min' => (int) $detail->sum('exceeded'),
+        ];
+
+        return compact('detail', 'summary', 'kpis', 'limit');
     }
 
     /** Default range = current payroll cut-off period (configured in Settings) */
@@ -174,7 +317,7 @@ class ReportController extends Controller
         ];
     }
 
-    private function buildRows($from, $to)
+    private function buildRows($from, $to, ?int $siteId = null)
     {
         $clamp = (bool) app_setting()->clamp_worked_hours;
 
@@ -182,7 +325,9 @@ class ReportController extends Controller
             'area', 'position', 'site', 'schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()]),
             'vacations' => fn ($q) => $q->where('status', 'APPROVED'),
-        ])->where('is_active', true)->orderBy('last_name')->get();
+        ])->where('is_active', true)
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->orderBy('last_name')->get();
 
         return $employees->map(function ($employee) use ($clamp) {
             $attendances = $employee->attendances;

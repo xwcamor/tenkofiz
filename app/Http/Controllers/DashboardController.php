@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Justification;
+use App\Models\Site;
 use App\Models\Vacation;
 use Illuminate\Http\Request;
 
@@ -21,25 +22,48 @@ class DashboardController extends Controller
 
         // Managers see the global dashboard; everyone else sees their own info
         if ($user->isManager()) {
-            return $this->managerDashboard();
+            return $this->managerDashboard($request);
         }
 
         return $this->employeeDashboard($user);
     }
 
     /** Global dashboard (managers) */
-    private function managerDashboard()
+    private function managerDashboard(Request $request)
     {
         $today = company_now()->toDateString();
         $weekStart = company_now()->subDays(6)->toDateString();
 
-        $totalEmployees = Employee::where('is_active', true)->count();
-        $withoutFace = Employee::where('is_active', true)->whereNull('face_descriptor')->count();
-        $pendingVacations = Vacation::inCurrentSite()->pending()->count();
-        $pendingJustifications = Justification::inCurrentSite()->pending()->count();
+        // Optional site scope: a site-bound manager is always locked to their site;
+        // everyone else can pick a site to focus every KPI and chart below.
+        $user = $request->user();
+        $sites = Site::where('is_active', true)
+            ->when($user->isSiteBound(), fn ($q) => $q->whereKey($user->site_id))
+            ->orderBy('name')->get();
+        $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
+        $bySite = fn ($q) => $q->when($siteId, fn ($x) => $x->whereHas('employee', fn ($e) => $e->where('site_id', $siteId)));
+
+        $totalEmployees = Employee::where('is_active', true)->when($siteId, fn ($q) => $q->where('site_id', $siteId))->count();
+        $withoutFace = Employee::where('is_active', true)->whereNull('face_descriptor')->when($siteId, fn ($q) => $q->where('site_id', $siteId))->count();
+        $pendingVacations = Vacation::inCurrentSite()->pending()->when($siteId, $bySite)->count();
+        $pendingJustifications = Justification::inCurrentSite()->pending()->when($siteId, $bySite)->count();
+
+        // Per-site breakdown: employees + who is present today, one row per site
+        $siteBreakdown = $sites->map(function ($site) use ($today) {
+            $employees = Employee::where('is_active', true)->where('site_id', $site->id)->count();
+            $present = Attendance::whereDate('date', $today)->whereIn('status', ['ON_TIME', 'LATE'])
+                ->whereHas('employee', fn ($e) => $e->where('site_id', $site->id))->count();
+
+            return [
+                'name' => $site->name,
+                'employees' => $employees,
+                'present' => $present,
+                'rate' => $employees > 0 ? (int) round($present * 100 / $employees) : 0,
+            ];
+        });
 
         // Today's marks split by status (KPIs + doughnut)
-        $todayByStatus = Attendance::inCurrentSite()->whereDate('date', $today)
+        $todayByStatus = Attendance::inCurrentSite()->whereDate('date', $today)->when($siteId, $bySite)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -50,7 +74,7 @@ class DashboardController extends Controller
         $attendanceRate = $totalEmployees > 0 ? (int) round($presentToday * 100 / $totalEmployees) : 0;
 
         // Last 7 days, one stacked series per status (single grouped query)
-        $weekRaw = Attendance::inCurrentSite()->whereBetween('date', [$weekStart, $today])
+        $weekRaw = Attendance::inCurrentSite()->whereBetween('date', [$weekStart, $today])->when($siteId, $bySite)
             ->selectRaw('date, status, count(*) as total')
             ->groupBy('date', 'status')
             ->get()
@@ -70,13 +94,14 @@ class DashboardController extends Controller
         $latest = Attendance::with('employee')
             ->inCurrentSite()
             ->whereDate('date', $today)
+            ->when($siteId, $bySite)
             ->latest('updated_at')
             ->take(8)
             ->get();
 
         // Small work queue: the most recent items waiting for a decision
-        $pendingVacationList = Vacation::inCurrentSite()->pending()->with('employee')->latest()->take(4)->get();
-        $pendingJustificationList = Justification::inCurrentSite()->pending()->with('employee')->latest()->take(4)->get();
+        $pendingVacationList = Vacation::inCurrentSite()->pending()->when($siteId, $bySite)->with('employee')->latest()->take(4)->get();
+        $pendingJustificationList = Justification::inCurrentSite()->pending()->when($siteId, $bySite)->with('employee')->latest()->take(4)->get();
 
         return view('dashboard', [
             'isManager' => true,
@@ -93,6 +118,9 @@ class DashboardController extends Controller
             'latest' => $latest,
             'pendingVacationList' => $pendingVacationList,
             'pendingJustificationList' => $pendingJustificationList,
+            'sites' => $sites,
+            'siteId' => $siteId,
+            'siteBreakdown' => $siteBreakdown,
         ]);
     }
 

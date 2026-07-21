@@ -148,6 +148,8 @@ Route::middleware('auth')->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
         Route::get('reports/export-detail', [ReportController::class, 'exportDetail'])->name('reports.exportDetail');
+        Route::get('reports/breaks', [ReportController::class, 'breaks'])->name('reports.breaks');
+        Route::get('reports/breaks/export', [ReportController::class, 'breaksExport'])->name('reports.breaksExport');
     });
 
     Route::middleware('module:vacations_manage')->group(function () {

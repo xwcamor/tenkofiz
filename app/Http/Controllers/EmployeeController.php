@@ -8,7 +8,6 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Schedule;
-use App\Models\Site;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -314,16 +313,6 @@ class EmployeeController extends Controller
         ]);
     }
 
-    /** Site selector options: a site-bound user only ever sees THEIR site */
-    private function visibleSites(Request $request)
-    {
-        $user = $request->user();
-
-        return Site::where('is_active', true)
-            ->when($user->isSiteBound(), fn ($q) => $q->whereKey($user->site_id))
-            ->orderBy('name')
-            ->get();
-    }
 
     private function validated(Request $request, ?Employee $employee = null): array
     {

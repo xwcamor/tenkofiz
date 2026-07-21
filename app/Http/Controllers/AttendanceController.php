@@ -20,11 +20,12 @@ class AttendanceController extends Controller
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
         // Server-side pagination: this table grows without bounds
-        $attendances = Attendance::with('employee', 'marks')
+        $attendances = Attendance::with('employee.site', 'marks')
             ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))
+            ->when($request->filled('site_id'), fn ($q) => $q->whereHas('employee', fn ($e) => $e->where('site_id', $request->integer('site_id'))))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->orderByDesc('date')
             ->orderBy('employee_id')
@@ -35,8 +36,9 @@ class AttendanceController extends Controller
         // of the values already chosen (filter and re-opened modal after errors)
         $selectedEmployee = $request->filled('employee_id') ? Employee::find($request->integer('employee_id')) : null;
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
+        $sites = $this->visibleSites($request);
 
-        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to', 'showDeleted'));
+        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to', 'showDeleted', 'sites'));
     }
 
     /** Manual entry (e.g. corrections) by managers */

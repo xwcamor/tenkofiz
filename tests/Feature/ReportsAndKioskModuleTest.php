@@ -60,4 +60,41 @@ class ReportsAndKioskModuleTest extends TestCase
         );
         $this->assertStringContainsString('attachment', $response->headers->get('content-disposition'));
     }
+
+    public function test_break_analysis_report_flags_days_over_the_limit(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::where('email', 'admin@test.com')->first();
+        \App\Models\Setting::query()->update(['kiosk_breaks_enabled' => true, 'break_limit_minutes' => 60]);
+
+        $employee = Employee::create([
+            'document_number' => '22223333',
+            'first_name' => 'ANA',
+            'last_name' => 'BREAKS',
+            'schedule_id' => Schedule::first()->id,
+        ]);
+        // Within limit (30 min) and over limit (90 min)
+        Attendance::create(['employee_id' => $employee->id, 'date' => '2026-06-10', 'check_in' => '08:00:00', 'break_out' => '12:00:00', 'break_in' => '12:30:00', 'check_out' => '17:00:00', 'status' => 'ON_TIME', 'method' => 'FACIAL']);
+        Attendance::create(['employee_id' => $employee->id, 'date' => '2026-06-11', 'check_in' => '08:00:00', 'break_out' => '12:00:00', 'break_in' => '13:30:00', 'check_out' => '17:00:00', 'status' => 'ON_TIME', 'method' => 'FACIAL']);
+
+        $response = $this->actingAs($admin)->get('/reports/breaks?from=2026-06-01&to=2026-06-30');
+
+        $response->assertOk();
+        $response->assertSee('ANA');
+        $response->assertSee(__('Time exceeded'));   // the 90-min day is flagged
+        $response->assertSee(__('Within limit'));    // the 30-min day is not
+    }
+
+    public function test_break_analysis_exports_an_xlsx(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::where('email', 'admin@test.com')->first();
+        \App\Models\Setting::query()->update(['kiosk_breaks_enabled' => true, 'break_limit_minutes' => 60]);
+
+        $response = $this->actingAs($admin)->get('/reports/breaks/export?from=2026-06-01&to=2026-06-30');
+
+        $response->assertOk();
+        $this->assertStringContainsString('spreadsheetml', $response->headers->get('content-type'));
+        $this->assertStringContainsString('attachment', $response->headers->get('content-disposition'));
+    }
 }
