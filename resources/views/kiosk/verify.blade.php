@@ -50,35 +50,44 @@
         <a href="{{ route('kiosk') }}" class="btn btn-outline-light px-4 m-1">{{ __('Cancel') }}</a>
     </div>
 
-    {{-- Self-enrollment (only when this person has no enrolled face yet) --}}
+    {{-- Self-enrollment (only when this person has no enrolled face yet). It exists
+         ONLY when an enrollment PIN is configured: a supervisor unlocks the tablet,
+         then the person captures their face. Without a PIN there is no on-kiosk
+         enrollment — an administrator registers the face from the panel — so nobody
+         can register a face against someone else's document unsupervised. --}}
     @unless($employee->hasFace())
-        <div class="kiosk-card mt-3 text-start" id="enrollCard" style="max-width:560px;display:none">
-            <h6 class="text-white mb-2"><i class="fas fa-user-plus"></i> {{ __('You have no enrolled face yet — enroll it now (one time only)') }}</h6>
-            @if($enrollPinConfigured && !$enrollUnlocked)
-                <div id="enrollPinStep">
-                    <p class="kiosk-help small mb-2">{{ __('Ask your supervisor to enter the enrollment PIN (it unlocks this tablet for 15 minutes).') }}</p>
-                    <div class="d-flex gap-2">
-                        <input type="password" id="enrollPin" class="form-control text-center" maxlength="8" inputmode="numeric" placeholder="PIN" style="max-width:160px">
-                        <button class="btn btn-primary" onclick="unlockEnroll()">{{ __('Unlock') }}</button>
+        @if($enrollPinConfigured)
+            <div class="kiosk-card mt-3 text-start" id="enrollCard" style="max-width:560px;display:none">
+                <h6 class="text-white mb-2"><i class="fas fa-user-plus"></i> {{ __('You have no enrolled face yet — enroll it now (one time only)') }}</h6>
+                @unless($enrollUnlocked)
+                    <div id="enrollPinStep">
+                        <p class="kiosk-help small mb-2">{{ __('Ask your supervisor to enter the enrollment PIN (it unlocks this tablet for 15 minutes).') }}</p>
+                        <div class="d-flex gap-2">
+                            <input type="password" id="enrollPin" class="form-control text-center" maxlength="8" inputmode="numeric" placeholder="PIN" style="max-width:160px">
+                            <button class="btn btn-primary" onclick="unlockEnroll()">{{ __('Unlock') }}</button>
+                        </div>
+                        <div id="enrollPinMessage" class="mt-2"></div>
                     </div>
-                    <div id="enrollPinMessage" class="mt-2"></div>
+                @endunless
+                <div id="enrollCaptureStep" @unless($enrollUnlocked) style="display:none" @endunless>
+                    <div class="consent-box mb-2">
+                        {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="enrollConsent">
+                        <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
+                    </div>
+                    <div id="enrollMessage"></div>
+                    <button class="btn btn-success w-100" id="enrollBtn" onclick="enrollNow()"><i class="fas fa-camera"></i> {{ __('Capture my face (3 samples) and continue') }}</button>
                 </div>
-            @endif
-            <div id="enrollCaptureStep" @if($enrollPinConfigured && !$enrollUnlocked) style="display:none" @endif>
-                <div class="consent-box mb-2">
-                    {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" id="enrollConsent">
-                    <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
-                </div>
-                <div id="enrollMessage"></div>
-                <button class="btn btn-success w-100" id="enrollBtn" onclick="enrollNow()"><i class="fas fa-camera"></i> {{ __('Capture my face (3 samples) and continue') }}</button>
             </div>
-            @if(!$enrollPinConfigured)
-                <p class="kiosk-help small mb-0 mt-2"><i class="fas fa-info-circle"></i> {{ __('Note: no enrollment PIN is configured in Settings, so enrollment here is open. Configure a PIN to require a supervisor.') }}</p>
-            @endif
-        </div>
+        @else
+            {{-- No PIN configured: on-kiosk enrollment is disabled --}}
+            <div class="kiosk-card mt-3" id="enrollLocked" style="max-width:560px;display:none">
+                <h6 class="text-white mb-2"><i class="fas fa-user-lock"></i> {{ __('Your face is not enrolled yet') }}</h6>
+                <p class="kiosk-help small mb-0">{{ __('Ask an administrator to register your face from the panel. (Self-enrollment on the kiosk requires an enrollment PIN configured in Settings.)') }}</p>
+            </div>
+        @endif
     @endunless
 </div>
 
@@ -129,6 +138,7 @@
         notConfirmed: @json(__('We could not confirm your face in :sec seconds. You can try again or mark by document (an evidence photo will be saved for review).')),
         noFaceSeen: @json(__('No face was detected in front of the camera — nothing was recorded. Come closer, improve the lighting and try again.')),
         enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
+        enrollLocked: @json(__('Your face is not enrolled — ask an administrator to register it.')),
         faceDetected: @json(__('Face detected')),
         noFaceYet: @json(__('Looking for a face...')),
         evidenceIntro: @json(__('Retrying detection — stay in front of the camera...')),

@@ -56,12 +56,14 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
 Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" existe
 únicamente para quien **ya tiene rostro enrolado** y el reconocimiento falló.
 - **Sin rostro enrolado → no hay marcado por documento** (el botón ni aparece y el
-  servidor lo rechaza con 422 en `KioskController::markByDni`). El único camino es
-  **enrolarse ahí mismo** en `/kiosk/verify` y marcar facialmente.
-- **Auto-enrolamiento abierto**: si NO hay PIN configurado en Ajustes, la persona
-  validada en el teclado puede enrolarse a sí misma (el servidor verifica que el
-  `employee_id` coincida con el documento validado en sesión — no puede enrolar a
-  otro). Con PIN configurado, el supervisor desbloquea la tablet 15 minutos.
+  servidor lo rechaza con 422 en `KioskController::markByDni`).
+- **El auto-enrolamiento en el kiosco EXIGE PIN** (regla de Carlos, seguridad): sin un
+  PIN de enrolamiento configurado en Ajustes, **no hay auto-registro** en `/kiosk/verify`
+  — solo se muestra "pide a un administrador que registre tu rostro", y el servidor
+  rechaza `enroll/descriptor` con 403 (`enrollUnlocked` es la única autorización). Con
+  PIN, el supervisor desbloquea la tablet 15 minutos y la persona captura su rostro. El
+  enrolamiento **sin PIN** se hace desde el panel del admin (`/employees/{id}/enroll`).
+  Esto cierra el hueco de que alguien registre un rostro contra el documento de otro.
 - **Cámara rota**: un enrolado puede marcar por documento (sin foto); un NO
   enrolado no puede marcar (necesita la cámara para enrolarse) — el supervisor
   registra la marca manualmente en Asistencias.

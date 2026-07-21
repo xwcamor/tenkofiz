@@ -289,12 +289,14 @@ function begin() {
         runVerify();
         return;
     }
-    // No enrolled face: the ONLY way to mark is enrolling right here first
-    // (document marking is reserved for enrolled people whose recognition fails).
+    // No enrolled face. With an enrollment PIN there's a self-enroll card here;
+    // without one, on-kiosk enrollment is locked (an admin enrolls from the panel).
     const card = document.getElementById('enrollCard');
-    if (card) card.style.display = '';
-    show('info', '<i class="fas fa-user-plus"></i> ' + I18N.enrollFirst);
-    showActions(false, false); // just Cancel; the enroll card is the path forward
+    const locked = document.getElementById('enrollLocked');
+    if (card) { card.style.display = ''; }
+    else if (locked) { locked.style.display = ''; }
+    show(locked ? 'warning' : 'info', '<i class="fas fa-user-' + (locked ? 'lock' : 'plus') + '"></i> ' + (locked ? I18N.enrollLocked : I18N.enrollFirst));
+    showActions(false, false); // just Cancel
 }
 
 /* ---------- break / early-exit choice panel (shown before the camera) ---------- */

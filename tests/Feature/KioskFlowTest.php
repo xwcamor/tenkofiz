@@ -468,48 +468,68 @@ class KioskFlowTest extends TestCase
         \Carbon\Carbon::setTestNow();
     }
 
-    public function test_verify_page_hides_the_document_button_for_non_enrolled(): void
+    public function test_verify_page_hides_the_document_button_and_locks_enroll_without_a_pin(): void
     {
         $this->makeEmployee();
         $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
 
+        // No PIN configured → no document fallback and the self-enroll card is locked
         $this->get('/kiosk/verify')
             ->assertOk()
-            ->assertDontSee('id="markDocBtn"', false)   // no document fallback offered
-            ->assertSee('id="enrollCard"', false);      // enrolling is the path forward
+            ->assertDontSee('id="markDocBtn"', false)
+            ->assertDontSee('id="enrollCard"', false)   // self-enroll disabled without a PIN
+            ->assertSee('id="enrollLocked"', false);
     }
 
-    // ---------- Open self-enrollment (no PIN configured) ----------
-
-    public function test_self_enrollment_without_pin_works_for_the_validated_person(): void
+    public function test_verify_page_offers_self_enroll_when_a_pin_is_configured(): void
     {
         $employee = $this->makeEmployee();
-        $this->assertNull(app_setting()->kiosk_enroll_pin);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_enroll_pin' => '4321']);
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
 
-        // Validated on the keypad first (kiosk_verify_doc in session)
+        $this->get('/kiosk/verify')
+            ->assertOk()
+            ->assertSee('id="enrollCard"', false)
+            ->assertDontSee('id="enrollLocked"', false);
+    }
+
+    // ---------- Kiosk enrollment gating (PIN required) ----------
+
+    public function test_kiosk_enrollment_is_blocked_without_a_pin(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->assertNull(app_setting()->kiosk_enroll_pin); // no PIN configured
+
+        // Even after passing the keypad, on-kiosk enrollment is locked without a PIN
+        // (an administrator enrolls the face from the panel instead).
         $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
 
         $this->postJson('/kiosk/enroll/descriptor', [
             'employee_id' => $employee->id,
             'consent' => true,
             'descriptors' => [array_fill(0, 128, 0.2)],
+        ])->assertForbidden();
+
+        $this->assertNull($employee->fresh()->face_descriptor); // nothing enrolled
+    }
+
+    public function test_kiosk_enrollment_works_once_the_pin_unlocks_the_tablet(): void
+    {
+        $employee = $this->makeEmployee();
+        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_enroll_pin' => '4321']);
+
+        // Without unlocking → forbidden
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
+        ])->assertForbidden();
+
+        // Supervisor enters the PIN → the tablet unlocks and enrollment succeeds
+        $this->postJson('/kiosk/enroll/unlock', ['pin' => '4321'])->assertOk()->assertJsonPath('ok', true);
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
         ])->assertOk()->assertJsonPath('ok', true);
 
         $this->assertNotNull($employee->fresh()->face_descriptor);
-    }
-
-    public function test_self_enrollment_without_pin_is_rejected_for_a_different_person(): void
-    {
-        $this->makeEmployee();
-        $other = $this->makeEmployee(['document_number' => '99001122', 'first_name' => 'Otro']);
-
-        // The keypad validated 55667788, but the payload targets someone else
-        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
-
-        $this->postJson('/kiosk/enroll/descriptor', [
-            'employee_id' => $other->id,
-            'consent' => true,
-            'descriptors' => [array_fill(0, 128, 0.2)],
-        ])->assertForbidden();
     }
 }

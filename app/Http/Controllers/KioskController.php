@@ -751,15 +751,11 @@ class KioskController extends Controller
 
         $employee = Employee::findOrFail($data['employee_id']);
 
-        // Two ways to be authorized:
-        //  1. supervisor PIN entered on this tablet (15-min session), OR
-        //  2. OPEN self-enrollment: no PIN is configured AND the person being
-        //     enrolled is exactly the one validated on the keypad (kiosk_verify_doc)
-        //     — this is the "enroll yourself on your first mark" flow.
-        $openSelfEnroll = !app_setting()->kiosk_enroll_pin
-            && $request->session()->get('kiosk_verify_doc') === $employee->document_number;
-
-        abort_unless($this->enrollUnlocked($request) || $openSelfEnroll, 403, __('Enrollment mode is locked.'));
+        // Kiosk enrollment requires a supervisor PIN entered on this tablet (15-min
+        // session). Without a configured PIN there is no self-enrollment here — a
+        // person could otherwise register any face against someone else's document.
+        // Enrolling without a PIN is done by an administrator from the panel.
+        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
 
         $employee->update([
             'face_descriptor' => json_encode($data['descriptors']),
