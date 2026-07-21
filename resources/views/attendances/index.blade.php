@@ -27,12 +27,17 @@
         'ABSENT' => 'danger',
         default => 'info',
     };
-    // Worked hours for a single row (break time already subtracted by the model)
-    $workedHours = function ($attendance) {
+    // Hours that COUNT for a single row: same rule as the report — capped at the
+    // day's quota (no overtime credit), clamped to the shift, break NOT deducted.
+    $clampWorked = (bool) app_setting()->clamp_worked_hours;
+    $workedHours = function ($attendance) use ($clampWorked) {
         if (!$attendance->check_in || !$attendance->check_out) {
             return '—';
         }
-        $minutes = $attendance->workedMinutes();
+        $schedule = $attendance->employee->schedule;
+        $shift = $clampWorked ? $attendance->clampShift($schedule) : null;
+        $expected = $attendance->expected_minutes ?? ($schedule?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0);
+        $minutes = $expected > 0 ? $attendance->compliedMinutes($expected, $shift) : $attendance->workedMinutes($shift);
         return sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60);
     };
     $breakLimit = (int) (app_setting()->break_limit_minutes ?? 60);
