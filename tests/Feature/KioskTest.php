@@ -18,6 +18,7 @@ class KioskTest extends TestCase
     private function seedBase(): Employee
     {
         $this->seed(DatabaseSeeder::class);
+        \App\Models\Setting::query()->update(['early_check_in_minutes' => 0]); // no time-window interference
 
         return Employee::create([
             'document_number' => '11112222',

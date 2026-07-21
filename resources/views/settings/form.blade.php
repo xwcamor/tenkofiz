@@ -72,20 +72,15 @@
                             <br><strong>{{ __('Current period') }}:</strong> {{ $periodStart->format('d/m/Y') }} – {{ $periodEnd->format('d/m/Y') }}
                         </small>
                     </div>
-                    <div class="form-row">
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('Early check-in window') }} <small class="text-muted">({{ __('minutes; 0 = no limit') }})</small></label>
-                            <input type="number" name="early_check_in_minutes" min="0" max="720" value="{{ old('early_check_in_minutes', $setting->early_check_in_minutes) }}" class="form-control @error('early_check_in_minutes') is-invalid @enderror">
-                            @error('early_check_in_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                            <small class="text-muted">{{ __('How many minutes before their scheduled start an employee may check in. E.g. 60: someone on an 08:00 shift can mark from 07:00; earlier marks are rejected. 0 = mark at any time (no restriction).') }}</small>
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('Early departure alert') }} <small class="text-muted">({{ __('minutes; 0 = disabled') }})</small></label>
-                            <input type="number" name="early_departure_minutes" min="0" max="480" value="{{ old('early_departure_minutes', $setting->early_departure_minutes) }}" class="form-control @error('early_departure_minutes') is-invalid @enderror">
-                            @error('early_departure_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                            <small class="text-muted">{{ __('If the check-out happens more than this many minutes before the scheduled end, the mark is kept but flagged with an automatic note for the supervisor. It never blocks the check-out. 0 = disabled.') }}</small>
-                        </div>
+                    <div class="form-group">
+                        <label>{{ __('Early check-in window') }} <small class="text-muted">({{ __('minutes; 0 = no limit') }})</small></label>
+                        <input type="number" name="early_check_in_minutes" min="0" max="720" value="{{ old('early_check_in_minutes', $setting->early_check_in_minutes ?? 15) }}" class="form-control @error('early_check_in_minutes') is-invalid @enderror" style="max-width:160px">
+                        @error('early_check_in_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        <small class="text-muted">{{ __('How many minutes before their scheduled start an employee may check in (default 15). E.g. 15: someone on an 08:00 shift can mark from 07:45; earlier marks are rejected, so nobody clocks in hours early. 0 = mark at any time (no restriction).') }}</small>
                     </div>
+                    {{-- Leaving early is no longer a separate setting: the kiosk asks the
+                         person to confirm a premature check-out, and the report shows
+                         the owed time. Nothing to configure here. --}}
                     {{-- Break control (multiple marks per day) --}}
                     <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="kiosk_breaks_enabled" value="1" class="custom-control-input" id="kioskBreaksEnabled" @checked(old('kiosk_breaks_enabled', $setting->kiosk_breaks_enabled)) onchange="document.getElementById('breakOptions').style.display=this.checked?'':'none'">

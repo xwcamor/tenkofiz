@@ -28,7 +28,6 @@ class SettingController extends Controller
             'locale' => ['required', \Illuminate\Validation\Rule::in(\App\Http\Middleware\SetLocale::SUPPORTED)],
             'cutoff_day' => ['nullable', 'integer', 'min:1', 'max:28'],
             'early_check_in_minutes' => ['nullable', 'integer', 'min:0', 'max:720'],
-            'early_departure_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'break_limit_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
             'kiosk_enroll_pin' => ['nullable', 'digits_between:4,8'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
@@ -36,8 +35,7 @@ class SettingController extends Controller
 
         $data['kiosk_enroll_pin'] = $data['kiosk_enroll_pin'] ?? null;
         $data['cutoff_day'] = $data['cutoff_day'] ?? null;
-        $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 0;
-        $data['early_departure_minutes'] = $data['early_departure_minutes'] ?? 0;
+        $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 15;
         $data['kiosk_breaks_enabled'] = $request->boolean('kiosk_breaks_enabled');
         $data['break_required'] = $request->boolean('break_required');
         $data['break_limit_minutes'] = $data['break_limit_minutes'] ?? 60;

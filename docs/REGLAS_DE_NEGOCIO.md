@@ -164,26 +164,23 @@ Se evalúan en este orden:
    - Se busca el horario del día de la semana actual (`Schedule::worksOn(weekday)`).
    - `TARDANZA` si hora actual > hora de inicio + `tolerance_minutes` del horario.
    - `PUNTUAL` en caso contrario (también si hoy no es día laborable para él).
-   - **Ventana de marcado anticipado** (`settings.early_check_in_minutes`): si es
-     > 0, se rechaza la marca hecha más de X minutos antes de la hora de inicio
-     (mensaje: "entra a las 08:00, puede marcar desde las 07:00"). **0 = sin
-     restricción** (marca a cualquier hora). Configurable en Ajustes.
-5. **Segunda marca = SALIDA**, con dos reglas:
+   - **Ventana de marcado anticipado** (`settings.early_check_in_minutes`, **por
+     defecto 15**): se rechaza la marca hecha más de X minutos antes de la hora de
+     inicio (ej. 15: turno 08:00 → puede marcar desde 07:45), para que nadie marque
+     horas antes. **0 = sin restricción**. No aplica a horarios **flexibles** (no
+     tienen hora fija de inicio). Configurable en Ajustes.
+5. **Segunda marca = SALIDA**, una sola regla:
    - **Confirmación de salida prematura** (`KioskController::isEarlyCheckout`, regla
-     de Carlos): **no hay un "mínimo de minutos" que ignore en silencio**. Si la
-     salida es prematura, el kiosco **pregunta y confirma** en vez de registrar o
-     ignorar calladamente — así una segunda marca por accidente/"jugando" no cierra
-     el día, y a la persona se le avisa que **solo contará su tiempo hasta ahora**.
-     Prematura = **fijo**: antes de la hora de salida; **flexible**: aún no cumple la
-     meta diaria de horas. Sin confirmación → `422 {confirm_out:true}`; con
-     `confirm_out` → registra la SALIDA. (Justo después de la entrada siempre es
-     prematura, así que atrapa el doble-marcado sin número mágico.)
-   - **Aviso de salida anticipada** (`settings.early_departure_minutes`): si es
-     > 0 y la salida ocurre más de X minutos antes de la hora de fin, la marca se
-     guarda igual pero con una observación automática ("Salida anticipada (N min
-     antes del fin de turno)") para el supervisor. **Nunca bloquea la salida**;
-     **0 = desactivado** (`KioskController::earlyDepartureNote`). Se registra
-     siempre la **hora real** de salida.
+     de Carlos): **no hay un "mínimo de minutos" que ignore en silencio, ni una
+     "nota de salida anticipada" aparte**. Si la salida es prematura, el kiosco
+     **pregunta y confirma** en vez de registrar o ignorar calladamente — así una
+     segunda marca por accidente/"jugando" no cierra el día, y a la persona se le
+     avisa que **solo contará su tiempo hasta ahora**. Prematura = **fijo**: antes de
+     la hora de salida; **flexible**: aún no cumple la meta diaria. Sin confirmación →
+     `422 {confirm_out:true}`; con `confirm_out` → registra la SALIDA. (Justo después
+     de la entrada siempre es prematura, así que atrapa el doble-marcado sin número
+     mágico. La salida anticipada ya se refleja como **Debe** en el reporte, §1.4d,
+     por eso no se guarda una nota extra.)
 6. **Tercera marca en adelante** → rechazada ("ya registró entrada y salida hoy").
 
 Cada marca guarda auditoría del dispositivo: IP y user-agent (`attendances.ip`,

@@ -17,6 +17,9 @@ class KioskFlowTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+        // Neutralize the default early-check-in window (15) so timing-agnostic flow
+        // tests are not affected; the window tests set it explicitly per company.
+        \App\Models\Setting::query()->update(['early_check_in_minutes' => 0]);
     }
 
     private function makeEmployee(array $extra = []): Employee

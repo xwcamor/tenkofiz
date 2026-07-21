@@ -66,7 +66,8 @@ class MarkingWindowsTest extends TestCase
 
     public function test_zero_window_allows_marking_at_any_time(): void
     {
-        $this->seedEmployee(); // default early_check_in_minutes = 0
+        $this->seedEmployee();
+        Setting::instance()->update(['early_check_in_minutes' => 0]); // 0 = no restriction
 
         // Thursday 04:00 Lima (09:00 UTC) → hours before the shift, still allowed
         Carbon::setTestNow('2026-07-16 09:00:00');
@@ -74,37 +75,31 @@ class MarkingWindowsTest extends TestCase
         $this->mark()->assertOk()->assertJsonPath('type', 'CHECK_IN');
     }
 
-    public function test_early_departure_is_flagged_but_not_blocked(): void
+    public function test_leaving_early_is_confirmed_then_recorded(): void
     {
         $employee = $this->seedEmployee();
-        Setting::instance()->update(['early_departure_minutes' => 15]);
 
         // Check in Thursday 08:00 Lima (13:00 UTC)
         Carbon::setTestNow('2026-07-16 13:00:00');
         $this->mark()->assertOk()->assertJsonPath('type', 'CHECK_IN');
 
-        // Check out 15:00 Lima (20:00 UTC) → 120 min before the 17:00 end. It is
-        // early, so the kiosk asks to confirm; confirmed, it records (and flags it).
+        // Check out 15:00 Lima (20:00 UTC) → before the 17:00 end: confirm first,
+        // then it records (the report shows the owed time; no auto-note anymore).
         Carbon::setTestNow('2026-07-16 20:00:00');
         $this->mark()->assertStatus(422)->assertJsonPath('confirm_out', true);
         $this->mark(['confirm_out' => 1])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
 
-        $note = Attendance::where('employee_id', $employee->id)->value('note');
-        $this->assertNotNull($note);
-        $this->assertStringContainsString('120', $note);
+        $this->assertNotNull(Attendance::where('employee_id', $employee->id)->value('check_out'));
     }
 
-    public function test_leaving_at_the_scheduled_end_is_not_flagged(): void
+    public function test_leaving_at_the_scheduled_end_needs_no_confirmation(): void
     {
-        $employee = $this->seedEmployee();
-        Setting::instance()->update(['early_departure_minutes' => 15]);
+        $this->seedEmployee();
 
         Carbon::setTestNow('2026-07-16 13:00:00'); // in 08:00
         $this->mark()->assertOk();
 
-        Carbon::setTestNow('2026-07-16 22:00:00'); // out 17:00 exactly
+        Carbon::setTestNow('2026-07-16 22:00:00'); // out 17:00 exactly → not early
         $this->mark()->assertOk()->assertJsonPath('type', 'CHECK_OUT');
-
-        $this->assertNull(Attendance::where('employee_id', $employee->id)->value('note'));
     }
 }

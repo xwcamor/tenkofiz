@@ -298,7 +298,14 @@ function begin() {
 }
 
 /* ---------- break / early-exit choice panel (shown before the camera) ---------- */
-function hideActionChoice() { document.getElementById('actionChoice').style.display = 'none'; }
+// A choice left untouched must not block the kiosk for the next person: after this
+// idle it auto-returns to the home screen (as if they cancelled).
+const CHOICE_IDLE_MS = 30000;
+let choiceTimer = null;
+function hideActionChoice() {
+    clearTimeout(choiceTimer);
+    document.getElementById('actionChoice').style.display = 'none';
+}
 function showChoice(title, body, buttons) {
     document.getElementById('actionChoiceTitle').innerHTML = title;
     const b = document.getElementById('actionChoiceBody');
@@ -312,6 +319,8 @@ function showChoice(title, body, buttons) {
         el.onclick = btn.onClick;
         wrap.appendChild(el);
     });
+    clearTimeout(choiceTimer);
+    choiceTimer = setTimeout(() => { window.location.href = window.HOME_URL; }, CHOICE_IDLE_MS);
     document.getElementById('actionChoice').style.display = '';
     show('secondary', I18N.chooseTitle);
 }
