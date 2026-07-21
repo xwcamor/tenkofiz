@@ -48,7 +48,16 @@ function fetchGeo() {
         );
     });
 }
-async function ensureGeo() { if (GEO_ENABLED && !geoCoords) geoCoords = await fetchGeo(); }
+// Single in-flight fetch shared by all callers (page load + the mark), so a
+// first-time permission prompt is requested once and everyone awaits the same
+// result. A failed attempt (denied/timeout) clears it so the next call retries.
+let geoPromise = null;
+async function ensureGeo() {
+    if (!GEO_ENABLED || geoCoords) return;
+    if (!geoPromise) geoPromise = fetchGeo();
+    geoCoords = await geoPromise;
+    if (!geoCoords) geoPromise = null;
+}
 
 let shownType = null, shownHtml = null;
 function show(type, html) {
@@ -301,6 +310,11 @@ function openCamera() {
 
 async function start() {
     try {
+        // Ask for the location as EARLY as possible (page load), so a first-time
+        // permission prompt has the whole flow to resolve before the mark is sent.
+        // This does not touch the camera. Forced mode still gates below/at enroll.
+        ensureGeo();
+
         await loadModels();
 
         if (window.HAS_FACE) {
@@ -592,6 +606,7 @@ async function evidencePhase() {
 async function autoMarkByDocument() {
     show('info', spinner + I18N.savingSlow);
     try {
+        await ensureGeo(); // wait for a still-pending location so the mark carries it
         const { data } = await postJson(window.MARK_DNI_URL, {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
@@ -636,6 +651,7 @@ async function commitFacial(distance) {
     // pile up bytes on disk. Photos are kept only for the DNI fallback below.
     show('info', spinner + I18N.savingSlow);
     try {
+        await ensureGeo(); // wait for a still-pending location so the mark carries it
         const { data } = await postJson(window.MARK_URL, {
             employee_id: Number(window.EMPLOYEE.id),
             distance: distance.toFixed(4),
@@ -669,6 +685,7 @@ async function markByDocument() {
 
     show('info', spinner + I18N.savingSlow);
     try {
+        await ensureGeo(); // wait for a still-pending location so the mark carries it
         const { data } = await postJson(window.MARK_DNI_URL, {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
