@@ -120,18 +120,28 @@ class ReportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('Detail'));
 
-        $headers = [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out'), __('Worked hours'), __('Status')];
+        // When breaks are on, show the Break column so the arithmetic reads clearly:
+        // Check-out − Check-in − Break = Worked hours (otherwise the gap looks wrong).
+        $breaksOn = (bool) app_setting()->kiosk_breaks_enabled;
+        $headers = array_merge(
+            [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out')],
+            $breaksOn ? [__('Break (min)')] : [],
+            [__('Worked hours'), __('Status')]
+        );
+        $lastCol = $breaksOn ? 'H' : 'G';
+        $workedCol = $breaksOn ? 'G' : 'F';   // column that holds the worked-hours value
+        $totalLabelCol = $breaksOn ? 'F' : 'E'; // one column to its left, for the "Total" label
 
         $sheet->setCellValue('A1', __('Attendance detail').' · '.__('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A1:G1');
+        $sheet->mergeCells('A1:'.$lastCol.'1');
         $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 12]]);
 
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 2], $header);
         }
-        $sheet->getStyle('A2:G2')->applyFromArray([
+        $sheet->getStyle('A2:'.$lastCol.'2')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
         ]);
@@ -147,23 +157,30 @@ class ReportController extends Controller
                 $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
                 $dayMinutes = $attendance->workedMinutes($shift);
                 $employeeMinutes += $dayMinutes;
+                $breakMin = $attendance->breakMinutes();
 
-                $sheet->fromArray([
-                    $employee->full_name,
-                    $employee->document_number,
-                    $attendance->date->format('d/m/Y'),
-                    $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
-                    $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
-                    $dayMinutes ? sprintf('%d:%02d', intdiv($dayMinutes, 60), $dayMinutes % 60) : '—',
-                    __($attendance->status),
-                ], null, 'A'.$rowIndex++);
+                $row = array_merge(
+                    [
+                        $employee->full_name,
+                        $employee->document_number,
+                        $attendance->date->format('d/m/Y'),
+                        $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
+                        $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
+                    ],
+                    $breaksOn ? [$breakMin ?: '—'] : [],
+                    [
+                        $dayMinutes ? sprintf('%d:%02d', intdiv($dayMinutes, 60), $dayMinutes % 60) : '—',
+                        __($attendance->status),
+                    ]
+                );
+                $sheet->fromArray($row, null, 'A'.$rowIndex++);
             }
 
             // Worked-hours subtotal for the employee
             if ($employee->attendances->isNotEmpty()) {
-                $sheet->setCellValue('E'.$rowIndex, __('Total'));
-                $sheet->setCellValue('F'.$rowIndex, sprintf('%d:%02d', intdiv($employeeMinutes, 60), $employeeMinutes % 60));
-                $sheet->getStyle('A'.$rowIndex.':G'.$rowIndex)->applyFromArray([
+                $sheet->setCellValue($totalLabelCol.$rowIndex, __('Total'));
+                $sheet->setCellValue($workedCol.$rowIndex, sprintf('%d:%02d', intdiv($employeeMinutes, 60), $employeeMinutes % 60));
+                $sheet->getStyle('A'.$rowIndex.':'.$lastCol.$rowIndex)->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EEF2F8']],
                 ]);
@@ -171,10 +188,10 @@ class ReportController extends Controller
             }
         }
 
-        foreach (range('A', 'G') as $column) {
+        foreach (range('A', $lastCol) as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
-        $sheet->setAutoFilter('A2:G'.max(2, $rowIndex - 1));
+        $sheet->setAutoFilter('A2:'.$lastCol.max(2, $rowIndex - 1));
 
         $file = tempnam(sys_get_temp_dir(), 'report_detail');
         (new Xlsx($spreadsheet))->save($file);
