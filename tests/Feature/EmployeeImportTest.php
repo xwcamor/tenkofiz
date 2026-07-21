@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\Employee;
+use App\Models\Site;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,7 +25,7 @@ class EmployeeImportTest extends TestCase
     private function csv(array $rows): UploadedFile
     {
         $lines = array_merge(
-            ['document,first,last,schedule,area,position,hire_date'],
+            ['document,first,last,schedule,site,area,position,hire_date'],
             array_map(fn ($row) => implode(',', $row), $rows)
         );
 
@@ -42,10 +43,11 @@ class EmployeeImportTest extends TestCase
     public function test_valid_file_imports_employees_and_creates_catalogs(): void
     {
         $admin = $this->admin();
+        $site = Site::first(); // seeded "Sede Principal"
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', 'Quality', 'Tester', '2026-01-15'],
-            ['33334444', 'JANE', 'ROE', 'Morning Shift', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Morning Shift', $site->name, 'Quality', 'Tester', '2026-01-15'],
+            ['33334444', 'JANE', 'ROE', 'Morning Shift', '', '', '', ''],
         ]);
 
         $this->actingAs($admin)
@@ -55,6 +57,24 @@ class EmployeeImportTest extends TestCase
         $this->assertSame(2, Employee::count());
         $this->assertNotNull(Area::where('name', 'Quality')->first());
         $this->assertSame('2026-01-15', Employee::where('document_number', '11112222')->first()->hire_date->toDateString());
+        // Site column is honored (dynamic dropdown from active sites)
+        $this->assertSame($site->id, Employee::where('document_number', '11112222')->first()->site_id);
+        // Blank site column leaves the employee without a site
+        $this->assertNull(Employee::where('document_number', '33334444')->first()->site_id);
+    }
+
+    public function test_a_site_that_does_not_exist_is_rejected(): void
+    {
+        $admin = $this->admin();
+
+        $file = $this->csv([
+            ['11112222', 'JOHN', 'DOE', 'Morning Shift', 'Ghost Site', '', '', ''],
+        ]);
+
+        $this->actingAs($admin)->post('/employees-import', ['file' => $file])
+            ->assertSessionHas('import_errors');
+
+        $this->assertSame(0, Employee::count());
     }
 
     public function test_import_is_all_or_nothing_and_reports_row_errors(): void
@@ -62,8 +82,8 @@ class EmployeeImportTest extends TestCase
         $admin = $this->admin();
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', ''],
-            ['BAD-DOC', 'JANE', 'ROE', 'Nonexistent Shift', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', '', ''],
+            ['BAD-DOC', 'JANE', 'ROE', 'Nonexistent Shift', '', '', '', ''],
         ]);
 
         $response = $this->actingAs($admin)->post('/employees-import', ['file' => $file]);
@@ -81,8 +101,8 @@ class EmployeeImportTest extends TestCase
         $admin = $this->admin();
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', ''],
-            ['11112222', 'JANE', 'ROE', 'Morning Shift', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', '', ''],
+            ['11112222', 'JANE', 'ROE', 'Morning Shift', '', '', '', ''],
         ]);
 
         $this->actingAs($admin)

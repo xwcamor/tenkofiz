@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Schedule;
+use App\Models\Site;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -31,9 +32,10 @@ class EmployeeImportController extends Controller
             'B' => __('First names').' *',
             'C' => __('Last names').' *',
             'D' => __('Schedule').' *',
-            'E' => __('Area'),
-            'F' => __('Position'),
-            'G' => __('Hire date').' (YYYY-MM-DD)',
+            'E' => __('Site'),
+            'F' => __('Area'),
+            'G' => __('Position'),
+            'H' => __('Hire date').' (YYYY-MM-DD)',
         ];
     }
 
@@ -41,6 +43,7 @@ class EmployeeImportController extends Controller
     public function template()
     {
         $schedules = Schedule::where('is_active', true)->orderBy('name')->pluck('name');
+        $sites = Site::where('is_active', true)->orderBy('name')->pluck('name');
         $areas = Area::where('is_active', true)->orderBy('name')->pluck('name');
         $positions = Position::where('is_active', true)->orderBy('name')->pluck('name');
 
@@ -53,12 +56,12 @@ class EmployeeImportController extends Controller
         foreach ($this->columns() as $col => $label) {
             $sheet->setCellValue($col.'1', $label);
         }
-        $sheet->getStyle('A1:G1')->applyFromArray([
+        $sheet->getStyle('A1:H1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
             'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
-        foreach (['A' => 18, 'B' => 24, 'C' => 24, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 22] as $col => $width) {
+        foreach (['A' => 18, 'B' => 24, 'C' => 24, 'D' => 22, 'E' => 22, 'F' => 22, 'G' => 22, 'H' => 22] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
         $sheet->freezePane('A2');
@@ -68,7 +71,7 @@ class EmployeeImportController extends Controller
         // Document number as TEXT so leading zeros are kept
         $sheet->getStyle("A2:A{$last}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         // Hire date as text date to avoid locale-dependent serials
-        $sheet->getStyle("G2:G{$last}")->getNumberFormat()->setFormatCode('yyyy-mm-dd');
+        $sheet->getStyle("H2:H{$last}")->getNumberFormat()->setFormatCode('yyyy-mm-dd');
 
         // ---- Sheet 2: lists that feed the dropdowns ----
         $lists = $spreadsheet->createSheet();
@@ -81,6 +84,9 @@ class EmployeeImportController extends Controller
         }
         foreach ($positions->values() as $i => $name) {
             $lists->setCellValue('C'.($i + 1), $name);
+        }
+        foreach ($sites->values() as $i => $name) {
+            $lists->setCellValue('D'.($i + 1), $name);
         }
         $lists->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
 
@@ -103,8 +109,9 @@ class EmployeeImportController extends Controller
         };
 
         $addDropdown('D', 'A', $schedules->count(), true, __('Pick a schedule from the list (create it first in Schedules if missing).'));
-        $addDropdown('E', 'B', $areas->count(), false, __('Not in the list: it will be created automatically on import.'));
-        $addDropdown('F', 'C', $positions->count(), false, __('Not in the list: it will be created automatically on import.'));
+        $addDropdown('E', 'D', $sites->count(), true, __('Pick a site from the list (create it first in Sites if missing). Leave blank for no site.'));
+        $addDropdown('F', 'B', $areas->count(), false, __('Not in the list: it will be created automatically on import.'));
+        $addDropdown('G', 'C', $positions->count(), false, __('Not in the list: it will be created automatically on import.'));
 
         // ---- Sheet 3: instructions ----
         $help = $spreadsheet->createSheet();
@@ -115,6 +122,7 @@ class EmployeeImportController extends Controller
             __('• Columns marked with * are required.'),
             __('• Document number: 8 to 12 digits, unique per employee.'),
             __('• Schedule: pick one from the dropdown (they come from the Schedules module).'),
+            __('• Site: optional; pick one from the dropdown (they come from the Sites module). Leave blank for no site.'),
             __('• Area and Position: pick from the dropdown or type a new name (it will be created).'),
             __('• Hire date: optional, format YYYY-MM-DD (e.g. 2026-03-15).'),
             __('• Do not change the column order or the header row.'),
@@ -151,6 +159,7 @@ class EmployeeImportController extends Controller
         $highestRow = $sheet->getHighestDataRow();
 
         $schedules = Schedule::where('is_active', true)->get()->keyBy(fn ($s) => mb_strtolower(trim($s->name)));
+        $sites = Site::where('is_active', true)->get()->keyBy(fn ($s) => mb_strtolower(trim($s->name)));
         $existingDocuments = Employee::pluck('document_number')->flip();
 
         $errors = [];
@@ -162,9 +171,10 @@ class EmployeeImportController extends Controller
             $firstName = trim((string) $sheet->getCell("B{$row}")->getValue());
             $lastName = trim((string) $sheet->getCell("C{$row}")->getValue());
             $scheduleName = trim((string) $sheet->getCell("D{$row}")->getValue());
-            $areaName = trim((string) $sheet->getCell("E{$row}")->getValue());
-            $positionName = trim((string) $sheet->getCell("F{$row}")->getValue());
-            $hireDateRaw = $sheet->getCell("G{$row}")->getValue();
+            $siteName = trim((string) $sheet->getCell("E{$row}")->getValue());
+            $areaName = trim((string) $sheet->getCell("F{$row}")->getValue());
+            $positionName = trim((string) $sheet->getCell("G{$row}")->getValue());
+            $hireDateRaw = $sheet->getCell("H{$row}")->getValue();
 
             // Fully empty row: ignore
             if ($document === '' && $firstName === '' && $lastName === '' && $scheduleName === '') {
@@ -192,6 +202,16 @@ class EmployeeImportController extends Controller
             $schedule = $schedules->get(mb_strtolower($scheduleName));
             if ($scheduleName === '' || !$schedule) {
                 $rowErrors[] = __("the schedule ':name' does not exist (create it first in Schedules)", ['name' => $scheduleName]);
+            }
+
+            // Site: optional, but if given it must match an existing active site
+            // (sites are not auto-created — they carry plan limits and settings)
+            $site = null;
+            if ($siteName !== '') {
+                $site = $sites->get(mb_strtolower($siteName));
+                if (!$site) {
+                    $rowErrors[] = __("the site ':name' does not exist (create it first in Sites)", ['name' => $siteName]);
+                }
             }
 
             // Hire date: optional; accepts YYYY-MM-DD text or a real Excel date
@@ -223,6 +243,7 @@ class EmployeeImportController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'schedule_id' => $schedule->id,
+                'site_id' => $site?->id,
                 'area' => $areaName,
                 'position' => $positionName,
                 'hire_date' => $hireDate,
@@ -277,6 +298,7 @@ class EmployeeImportController extends Controller
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'schedule_id' => $data['schedule_id'],
+                    'site_id' => $data['site_id'],
                     'area_id' => $areaId,
                     'position_id' => $positionId,
                     'hire_date' => $data['hire_date'],
