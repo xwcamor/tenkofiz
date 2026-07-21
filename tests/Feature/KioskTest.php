@@ -86,40 +86,44 @@ class KioskTest extends TestCase
 
     // ---------- Enrollment mode ----------
 
-    public function test_enrollment_requires_pin_and_records_consent(): void
+    public function test_guided_enrollment_records_consent_for_the_validated_person(): void
     {
-        $employee = $this->seedBase();
-        Setting::instance()->update(['kiosk_enroll_pin' => '4321']);
-        app()->forgetInstance('app.setting');
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday, working hours
+        $this->seedBase();
+        $employee = Employee::create([ // faceless: eligible for guided enrollment
+            'document_number' => '33334444',
+            'first_name' => 'NO', 'last_name' => 'FACE',
+            'schedule_id' => Schedule::first()->id,
+        ]);
 
-        // Locked without unlocking first (descriptor is the only enroll endpoint now)
-        $this->postJson('/kiosk/enroll/descriptor', [
-            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
-        ])->assertForbidden();
-
-        // Wrong PIN
-        $this->postJson('/kiosk/enroll/unlock', ['pin' => '9999'])->assertStatus(422);
-
-        // Correct PIN unlocks the session
-        $this->postJson('/kiosk/enroll/unlock', ['pin' => '4321'])->assertOk()->assertJsonPath('ok', true);
-
-        $descriptor = array_fill(0, 128, 0.2);
+        // Validated on the keypad (sets kiosk_verify_doc), then enrolls with consent
+        $this->postJson('/kiosk/lookup', ['document_number' => '33334444'])->assertOk();
         $this->postJson('/kiosk/enroll/descriptor', [
             'employee_id' => $employee->id,
             'consent' => true,
-            'descriptors' => [$descriptor],
+            'descriptors' => [array_fill(0, 128, 0.2)],
         ])->assertOk()->assertJsonPath('ok', true);
 
         $employee->refresh();
         $this->assertTrue($employee->hasFace());
         $this->assertNotNull($employee->biometric_consent_at);
+
+        \Carbon\Carbon::setTestNow();
     }
 
-    public function test_enrollment_unlock_fails_when_no_pin_configured(): void
+    public function test_enrollment_requires_the_biometric_consent(): void
     {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00');
         $this->seedBase();
+        $employee = Employee::create(['document_number' => '33334444', 'first_name' => 'NO', 'last_name' => 'FACE', 'schedule_id' => Schedule::first()->id]);
 
-        $this->postJson('/kiosk/enroll/unlock', ['pin' => '1234'])->assertStatus(422);
+        $this->postJson('/kiosk/lookup', ['document_number' => '33334444'])->assertOk();
+        // No consent → validation error
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $employee->id, 'consent' => false, 'descriptors' => [array_fill(0, 128, 0.2)],
+        ])->assertStatus(422);
+
+        \Carbon\Carbon::setTestNow();
     }
 
     // ---------- RENIEC lookup (Decolecta) ----------

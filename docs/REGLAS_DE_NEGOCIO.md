@@ -31,18 +31,20 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
      El mensaje en pantalla es deliberadamente **neutro** ("Reintentando
      detección...") para no avisarle al tramposo el momento de esconderse.
    - **Sin rostro enrolado**: el ÚNICO camino es **enrolarse ahí mismo en
-     `/kiosk/verify`** (requiere PIN de supervisor, §1.2): acepta el consentimiento y
-     la **cámara guía** el registro. No hay marcado por documento para no enrolados
-     (§1.2). Sin PIN, el rostro lo registra un admin desde el panel.
+     `/kiosk/verify`** (sin PIN, §1.2): acepta el consentimiento y la **cámara guía**
+     el registro. No hay marcado por documento para no enrolados (§1.2).
    - **Sin cámara disponible**: un enrolado puede marcar por documento (sin foto);
      un no enrolado no puede marcar (ver §1.2).
-3. **Enrolamiento guiado (dentro de `/kiosk/verify`)**: aceptado el consentimiento
-   (obligatorio; sin él la cámara no captura), el registro usa el **mismo anillo
-   reactivo** que el marcado (acércate / céntrate / quieto). Cuando el rostro llena
-   el círculo y está centrado (**anillo verde**), **auto-captura** las 3 muestras
-   ("Registrando tu rostro...") y pasa directo a marcar — sin botón de captura. **Ya
-   no existe una página `/kiosk/enroll` aparte** (era redundante). Enrolamiento masivo
-   sin kiosco: panel de admin (`/employees/{id}/enroll`).
+3. **Enrolamiento guiado (dentro de `/kiosk/verify`, sin PIN)**: aceptado el
+   consentimiento (obligatorio; el botón está deshabilitado hasta aceptarlo, y sin él
+   la cámara no captura), el registro usa el **mismo anillo reactivo** que el marcado
+   (acércate / aléjate / céntrate). Cuando el rostro llena el círculo y está centrado
+   (**anillo verde**), inicia un **contador "no te muevas" de ~5 s** y **auto-captura
+   las 3 muestras** a lo largo del conteo — sin botón. Si la persona se sale del
+   círculo a mitad del conteo, **reinicia la guía** para que la plantilla quede bien
+   encuadrada. Al terminar pasa directo a marcar. **Ya no existe una página
+   `/kiosk/enroll` aparte** (era redundante). Re-registro y enrolamiento masivo: panel
+   de admin (`/employees/{id}/enroll`).
 
 - **Calibración core (solo super-admin, §14)**: el umbral de similitud
   (`kiosk_face_threshold`, 0.35–0.65; 0.50 recomendado; menor = más estricto) y la
@@ -56,20 +58,21 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
 - El antiguo "modo rápido" 1:N fue retirado de la interfaz: el flujo es siempre
   documento → confirmación 1:1 (filtra antes de abrir la cámara). Los endpoints
   `/kiosk/descriptors` y `/kiosk/version` se conservan por compatibilidad.
-- JS: `public/js/kiosk-home.js`, `kiosk-verify.js`, `kiosk-enroll.js`.
+- JS: `public/js/kiosk-home.js`, `kiosk-verify.js` (incluye el enrolamiento guiado).
 
 ### 1.2 Regla: el marcado por documento es SOLO para rostros ya enrolados
 Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" existe
 únicamente para quien **ya tiene rostro enrolado** y el reconocimiento falló.
 - **Sin rostro enrolado → no hay marcado por documento** (el botón ni aparece y el
   servidor lo rechaza con 422 en `KioskController::markByDni`).
-- **El auto-enrolamiento en el kiosco EXIGE PIN** (regla de Carlos, seguridad): sin un
-  PIN de enrolamiento configurado en Ajustes, **no hay auto-registro** en `/kiosk/verify`
-  — solo se muestra "pide a un administrador que registre tu rostro", y el servidor
-  rechaza `enroll/descriptor` con 403 (`enrollUnlocked` es la única autorización). Con
-  PIN, el supervisor desbloquea la tablet 15 minutos y la persona captura su rostro. El
-  enrolamiento **sin PIN** se hace desde el panel del admin (`/employees/{id}/enroll`).
-  Esto cierra el hueco de que alguien registre un rostro contra el documento de otro.
+- **Auto-enrolamiento guiado (sin PIN, regla de Carlos)**: al poner el DNI, si la
+  persona **no tiene rostro**, sale el consentimiento y, al aceptarlo, la **cámara
+  guía** el registro (mismo anillo verde). El PIN se retiró (era redundante: el
+  documento ya identifica a la persona). Dos guardas en `enroll/descriptor`: (1) solo
+  se enrola a **quien pasó el teclado** (`kiosk_verify_doc` en sesión — no se puede
+  apuntar a otro `employee_id`), y (2) **nunca se sobrescribe** un rostro ya
+  registrado desde el kiosco (403 si `hasFace()`) — re-enrolar es acción del panel de
+  admin. El re-registro y el enrolamiento masivo se hacen en `/employees/{id}/enroll`.
 - **Cámara rota**: un enrolado puede marcar por documento (sin foto); un NO
   enrolado no puede marcar (necesita la cámara para enrolarse) — el supervisor
   registra la marca manualmente en Asistencias.

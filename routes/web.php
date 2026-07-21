@@ -50,7 +50,6 @@ Route::middleware('kiosk.token')->group(function () {
     Route::get('/kiosk/face/{document}', [KioskController::class, 'personFace'])->name('kiosk.face');
     Route::post('/kiosk/mark', [KioskController::class, 'mark'])->name('kiosk.mark');
     Route::post('/kiosk/mark-dni', [KioskController::class, 'markByDni'])->name('kiosk.markDni');
-    Route::post('/kiosk/enroll/unlock', [KioskController::class, 'enrollUnlock'])->name('kiosk.enroll.unlock');
     Route::post('/kiosk/enroll/descriptor', [KioskController::class, 'enrollDescriptor'])->name('kiosk.enroll.descriptor');
 });
 

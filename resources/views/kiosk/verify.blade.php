@@ -50,45 +50,23 @@
         <a href="{{ route('kiosk') }}" class="btn btn-outline-light px-4 m-1">{{ __('Cancel') }}</a>
     </div>
 
-    {{-- Self-enrollment (only when this person has no enrolled face yet). It exists
-         ONLY when an enrollment PIN is configured: a supervisor unlocks the tablet,
-         then the person captures their face. Without a PIN there is no on-kiosk
-         enrollment — an administrator registers the face from the panel — so nobody
-         can register a face against someone else's document unsupervised. --}}
+    {{-- Guided self-enrollment on the first mark (only when this person has no face
+         yet). Consent is a hard gate: the button stays disabled until accepted, and
+         only then the camera guides the capture. No PIN — the keypad already
+         validated who this is, and an existing face is never overwritten here. --}}
     @unless($employee->hasFace())
-        @if($enrollPinConfigured)
-            <div class="kiosk-card mt-3 text-start" id="enrollCard" style="max-width:560px;display:none">
-                <h6 class="text-white mb-2"><i class="fas fa-user-plus"></i> {{ __('You have no enrolled face yet — enroll it now (one time only)') }}</h6>
-                @unless($enrollUnlocked)
-                    <div id="enrollPinStep">
-                        <p class="kiosk-help small mb-2">{{ __('Ask your supervisor to enter the enrollment PIN (it unlocks this tablet for 15 minutes).') }}</p>
-                        <div class="d-flex gap-2">
-                            <input type="password" id="enrollPin" class="form-control text-center" maxlength="8" inputmode="numeric" placeholder="PIN" style="max-width:160px">
-                            <button class="btn btn-primary" onclick="unlockEnroll()">{{ __('Unlock') }}</button>
-                        </div>
-                        <div id="enrollPinMessage" class="mt-2"></div>
-                    </div>
-                @endunless
-                <div id="enrollCaptureStep" @unless($enrollUnlocked) style="display:none" @endunless>
-                    <div class="consent-box mb-2">
-                        {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="enrollConsent" onchange="document.getElementById('enrollBtn').disabled = !this.checked">
-                        <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
-                    </div>
-                    <div id="enrollMessage"></div>
-                    {{-- The camera only guides once consent is accepted (button enabled by the checkbox). --}}
-                    <button class="btn btn-success w-100" id="enrollBtn" disabled onclick="startEnroll()"><i class="fas fa-camera"></i> {{ __('Accept and start face registration') }}</button>
-                </div>
+        <div class="kiosk-card mt-3 text-start" id="enrollCard" style="max-width:560px;display:none">
+            <h6 class="text-white mb-2"><i class="fas fa-user-plus"></i> {{ __('You have no enrolled face yet — enroll it now (one time only)') }}</h6>
+            <div class="consent-box mb-2">
+                {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
             </div>
-        @else
-            {{-- No PIN configured: on-kiosk enrollment is disabled --}}
-            <div class="kiosk-card mt-3" id="enrollLocked" style="max-width:560px;display:none">
-                <h6 class="text-white mb-2"><i class="fas fa-user-lock"></i> {{ __('Your face is not enrolled yet') }}</h6>
-                <p class="kiosk-help small mb-0">{{ __('Ask an administrator to register your face from the panel. (Self-enrollment on the kiosk requires an enrollment PIN configured in Settings.)') }}</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="enrollConsent" onchange="document.getElementById('enrollBtn').disabled = !this.checked">
+                <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
             </div>
-        @endif
+            <div id="enrollMessage"></div>
+            <button class="btn btn-success w-100" id="enrollBtn" disabled onclick="startEnroll()"><i class="fas fa-camera"></i> {{ __('Accept and start face registration') }}</button>
+        </div>
     @endunless
 </div>
 
@@ -97,7 +75,6 @@
     window.MARK_URL = "{{ route('kiosk.mark') }}";
     window.MARK_DNI_URL = "{{ route('kiosk.markDni') }}";
     window.FACE_URL = "{{ route('kiosk.face', ['document' => $employee->document_number]) }}";
-    window.ENROLL_UNLOCK_URL = "{{ route('kiosk.enroll.unlock') }}";
     window.ENROLL_DESCRIPTOR_URL = "{{ route('kiosk.enroll.descriptor') }}";
     window.CSRF = "{{ csrf_token() }}";
     window.EMPLOYEE = @json(['id' => $employee->id, 'name' => $employee->first_name, 'document' => $employee->document_number]);
@@ -139,7 +116,6 @@
         notConfirmed: @json(__('We could not confirm your face in :sec seconds. You can try again or mark by document (an evidence photo will be saved for review).')),
         noFaceSeen: @json(__('No face was detected in front of the camera — nothing was recorded. Come closer, improve the lighting and try again.')),
         enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
-        enrollLocked: @json(__('Your face is not enrolled — ask an administrator to register it.')),
         faceDetected: @json(__('Face detected')),
         noFaceYet: @json(__('Looking for a face...')),
         evidenceIntro: @json(__('Retrying detection — stay in front of the camera...')),
@@ -155,7 +131,8 @@
         noFaceInSample: @json(__('No face was detected in sample :current. Move closer, improve the lighting and try again.')),
         saving: @json(__('Saving to the database...')),
         enrolled: @json(__('Enrolled! Now look at the camera to confirm and mark.')),
-        enrollCapturing: @json(__('Registering your face (:n of :total)... hold still')),
+        enrollHold: @json(__('Registering your face in the system — do not move...')),
+        enrollMoved: @json(__('You moved — let\'s try again. Look at the camera and stay centered.')),
     };
 </script>
 <script defer src="{{ vendor_asset('vendor/faceapi/face-api.min.js', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js') }}"></script>

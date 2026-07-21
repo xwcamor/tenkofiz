@@ -8,7 +8,7 @@ class Setting extends Model
 {
     protected $fillable = [
         'company_id',
-        'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'country', 'locale', 'cutoff_day', 'kiosk_token', 'kiosk_enroll_pin',
+        'company_name', 'tax_id', 'address', 'phone', 'logo', 'timezone', 'country', 'locale', 'cutoff_day', 'kiosk_token',
         'early_check_in_minutes', 'clamp_worked_hours',
         'kiosk_breaks_enabled', 'break_required', 'break_limit_minutes', 'kiosk_geolocation',
         'kiosk_device_hash', 'kiosk_pair_code', 'kiosk_pair_expires_at',

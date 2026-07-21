@@ -110,12 +110,6 @@
                         <label class="custom-control-label" for="kioskGeolocation">{{ __('Record where each mark was made (GPS geolocation)') }}</label>
                     </div>
                     <small class="text-muted d-block mb-2">{{ __('ON: when marking, the kiosk asks the browser for permission and saves the coordinates with the punch, shown as a map link in Attendances. Useful for staff who mark from another site or work in the field. If the person denies permission the mark still goes through, just without a location. OFF (default): no location is requested or stored.') }}</small>
-                    <div class="form-group">
-                        <label>{{ __('Kiosk enrollment PIN') }} <small class="text-muted">({{ __('4-8 digits; empty = enrollment mode disabled') }})</small></label>
-                        <input name="kiosk_enroll_pin" value="{{ old('kiosk_enroll_pin', $setting->kiosk_enroll_pin) }}" class="form-control @error('kiosk_enroll_pin') is-invalid @enderror" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off">
-                        @error('kiosk_enroll_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                        <small class="text-muted">{{ __('With this PIN, a supervisor unlocks the self-enrollment mode on the kiosk: the employee types their document, accepts the consent and captures their face — no admin needed per person.') }}</small>
-                    </div>
                     {{-- Facial recognition (kiosk). Core calibration (match threshold,
                          verification seconds) lives in the super-admin console only:
                          a workspace admin never sees or edits it. --}}

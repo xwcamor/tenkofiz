@@ -289,13 +289,11 @@ function begin() {
         runVerify();
         return;
     }
-    // No enrolled face. With an enrollment PIN there's a self-enroll card here;
-    // without one, on-kiosk enrollment is locked (an admin enrolls from the panel).
+    // No enrolled face → offer the guided self-enrollment card (accept consent →
+    // the camera guides the capture). No PIN; the keypad already validated who it is.
     const card = document.getElementById('enrollCard');
-    const locked = document.getElementById('enrollLocked');
-    if (card) { card.style.display = ''; }
-    else if (locked) { locked.style.display = ''; }
-    show(locked ? 'warning' : 'info', '<i class="fas fa-user-' + (locked ? 'lock' : 'plus') + '"></i> ' + (locked ? I18N.enrollLocked : I18N.enrollFirst));
+    if (card) card.style.display = '';
+    show('info', '<i class="fas fa-user-plus"></i> ' + I18N.enrollFirst);
     showActions(false, false); // just Cancel
 }
 
@@ -666,21 +664,6 @@ function setEnrollMessage(id, type, html) {
     document.getElementById(id).innerHTML = html ? `<div class="alert alert-${type} py-2 small mb-2">${html}</div>` : '';
 }
 
-async function unlockEnroll() {
-    const pin = (document.getElementById('enrollPin')?.value || '').trim();
-    if (!pin) { setEnrollMessage('enrollPinMessage', 'warning', I18N.pinRequired); return; }
-    setEnrollMessage('enrollPinMessage', 'info', spinner + I18N.unlocking);
-    try {
-        const { data } = await postJson(window.ENROLL_UNLOCK_URL, { pin });
-        if (data.ok) {
-            document.getElementById('enrollPinStep').style.display = 'none';
-            document.getElementById('enrollCaptureStep').style.display = '';
-        } else {
-            setEnrollMessage('enrollPinMessage', 'danger', data.message || I18N.couldNotRecord);
-        }
-    } catch (e) { setEnrollMessage('enrollPinMessage', 'danger', I18N.connectionError); }
-}
-
 // Consent gate → the camera guides the enrollment. Nothing captures until the
 // person accepts the biometric consent (the button is disabled until then).
 function startEnroll() {
@@ -693,48 +676,86 @@ function startEnroll() {
     enrollGuided();
 }
 
+const ENROLL_SAMPLES = 3;
+const ENROLL_HOLD_SECONDS = 5; // "hold still" countdown while it captures
+
+/** One detection with the full descriptor (null on failure) */
+async function enrollDetect() {
+    try { return await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); }
+    catch (e) { return null; }
+}
+
 /**
- * Guided enrollment with the SAME reactive ring + coaching as marking: come
- * closer / center / hold still. When the face fills the circle and is centred
- * (ring turns green), it auto-captures the samples — no button — showing
- * "Registering your face...". Then it saves and goes straight into the mark.
+ * Guided enrollment: SAME reactive ring + coaching as marking (come closer /
+ * center). When the face fills the circle and is centred (green), it holds a
+ * "don't move" countdown of a few seconds and AUTO-captures the samples across
+ * it — no button. If the person drifts out of the circle mid-countdown, it
+ * restarts the guidance so the captured template is always well-framed.
  */
 async function enrollGuided() {
-    const SAMPLES = 3;
-    const descriptors = [];
+    while (true) {
+        await enrollWaitForGreen();
+        const descriptors = await enrollHoldAndCapture();
+        setCountdown(null);
+        if (descriptors && descriptors.length) { await enrollSave(descriptors); return; }
+        // Drifted out mid-capture → coach and try again
+        setRing('idle');
+        coach('moved', 'warning', '<i class="fas fa-triangle-exclamation"></i> ' + I18N.enrollMoved);
+        await wait(900);
+    }
+}
 
-    while (descriptors.length < SAMPLES) {
-        let det = null;
-        try { det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { det = null; }
+/** Guide with the ring until the face fills the circle and is centred (green). */
+async function enrollWaitForGreen() {
+    while (true) {
+        const det = await enrollDetect();
         clearOverlay();
         setFaceChip(!!det);
-
         if (!det) {
             setRing('idle');
             coach('far', 'info', '<i class="fas fa-magnifying-glass-plus"></i> ' + I18N.comeCloser2);
-            await wait(200);
+            await wait(180);
             continue;
         }
-
         const place = facePlacement(det.detection.box);
         setRing(place === 'ok' ? 'ok' : 'adjust');
-        if (place !== 'ok') {
-            const c = place === 'close'
-                ? ['close', 'fa-magnifying-glass-minus', I18N.moveBack]
-                : place === 'offcenter'
-                    ? ['offcenter', 'fa-crosshairs', I18N.centerFace]
-                    : ['far', 'fa-magnifying-glass-plus', I18N.comeCloser2];
-            coach(c[0], 'warning', `<i class="fas ${c[1]}"></i> ` + c[2]);
-            await wait(120);
-            continue;
-        }
-
-        // Green + centred + right distance → capture this sample automatically
-        descriptors.push(Array.from(det.descriptor));
-        show('success', spinner + I18N.enrollCapturing.replace(':n', descriptors.length).replace(':total', SAMPLES));
-        await wait(650);
+        if (place === 'ok') return;
+        const c = place === 'close'
+            ? ['close', 'fa-magnifying-glass-minus', I18N.moveBack]
+            : place === 'offcenter'
+                ? ['offcenter', 'fa-crosshairs', I18N.centerFace]
+                : ['far', 'fa-magnifying-glass-plus', I18N.comeCloser2];
+        coach(c[0], 'warning', `<i class="fas ${c[1]}"></i> ` + c[2]);
+        await wait(120);
     }
+}
 
+/**
+ * "Don't move" countdown that captures the samples while the face stays green.
+ * Returns the descriptors, or null if the person moved out of frame (restart).
+ */
+async function enrollHoldAndCapture() {
+    const descriptors = [];
+    for (let s = ENROLL_HOLD_SECONDS; s >= 1; s--) {
+        setCountdown(s);
+        show('success', '<i class="fas fa-camera"></i> ' + I18N.enrollHold);
+        // Several sub-checks per second so a face that drifts is caught quickly
+        for (let k = 0; k < 4; k++) {
+            const det = await enrollDetect();
+            clearOverlay();
+            if (!det || facePlacement(det.detection.box) !== 'ok') { setRing('adjust'); return null; }
+            setRing('ok');
+            // Spread the samples across the countdown (one per early second)
+            if (descriptors.length < ENROLL_SAMPLES && k === 0 && s > ENROLL_HOLD_SECONDS - ENROLL_SAMPLES) {
+                descriptors.push(Array.from(det.descriptor));
+            }
+            await wait(180);
+        }
+    }
+    return descriptors.length ? descriptors : null;
+}
+
+async function enrollSave(descriptors) {
     show('info', spinner + I18N.saving);
     try {
         const { data } = await postJson(window.ENROLL_DESCRIPTOR_URL, {

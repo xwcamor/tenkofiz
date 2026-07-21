@@ -90,8 +90,6 @@ class KioskController extends Controller
         return view('kiosk.verify', [
             'employee' => $employee,
             'site' => $site,
-            'enrollPinConfigured' => (bool) app_setting()->kiosk_enroll_pin,
-            'enrollUnlocked' => $this->enrollUnlocked($request),
             'nextAction' => $this->nextMarkAction($employee),
             'earlyExitWarn' => $this->earlyExitWarning($employee),
         ]);
@@ -674,32 +672,7 @@ class KioskController extends Controller
         return 'uploads/kiosk_evidence/'.$name;
     }
 
-    // ---------- Self-enrollment mode (unlocked with the supervisor PIN) ----------
-
-    /** Unlocks the enrollment mode for a few minutes */
-    public function enrollUnlock(Request $request)
-    {
-        $data = $request->validate(['pin' => ['required', 'digits_between:4,8']]);
-
-        $pin = app_setting()->kiosk_enroll_pin;
-
-        if (!$pin) {
-            return response()->json(['ok' => false, 'message' => __('Enrollment mode is disabled: set a PIN in Settings first.')], 422);
-        }
-
-        if (!hash_equals($pin, $data['pin'])) {
-            return response()->json(['ok' => false, 'message' => __('Incorrect PIN.')], 422);
-        }
-
-        $request->session()->put('kiosk_enroll_until', now()->addMinutes(self::ENROLL_SESSION_MINUTES)->timestamp);
-
-        return response()->json(['ok' => true, 'minutes' => self::ENROLL_SESSION_MINUTES]);
-    }
-
-    private function enrollUnlocked(Request $request): bool
-    {
-        return $request->session()->get('kiosk_enroll_until', 0) >= now()->timestamp;
-    }
+    // ---------- Guided self-enrollment on the first mark ----------
 
     /** Stores the face samples captured on the kiosk (requires on-screen consent) */
     public function enrollDescriptor(Request $request)
@@ -714,11 +687,14 @@ class KioskController extends Controller
 
         $employee = Employee::findOrFail($data['employee_id']);
 
-        // Kiosk enrollment requires a supervisor PIN entered on this tablet (15-min
-        // session). Without a configured PIN there is no self-enrollment here — a
-        // person could otherwise register any face against someone else's document.
-        // Enrolling without a PIN is done by an administrator from the panel.
-        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
+        // Guided self-enrollment on the first mark (no PIN). Two guards:
+        //  1. It must be the person validated on the keypad (kiosk_verify_doc), so
+        //     the payload can't target a different employee.
+        //  2. It only ENROLLS a face that doesn't exist yet — an already-enrolled
+        //     face is never overwritten from the kiosk (that needs the admin panel),
+        //     so nobody can replace someone else's template.
+        abort_unless($request->session()->get('kiosk_verify_doc') === $employee->document_number, 403, __('Enrollment is not authorized for this document.'));
+        abort_if($employee->hasFace(), 403, __('This person already has an enrolled face.'));
 
         $employee->update([
             'face_descriptor' => json_encode($data['descriptors']),

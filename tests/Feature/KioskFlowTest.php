@@ -468,68 +468,56 @@ class KioskFlowTest extends TestCase
         \Carbon\Carbon::setTestNow();
     }
 
-    public function test_verify_page_hides_the_document_button_and_locks_enroll_without_a_pin(): void
+    public function test_verify_page_offers_guided_self_enroll_for_a_faceless_person(): void
     {
-        $this->makeEmployee();
+        $this->makeEmployee(); // no face
         $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
 
-        // No PIN configured → no document fallback and the self-enroll card is locked
+        // No document fallback for a non-enrolled person, but the guided enroll card is offered
         $this->get('/kiosk/verify')
             ->assertOk()
             ->assertDontSee('id="markDocBtn"', false)
-            ->assertDontSee('id="enrollCard"', false)   // self-enroll disabled without a PIN
-            ->assertSee('id="enrollLocked"', false);
+            ->assertSee('id="enrollCard"', false);
     }
 
-    public function test_verify_page_offers_self_enroll_when_a_pin_is_configured(): void
+    // ---------- Guided self-enrollment on the first mark (no PIN) ----------
+
+    public function test_guided_self_enrollment_works_for_the_validated_person(): void
     {
-        $employee = $this->makeEmployee();
-        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_enroll_pin' => '4321']);
+        $employee = $this->makeEmployee(); // no face, no PIN anywhere
+
+        // Validated on the keypad (kiosk_verify_doc in session), then enrolls
         $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
-
-        $this->get('/kiosk/verify')
-            ->assertOk()
-            ->assertSee('id="enrollCard"', false)
-            ->assertDontSee('id="enrollLocked"', false);
-    }
-
-    // ---------- Kiosk enrollment gating (PIN required) ----------
-
-    public function test_kiosk_enrollment_is_blocked_without_a_pin(): void
-    {
-        $employee = $this->makeEmployee();
-        $this->assertNull(app_setting()->kiosk_enroll_pin); // no PIN configured
-
-        // Even after passing the keypad, on-kiosk enrollment is locked without a PIN
-        // (an administrator enrolls the face from the panel instead).
-        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
-
         $this->postJson('/kiosk/enroll/descriptor', [
             'employee_id' => $employee->id,
             'consent' => true,
             'descriptors' => [array_fill(0, 128, 0.2)],
-        ])->assertForbidden();
-
-        $this->assertNull($employee->fresh()->face_descriptor); // nothing enrolled
-    }
-
-    public function test_kiosk_enrollment_works_once_the_pin_unlocks_the_tablet(): void
-    {
-        $employee = $this->makeEmployee();
-        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_enroll_pin' => '4321']);
-
-        // Without unlocking → forbidden
-        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
-        $this->postJson('/kiosk/enroll/descriptor', [
-            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
-        ])->assertForbidden();
-
-        // Supervisor enters the PIN → the tablet unlocks and enrollment succeeds
-        $this->postJson('/kiosk/enroll/unlock', ['pin' => '4321'])->assertOk()->assertJsonPath('ok', true);
-        $this->postJson('/kiosk/enroll/descriptor', [
-            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
         ])->assertOk()->assertJsonPath('ok', true);
 
-        $this->assertNotNull($employee->fresh()->face_descriptor);
+        $employee->refresh();
+        $this->assertTrue($employee->hasFace());
+        $this->assertNotNull($employee->biometric_consent_at);
+    }
+
+    public function test_enrollment_is_rejected_for_a_document_not_validated_on_the_keypad(): void
+    {
+        $this->makeEmployee(); // validated one
+        $other = $this->makeEmployee(['document_number' => '99001122', 'first_name' => 'Otro']);
+
+        // Keypad validated 55667788, but the payload targets someone else
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $other->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
+        ])->assertForbidden();
+    }
+
+    public function test_kiosk_never_overwrites_an_already_enrolled_face(): void
+    {
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+
+        $this->postJson('/kiosk/lookup', ['document_number' => '55667788'])->assertOk();
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.9)],
+        ])->assertForbidden(); // re-enrolling over an existing face is an admin-panel action
     }
 }
