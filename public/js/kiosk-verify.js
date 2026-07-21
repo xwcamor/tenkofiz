@@ -819,22 +819,42 @@ async function enrollWaitForGreen() {
 
 /**
  * "Don't move" countdown that captures the samples while the face stays green.
- * Returns the descriptors, or null if the person moved out of frame (restart).
+ * Returns the descriptors, or null if the person really moved out of frame.
+ *
+ * Two rules keep the UI honest and smooth:
+ *  - The "registering, don't move" message + green ring show ONLY on a frame
+ *    that is actually well-placed — never while the ring is amber. So the person
+ *    never sees "registering" over an amber ring (that state doesn't capture).
+ *  - A single jittery frame does NOT abort: only a SUSTAINED drift (a few bad
+ *    frames in a row) restarts the guidance, so tiny detector jitter is ignored.
  */
+const ENROLL_MISS_TOLERANCE = 3; // consecutive off frames before we restart
+
 async function enrollHoldAndCapture() {
     const descriptors = [];
+    let misses = 0;
     for (let s = ENROLL_HOLD_SECONDS; s >= 1; s--) {
-        setCountdown(s);
-        show('success', '<i class="fas fa-camera"></i> ' + I18N.enrollHold);
-        // Several sub-checks per second so a face that drifts is caught quickly
+        let sampledThisSecond = false;
+        // Several sub-checks per second so a real drift is caught quickly
         for (let k = 0; k < 4; k++) {
             const det = await enrollDetect();
             clearOverlay();
-            if (!det || facePlacement(det.detection.box) !== 'ok') { setRing('adjust'); return null; }
+            const ok = det && facePlacement(det.detection.box) === 'ok';
+            if (!ok) {
+                // Sustained drift → give up and re-coach; brief jitter → keep going
+                if (++misses >= ENROLL_MISS_TOLERANCE) { setRing('adjust'); return null; }
+                await wait(180);
+                continue;
+            }
+            misses = 0;
+            // Only NOW, with the face confirmed well-placed, show the capture UI
             setRing('ok');
-            // Spread the samples across the countdown (one per early second)
-            if (descriptors.length < ENROLL_SAMPLES && k === 0 && s > ENROLL_HOLD_SECONDS - ENROLL_SAMPLES) {
+            setCountdown(s);
+            show('success', '<i class="fas fa-camera"></i> ' + I18N.enrollHold);
+            // One sample per second (on its first good frame) until we have enough
+            if (!sampledThisSecond && descriptors.length < ENROLL_SAMPLES) {
                 descriptors.push(Array.from(det.descriptor));
+                sampledThisSecond = true;
             }
             await wait(180);
         }
