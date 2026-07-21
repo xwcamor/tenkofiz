@@ -37,6 +37,22 @@ class User extends Authenticatable
         return $query;
     }
 
+    /**
+     * IDOR guard: bind {user} only within the current company (a super-admin not
+     * acting inside a workspace still sees all). Without this, a users-module
+     * admin could PUT/DELETE another company's user by changing the id in the URL
+     * — an account takeover. inCompany() is a no-op when no company is active.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->inCompany()->where($field ?? $this->getRouteKeyName(), $value)->first();
+    }
+
+    public function resolveSoftDeletableRouteBinding($value, $field = null)
+    {
+        return $this->inCompany()->withTrashed()->where($field ?? $this->getRouteKeyName(), $value)->first();
+    }
+
     protected $fillable = [
         'name', 'email', 'password', 'profile_id', 'company_id', 'site_id', 'is_super_admin', 'is_active',
         'must_change_password', 'timezone', 'locale', 'photo', 'delete_reason',

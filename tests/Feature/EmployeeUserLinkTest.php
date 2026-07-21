@@ -67,6 +67,7 @@ class EmployeeUserLinkTest extends TestCase
             'email' => 'free@test.test',
             'password' => 'secret123',
             'profile_id' => Profile::where('name', 'Supervisor')->first()->id,
+            'company_id' => $admin->company_id, // a linkable user belongs to the same company
         ]);
 
         $this->actingAs($admin)

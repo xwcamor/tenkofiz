@@ -284,7 +284,9 @@ class EmployeeController extends Controller
         }
 
         $data = $request->validate([
-            'user_id' => ['required', 'exists:users,id', Rule::unique('employees', 'user_id')->withoutTrashed()],
+            // Scope the user to THIS company (an unscoped exists: would let an admin
+            // link a foreign company's user and leak its email into the audit log)
+            'user_id' => ['required', Rule::exists('users', 'id')->where('company_id', current_company_id()), Rule::unique('employees', 'user_id')->withoutTrashed()],
         ], [
             'user_id.unique' => __('That user is already linked to another employee.'),
         ]);

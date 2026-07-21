@@ -56,6 +56,31 @@ class CompanyIsolationTest extends TestCase
         $this->assertNotSame($this->acmeEmp->id, $this->globexEmp->id);
     }
 
+    public function test_route_binding_is_tenant_scoped_no_cross_tenant_idor(): void
+    {
+        // A user + an attendance that belong to Globex
+        $globexUser = $this->adminFor($this->globex);
+        $globexAttendance = null;
+        CompanyScope::actingAs($this->globex->id, function () use (&$globexAttendance) {
+            $globexAttendance = \App\Models\Attendance::create([
+                'employee_id' => $this->globexEmp->id, 'date' => '2026-07-01', 'status' => 'ON_TIME',
+            ]);
+        });
+
+        // From ACME's context, binding those ids must resolve to NULL → the route
+        // 404s instead of letting ACME mutate Globex's user/attendance (IDOR).
+        CompanyScope::actingAs($this->acme->id, function () use ($globexUser, $globexAttendance) {
+            $this->assertNull((new User)->resolveRouteBinding($globexUser->id), 'cross-tenant user must not bind');
+            $this->assertNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->id), 'cross-tenant attendance must not bind');
+        });
+
+        // From Globex's own context, they DO bind (normal operation still works).
+        CompanyScope::actingAs($this->globex->id, function () use ($globexUser, $globexAttendance) {
+            $this->assertNotNull((new User)->resolveRouteBinding($globexUser->id));
+            $this->assertNotNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->id));
+        });
+    }
+
     public function test_a_company_user_only_sees_their_own_companys_employees(): void
     {
         $this->actingAs($this->adminFor($this->acme));
