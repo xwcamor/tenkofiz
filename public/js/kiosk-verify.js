@@ -764,7 +764,10 @@ async function startEnroll() {
 }
 
 const ENROLL_SAMPLES = 3;
-const ENROLL_HOLD_SECONDS = 5; // "hold still" countdown while it captures
+const ENROLL_HOLD_SECONDS = 4;   // green "hold still" time that actually captures
+const ENROLL_TICK_MS = 160;      // one placement check per tick
+const ENROLL_GOOD_TICKS = Math.round(ENROLL_HOLD_SECONDS * 1000 / ENROLL_TICK_MS);
+const ENROLL_LOST_TICKS = 20;    // ~3s fully off frame → restart the guidance
 
 /** One detection with the full descriptor (null on failure) */
 async function enrollDetect() {
@@ -817,47 +820,60 @@ async function enrollWaitForGreen() {
     }
 }
 
-/**
- * "Don't move" countdown that captures the samples while the face stays green.
- * Returns the descriptors, or null if the person really moved out of frame.
- *
- * Two rules keep the UI honest and smooth:
- *  - The "registering, don't move" message + green ring show ONLY on a frame
- *    that is actually well-placed — never while the ring is amber. So the person
- *    never sees "registering" over an amber ring (that state doesn't capture).
- *  - A single jittery frame does NOT abort: only a SUSTAINED drift (a few bad
- *    frames in a row) restarts the guidance, so tiny detector jitter is ignored.
- */
-const ENROLL_MISS_TOLERANCE = 3; // consecutive off frames before we restart
+/** Placement hint shown while the ring is amber during capture. */
+function enrollAdjustMessage(place) {
+    const c = place === 'close' ? ['fa-magnifying-glass-minus', I18N.moveBack]
+        : place === 'offcenter' ? ['fa-crosshairs', I18N.centerFace]
+            : ['fa-magnifying-glass-plus', I18N.comeCloser2];
+    return `<i class="fas ${c[0]}"></i> ` + c[1];
+}
 
+/**
+ * Capture the samples while the face stays green. The message is driven by the
+ * SAME green signal as the ring border, so they can never disagree:
+ *  - Ring green → "registering, don't move" + a countdown that advances.
+ *  - Ring amber → a placement hint (come closer / center / move back); countdown
+ *    pauses. Both flip together (with the ring's short green-hold), so you never
+ *    see "registering" over an amber ring.
+ *  - Fully off frame for ~3s → give up and re-run the guidance from the top.
+ * Only genuinely well-placed frames advance the countdown and are sampled.
+ */
 async function enrollHoldAndCapture() {
     const descriptors = [];
-    let misses = 0;
-    for (let s = ENROLL_HOLD_SECONDS; s >= 1; s--) {
-        let sampledThisSecond = false;
-        // Several sub-checks per second so a real drift is caught quickly
-        for (let k = 0; k < 4; k++) {
-            const det = await enrollDetect();
-            clearOverlay();
-            const ok = det && facePlacement(det.detection.box) === 'ok';
-            if (!ok) {
-                // Sustained drift → give up and re-coach; brief jitter → keep going
-                if (++misses >= ENROLL_MISS_TOLERANCE) { setRing('adjust'); return null; }
-                await wait(180);
-                continue;
-            }
-            misses = 0;
-            // Only NOW, with the face confirmed well-placed, show the capture UI
+    let goodTicks = 0, lostTicks = 0, lastSampleTick = -99, lastPlace = 'far';
+    const sampleGap = Math.max(1, Math.floor(ENROLL_GOOD_TICKS / (ENROLL_SAMPLES + 1)));
+
+    while (goodTicks < ENROLL_GOOD_TICKS) {
+        const det = await enrollDetect();
+        clearOverlay();
+        const place = det ? facePlacement(det.detection.box) : 'none';
+        const isOk = place === 'ok';
+
+        if (isOk) {
+            lostTicks = 0;
+            goodTicks++;
             setRing('ok');
-            setCountdown(s);
-            show('success', '<i class="fas fa-camera"></i> ' + I18N.enrollHold);
-            // One sample per second (on its first good frame) until we have enough
-            if (!sampledThisSecond && descriptors.length < ENROLL_SAMPLES) {
+            if (descriptors.length < ENROLL_SAMPLES && goodTicks - lastSampleTick >= sampleGap) {
                 descriptors.push(Array.from(det.descriptor));
-                sampledThisSecond = true;
+                lastSampleTick = goodTicks;
             }
-            await wait(180);
+        } else {
+            if (++lostTicks >= ENROLL_LOST_TICKS) { setRing('idle'); return null; }
+            if (place !== 'none') lastPlace = place;
+            setRing('adjust');
         }
+
+        // Message follows the EXACT ring color (same 400 ms green-hold as setRing):
+        // green ⇒ "registering", amber ⇒ placement hint. They flip together.
+        const ringGreen = isOk || (Date.now() - lastOvalGreenAt < 400);
+        if (ringGreen) {
+            setCountdown(Math.max(1, Math.ceil((ENROLL_GOOD_TICKS - goodTicks) * ENROLL_TICK_MS / 1000)));
+            show('success', '<i class="fas fa-camera"></i> ' + I18N.enrollHold);
+        } else {
+            setCountdown(null);
+            show('warning', enrollAdjustMessage(lastPlace));
+        }
+        await wait(ENROLL_TICK_MS);
     }
     return descriptors.length ? descriptors : null;
 }
