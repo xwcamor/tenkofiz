@@ -31,20 +31,40 @@ async function createUser(id, name) {
         title: @json(__('Enable sign-in for')) + ' ' + name,
         html: `
             <input id="swalEmail" type="email" class="swal2-input" placeholder="email@company.com" style="width:85%">
-            <select id="swalProfile" class="swal2-select" style="width:85%">${profileOptions}</select>
-            <p class="text-muted" style="font-size:.8rem;margin:0">${@json(__('They will sign in with this email. The initial password will be their document number.'))}</p>
+            <p class="text-muted" style="font-size:.8rem;margin:.25rem 0 0">${@json(__('They will sign in with this email. The initial password will be their document number.'))}</p>
+            <div style="margin-top:.75rem">
+                <a href="#" id="swalAdvToggle" style="font-size:.82rem"><i class="fas fa-sliders-h mr-1"></i>${@json(__('Give more permissions (advanced)'))}</a>
+                <div id="swalAdvBox" style="display:none;margin-top:.5rem">
+                    <select id="swalProfile" class="swal2-select" style="width:85%;margin:0 auto">${profileOptions}</select>
+                    <p class="text-muted" style="font-size:.75rem;margin:.15rem 0 0">${@json(__('Only for staff who also manage others (supervisor, HR). Regular employees keep the Employee profile.'))}</p>
+                </div>
+            </div>
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: @json(__('Enable sign-in')),
         cancelButtonText: @json(__('Cancel')),
+        didOpen: () => {
+            const toggle = document.getElementById('swalAdvToggle');
+            const box = document.getElementById('swalAdvBox');
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                box.style.display = 'block';
+                toggle.style.display = 'none';
+            });
+        },
         preConfirm: () => {
             const email = document.getElementById('swalEmail').value.trim();
             if (!/^\S+@\S+\.\S+$/.test(email)) {
                 Swal.showValidationMessage(@json(__('Enter a valid email')));
                 return false;
             }
-            return { email, profile_id: document.getElementById('swalProfile').value };
+            // Default is the Employee profile; only override it if the advanced picker was opened
+            const payload = { email };
+            if (document.getElementById('swalAdvBox').style.display !== 'none') {
+                payload.profile_id = document.getElementById('swalProfile').value;
+            }
+            return payload;
         }
     });
     if (!form) return;
