@@ -250,38 +250,73 @@ function debugUpdate(pose, distance, identityOk, challenge, pitchBaseline) {
 }
 
 /* ---------- startup ---------- */
+let modelsLoaded = false;
+
+/** Load the recognition models once (needed for both verify and enroll). */
+async function loadModels() {
+    if (modelsLoaded) return;
+    show('secondary', spinner + I18N.loadingModels);
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
+    modelsLoaded = true;
+}
+
+/**
+ * Forced-geolocation gate. Returns true when we may proceed. When location is
+ * required and missing, it shows a retry and returns false (camera stays off).
+ * When not required, it just kicks off a background location fetch.
+ */
+async function geoGate() {
+    if (!GEO_REQUIRED) { ensureGeo(); return true; }
+    show('secondary', spinner + I18N.requestingLocation);
+    await ensureGeo();
+    if (!geoCoords) {
+        show('warning', '<i class="fas fa-map-marker-alt"></i> ' + I18N.locationRequired);
+        showActions(false, true); // "Try again" re-requests the location
+        return false;
+    }
+    return true;
+}
+
+/** Turn the camera on and resolve once it is actually playing. */
+function openCamera() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            show('secondary', spinner + I18N.startingCamera);
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+            video.srcObject = stream;
+            video.addEventListener('playing', () => {
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
+                cameraOk = true;
+                resolve();
+            }, { once: true });
+        } catch (e) { reject(e); }
+    });
+}
+
 async function start() {
     try {
-        // Forced geolocation: we MUST have a location before the camera opens. No
-        // location → stop here with a retry, the camera never activates.
-        if (GEO_REQUIRED) {
-            show('secondary', spinner + I18N.requestingLocation);
-            await ensureGeo();
-            if (!geoCoords) {
-                show('warning', '<i class="fas fa-map-marker-alt"></i> ' + I18N.locationRequired);
-                showActions(false, true); // "Try again" re-requests the location
-                return;
-            }
-        } else {
-            ensureGeo(); // ask for the location early, in the background (no await)
-        }
-        show('secondary', spinner + I18N.loadingModels);
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
+        await loadModels();
 
-        show('secondary', spinner + I18N.startingCamera);
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
-        video.srcObject = stream;
-
-        video.addEventListener('playing', () => {
-            overlay.width = video.videoWidth;
-            overlay.height = video.videoHeight;
-            cameraOk = true;
+        if (window.HAS_FACE) {
+            // Enrolled: verify identity. The camera opens straight away (gated by
+            // forced location, if enabled).
+            if (!await geoGate()) return;
+            await openCamera();
             begin();
-        }, { once: true });
+            return;
+        }
+
+        // NOT enrolled: show ONLY the consent card — the camera stays OFF. It only
+        // turns on once the person accepts the consent (see startEnroll()).
+        const card = document.getElementById('enrollCard');
+        if (card) card.style.display = '';
+        show('info', '<i class="fas fa-user-plus"></i> ' + I18N.enrollFirst);
+        showActions(false, false); // just Cancel
     } catch (e) {
-        // Camera unavailable. Enrolled people may still mark by document so
+        // Camera/models unavailable. Enrolled people may still mark by document so
         // attendance is not blocked; non-enrolled people must enroll first (and
         // enrolling needs the camera), so they can only cancel.
         show('warning', '<i class="fas fa-video-slash"></i> ' + (window.HAS_FACE ? I18N.cameraFallback : I18N.cameraNeededToEnroll));
@@ -576,22 +611,19 @@ async function autoMarkByDocument() {
 }
 
 function retryVerify() {
-    // Camera never opened (e.g. forced location was denied, or the camera failed):
-    // restart from scratch so it re-requests the location / camera.
-    if (!cameraOk) { hideActions(); start(); return; }
-    if (window.HAS_FACE) { runVerify(); return; }
-    // No face yet. If consent was already accepted (the checkbox auto-started the
-    // capture and then it failed), go straight back into the guided capture — the
-    // now-disabled checkbox will not fire its onchange again.
     hideActions();
-    const consent = document.getElementById('enrollConsent');
-    if (consent && consent.checked) {
-        const card = document.getElementById('enrollCard');
-        if (card) card.style.display = 'none';
-        enrollGuided();
-    } else {
-        begin();
+    // Camera not running yet. If the person already accepted consent (and the
+    // camera/location then failed), retry the enroll — which re-opens the camera.
+    // Otherwise restart from scratch (re-requests location / camera / consent).
+    if (!cameraOk) {
+        const consent = document.getElementById('enrollConsent');
+        if (!window.HAS_FACE && consent && consent.checked) { startEnroll(); }
+        else { start(); }
+        return;
     }
+    if (window.HAS_FACE) { runVerify(); return; }
+    // No face, camera already on: resume the guided capture.
+    enrollGuided();
 }
 
 /* ---------- marking ---------- */
@@ -692,16 +724,23 @@ function setEnrollMessage(id, type, html) {
     document.getElementById(id).innerHTML = html ? `<div class="alert alert-${type} py-2 small mb-2">${html}</div>` : '';
 }
 
-// Consent gate → the camera guides the enrollment. Nothing captures until the
-// person accepts the biometric consent (the button is disabled until then).
-function startEnroll() {
+// Consent gate → ONLY THEN the camera turns on and guides the enrollment. Until
+// the person accepts the biometric consent, the camera never activates.
+async function startEnroll() {
     if (!document.getElementById('enrollConsent').checked) {
         setEnrollMessage('enrollMessage', 'warning', I18N.consentRequired);
         return;
     }
     const card = document.getElementById('enrollCard');
     if (card) card.style.display = 'none';
-    enrollGuided();
+    try {
+        if (!await geoGate()) return;      // forced location, if enabled
+        if (!cameraOk) await openCamera(); // turn the camera on now
+        enrollGuided();
+    } catch (e) {
+        show('warning', '<i class="fas fa-video-slash"></i> ' + I18N.cameraNeededToEnroll);
+        showActions(false, true); // "Try again" re-opens the camera
+    }
 }
 
 const ENROLL_SAMPLES = 3;
