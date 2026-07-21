@@ -15,9 +15,6 @@ class KioskController extends Controller
     /** Euclidean distance threshold: lower = more similar (0.55 balances accuracy and light tolerance) */
     public const THRESHOLD = 0.55;
 
-    /** Default minimum minutes between check-in and check-out (configurable per company) */
-    public const MIN_MINUTES_BEFORE_CHECKOUT = 30;
-
     /** How long the enrollment mode stays unlocked after entering the PIN */
     public const ENROLL_SESSION_MINUTES = 15;
 
@@ -131,27 +128,70 @@ class KioskController extends Controller
     }
 
     /**
-     * True when the person's next mark would be a FINAL check-out clearly earlier
-     * than their scheduled end — the kiosk then asks them to confirm ("are you
-     * sure this is your check-out?") so a stray mark does not hurt them.
+     * True when checking out NOW would be premature, so the kiosk asks the person
+     * to confirm instead of silently recording it. This replaces the old
+     * "minimum minutes between marks" rule (no magic number): a second mark right
+     * after check-in is always premature, so a stray/"just playing" re-mark is
+     * caught and confirmed rather than accidentally closing the day.
+     *   - Fixed schedule: premature = before the scheduled end time.
+     *   - Flexible schedule: premature = the daily hour target is not met yet.
      */
+    private function isEarlyCheckout(Employee $employee, \Carbon\Carbon $now, Attendance $attendance): bool
+    {
+        $schedule = $employee->schedule;
+        if (!$schedule || !$attendance->check_in) {
+            return false;
+        }
+
+        $checkIn = \Carbon\Carbon::parse($now->toDateString().' '.$attendance->check_in, company_timezone());
+
+        if ($schedule->isFlexible()) {
+            $target = $schedule->expectedMinutesFor($now->dayOfWeek);
+
+            return $target > 0 && (int) $checkIn->diffInMinutes($now) < $target;
+        }
+
+        $shift = $schedule->worksOn($now->dayOfWeek);
+        if (!$shift) {
+            return false;
+        }
+
+        return $now->lessThan(\Carbon\Carbon::parse($now->toDateString().' '.$shift->end_time, company_timezone()));
+    }
+
+    /** True when the next mark would be a check-out and it would be premature (for the UI pre-prompt) */
     private function earlyExitWarning(Employee $employee): bool
     {
-        $setting = app_setting();
-        $grace = (int) $setting->early_departure_minutes;
-        if ($grace <= 0 || !in_array($this->nextMarkAction($employee), ['CHECK_OUT'], true)) {
+        if (!in_array($this->nextMarkAction($employee), ['CHECK_OUT', 'AMBIGUOUS'], true)) {
             return false;
         }
 
-        $now = company_now();
-        $shift = $employee->schedule?->worksOn($now->dayOfWeek);
-        if (!$shift || $employee->schedule->isFlexible()) {
-            return false;
+        $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', company_now()->toDateString())->first();
+
+        return $attendance && $this->isEarlyCheckout($employee, company_now(), $attendance);
+    }
+
+    /** Human message for the early-checkout confirmation */
+    private function earlyCheckoutMessage(Employee $employee, \Carbon\Carbon $now, \Carbon\Carbon $checkIn): string
+    {
+        $schedule = $employee->schedule;
+        $tail = ' '.__('Only your time worked up to now will count.');
+
+        if ($schedule && !$schedule->isFlexible()) {
+            $shift = $schedule->worksOn($now->dayOfWeek);
+            if ($shift) {
+                return __(':name, you checked in at :in. It is not your end time yet (:end). Do you want to record your CHECK-OUT?', [
+                    'name' => $employee->full_name,
+                    'in' => $checkIn->format('h:i a'),
+                    'end' => \Carbon\Carbon::parse($now->toDateString().' '.$shift->end_time)->format('h:i a'),
+                ]).$tail;
+            }
         }
 
-        $scheduledEnd = \Carbon\Carbon::parse($now->toDateString().' '.$shift->end_time, company_timezone());
-
-        return $now->lessThan($scheduledEnd->copy()->subMinutes($grace));
+        return __(':name, you checked in at :in. You have not completed your workday yet. Do you want to record your CHECK-OUT?', [
+            'name' => $employee->full_name,
+            'in' => $checkIn->format('h:i a'),
+        ]).$tail;
     }
 
     /** Supervisor enrollment as its own page (no stacked modals over the camera) */
@@ -591,19 +631,17 @@ class KioskController extends Controller
         }
 
         if (is_null($attendance->check_out)) {
-            // Enforce a minimum time since check-in (business rule against double marking)
             $checkIn = \Carbon\Carbon::parse($today.' '.$attendance->check_in, company_timezone());
-            $elapsedMinutes = (int) $checkIn->diffInMinutes($now);
-            $minCheckout = $setting->min_checkout_minutes ?? self::MIN_MINUTES_BEFORE_CHECKOUT;
 
-            if ($elapsedMinutes < $minCheckout) {
-                // Do not reveal the exact wait time (internal rule against double marking)
+            // No silent "minimum minutes" ignore: a premature check-out (right after
+            // check-in, or before the scheduled end / daily target) asks for an
+            // explicit confirmation instead — so a stray re-mark never quietly closes
+            // the day, and the person is told it will only count their time so far.
+            if ($this->isEarlyCheckout($employee, $now, $attendance) && !$request->boolean('confirm_out')) {
                 return response()->json([
                     'ok' => false,
-                    'message' => __(':name, your check-in was already recorded at :time. Try again later to record your check-out.', [
-                        'name' => $employee->full_name,
-                        'time' => $checkIn->format('h:i a'),
-                    ]),
+                    'confirm_out' => true,
+                    'message' => $this->earlyCheckoutMessage($employee, $now, $checkIn),
                 ], 422);
             }
 

@@ -36,9 +36,9 @@ class MarkingWindowsTest extends TestCase
         ]);
     }
 
-    private function mark(): \Illuminate\Testing\TestResponse
+    private function mark(array $extra = []): \Illuminate\Testing\TestResponse
     {
-        return $this->postJson('/kiosk/mark-dni', ['document_number' => '11112222']);
+        return $this->postJson('/kiosk/mark-dni', ['document_number' => '11112222'] + $extra);
     }
 
     public function test_check_in_is_rejected_before_the_early_window(): void
@@ -83,9 +83,11 @@ class MarkingWindowsTest extends TestCase
         Carbon::setTestNow('2026-07-16 13:00:00');
         $this->mark()->assertOk()->assertJsonPath('type', 'CHECK_IN');
 
-        // Check out 15:00 Lima (20:00 UTC) → 120 min before the 17:00 end
+        // Check out 15:00 Lima (20:00 UTC) → 120 min before the 17:00 end. It is
+        // early, so the kiosk asks to confirm; confirmed, it records (and flags it).
         Carbon::setTestNow('2026-07-16 20:00:00');
-        $this->mark()->assertOk()->assertJsonPath('type', 'CHECK_OUT');
+        $this->mark()->assertStatus(422)->assertJsonPath('confirm_out', true);
+        $this->mark(['confirm_out' => 1])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
 
         $note = Attendance::where('employee_id', $employee->id)->value('note');
         $this->assertNotNull($note);

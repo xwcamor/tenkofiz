@@ -282,7 +282,9 @@ function begin() {
         // the person first. And warn before a clearly-early check-out so a stray
         // mark does not hurt them. Only then run the camera verification.
         if (NEXT_ACTION === 'AMBIGUOUS' && !MARK_ACTION) { promptBreakOrOut(); return; }
-        if (EARLY_EXIT_WARN && NEXT_ACTION === 'CHECK_OUT' && !earlyConfirmed) { promptEarlyExit(); return; }
+        // Confirm before a premature check-out (fixed: before end time; flexible:
+        // target not met). Covers both the plain CHECK_OUT and the "chose out" path.
+        if (EARLY_EXIT_WARN && !earlyConfirmed && (NEXT_ACTION === 'CHECK_OUT' || MARK_ACTION === 'out')) { promptEarlyExit(); return; }
         hideActionChoice();
         runVerify();
         return;
@@ -318,13 +320,25 @@ function promptBreakOrOut() {
         { label: '<i class="fas fa-mug-hot"></i> ' + I18N.chooseBreak, cls: 'btn-warning',
           onClick: () => { MARK_ACTION = 'break'; hideActionChoice(); runVerify(); } },
         { label: '<i class="fas fa-right-from-bracket"></i> ' + I18N.chooseOut, cls: 'btn-primary',
-          onClick: () => { MARK_ACTION = 'out'; hideActionChoice(); runVerify(); } },
+          onClick: () => { MARK_ACTION = 'out'; hideActionChoice(); begin(); } },
     ]);
 }
 function promptEarlyExit() {
+    // Pre-camera confirmation (the person hasn't been recognized yet)
     showChoice('<i class="fas fa-triangle-exclamation text-warning"></i> ' + I18N.earlyExitTitle, I18N.earlyExitBody, [
         { label: '<i class="fas fa-check"></i> ' + I18N.earlyExitYes, cls: 'btn-danger',
           onClick: () => { earlyConfirmed = true; hideActionChoice(); runVerify(); } },
+        { label: I18N.cancel, cls: 'btn-outline-light',
+          onClick: () => { window.location.href = window.HOME_URL; } },
+    ]);
+}
+/* Backend safety net: the mark POST said this check-out is premature. Confirm with
+   the server's own message, then retry the same POST carrying confirm_out. */
+function confirmEarly(message, retry) {
+    show('secondary', I18N.chooseTitle);
+    showChoice('<i class="fas fa-triangle-exclamation text-warning"></i> ' + I18N.earlyExitTitle, message || I18N.earlyExitBody, [
+        { label: '<i class="fas fa-check"></i> ' + I18N.earlyExitYes, cls: 'btn-danger',
+          onClick: () => { earlyConfirmed = true; hideActionChoice(); retry(); } },
         { label: I18N.cancel, cls: 'btn-outline-light',
           onClick: () => { window.location.href = window.HOME_URL; } },
     ]);
@@ -522,9 +536,12 @@ async function autoMarkByDocument() {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
             action: MARK_ACTION,
+            confirm_out: earlyConfirmed ? 1 : 0,
             ...(geoCoords || {}),
         });
-        if (data.ok) {
+        if (data.confirm_out) {
+            confirmEarly(data.message, () => autoMarkByDocument());
+        } else if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);
         } else {
             show('warning', (data.message || I18N.couldNotRecord) + `<br><small class="text-muted">${I18N.backSoon}</small>`);
@@ -551,8 +568,10 @@ async function commitFacial(distance) {
             employee_id: Number(window.EMPLOYEE.id),
             distance: distance.toFixed(4),
             action: MARK_ACTION,
+            confirm_out: earlyConfirmed ? 1 : 0,
             ...(geoCoords || {}),
         });
+        if (data.confirm_out) { confirmEarly(data.message, () => commitFacial(distance)); return; }
         finishWithResult(data);
     } catch (e) {
         show('danger', I18N.connectionError);
@@ -582,9 +601,12 @@ async function markByDocument() {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
             action: MARK_ACTION,
+            confirm_out: earlyConfirmed ? 1 : 0,
             ...(geoCoords || {}),
         });
-        if (data.ok) {
+        if (data.confirm_out) {
+            confirmEarly(data.message, () => markByDocument());
+        } else if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);
         } else {
             show('warning', data.message || I18N.couldNotRecord);

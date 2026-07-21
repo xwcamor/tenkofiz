@@ -169,11 +169,15 @@ Se evalúan en este orden:
      (mensaje: "entra a las 08:00, puede marcar desde las 07:00"). **0 = sin
      restricción** (marca a cualquier hora). Configurable en Ajustes.
 5. **Segunda marca = SALIDA**, con dos reglas:
-   - **Mínimo entre entrada y salida** (`settings.min_checkout_minutes`, por defecto
-     **30**): una segunda marca antes de ese lapso se ignora (sería un duplicado).
-     Configurable por empresa — bajarlo (ej. 5, o 0) permite **salidas reales
-     anticipadas** (emergencias, marca temprana por error) sin bloquear a la persona.
-     El default `KioskController::MIN_MINUTES_BEFORE_CHECKOUT` es el respaldo.
+   - **Confirmación de salida prematura** (`KioskController::isEarlyCheckout`, regla
+     de Carlos): **no hay un "mínimo de minutos" que ignore en silencio**. Si la
+     salida es prematura, el kiosco **pregunta y confirma** en vez de registrar o
+     ignorar calladamente — así una segunda marca por accidente/"jugando" no cierra
+     el día, y a la persona se le avisa que **solo contará su tiempo hasta ahora**.
+     Prematura = **fijo**: antes de la hora de salida; **flexible**: aún no cumple la
+     meta diaria de horas. Sin confirmación → `422 {confirm_out:true}`; con
+     `confirm_out` → registra la SALIDA. (Justo después de la entrada siempre es
+     prematura, así que atrapa el doble-marcado sin número mágico.)
    - **Aviso de salida anticipada** (`settings.early_departure_minutes`): si es
      > 0 y la salida ocurre más de X minutos antes de la hora de fin, la marca se
      guarda igual pero con una observación automática ("Salida anticipada (N min
@@ -224,10 +228,10 @@ entrada + 1 salida). Encendido:
 - `break_limit_minutes`: si el break supera el límite, el reporte/lista solo marca
   **"tiempo excedido (Nmin)"** — nunca penaliza, solo para análisis
   (`breakExceededMinutes`).
-- **Guarda de salida anticipada**: si la próxima marca sería una SALIDA final y es
-  claramente antes del fin (usa `early_departure_minutes`), el kiosco pide
-  **confirmación** ("¿Seguro que es tu salida? No podrás volver a marcar hoy") antes
-  de la cámara (`earlyExitWarning`).
+- **Confirmación de salida prematura** (§1.4-5): si la próxima marca sería una SALIDA
+  antes del fin (fijo) o sin cumplir la meta (flexible), el kiosco pide
+  **confirmación** antes de la cámara (`earlyExitWarning`) y, como red de seguridad,
+  el backend responde `422 {confirm_out}` si llega sin confirmar (`isEarlyCheckout`).
 - **Día abierto**: si hay ENTRADA pero nunca SALIDA en un día pasado, la lista lo
   marca en **rojo "Abierta"** (distinto de FALTA) → revisar o justificar
   (`Attendance::isOpen`).

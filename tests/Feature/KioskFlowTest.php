@@ -177,7 +177,7 @@ class KioskFlowTest extends TestCase
         \Carbon\Carbon::setTestNow('2026-07-16 13:00:00'); // Thursday, Lima 08:00 (General 08–17)
         $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
         \App\Models\Setting::forCompany($employee->company_id)->update([
-            'kiosk_breaks_enabled' => true, 'min_checkout_minutes' => 0, 'break_limit_minutes' => 60,
+            'kiosk_breaks_enabled' => true, 'break_limit_minutes' => 60,
         ]);
 
         // 1) Check-in
@@ -212,25 +212,37 @@ class KioskFlowTest extends TestCase
     {
         \Carbon\Carbon::setTestNow('2026-07-16 13:00:00');
         $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
-        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_breaks_enabled' => false, 'min_checkout_minutes' => 0]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_breaks_enabled' => false]);
 
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_IN');
-        \Carbon\Carbon::setTestNow('2026-07-16 17:00:00');
-        // No "choose" prompt when breaks are off — the second mark is the check-out
-        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
+        \Carbon\Carbon::setTestNow('2026-07-16 17:00:00'); // Lima 12:00, before the 17:00 end
+        // No break "choose" prompt when breaks are off, but this is early → confirm first
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])
+            ->assertStatus(422)->assertJsonPath('confirm_out', true);
+        // Confirmed → the second mark is the check-out
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788', 'confirm_out' => 1])
+            ->assertOk()->assertJsonPath('type', 'CHECK_OUT');
     }
 
-    public function test_minimum_checkout_interval_is_configurable(): void
+    public function test_premature_checkout_asks_for_confirmation_instead_of_silently_ignoring(): void
     {
-        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+        \Carbon\Carbon::setTestNow('2026-07-16 13:00:00'); // Thursday, Lima 08:00 (General 08–17)
         $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
-        \App\Models\Setting::forCompany($employee->company_id)->update(['min_checkout_minutes' => 0]);
 
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_IN');
 
-        // Only 2 minutes later — with the default 30 this would be rejected; at 0 it checks out
-        \Carbon\Carbon::setTestNow('2026-07-16 14:32:00');
+        // Two minutes later they mark again ("playing"): NOT silently ignored — the
+        // kiosk asks to confirm the check-out (it is well before the 17:00 end).
+        \Carbon\Carbon::setTestNow('2026-07-16 13:02:00');
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])
+            ->assertStatus(422)
+            ->assertJsonPath('confirm_out', true);
+
+        // Nothing was recorded yet — the day is still open
+        $this->assertNull(\App\Models\Attendance::withoutGlobalScopes()->where('employee_id', $employee->id)->first()->check_out);
+
+        // On explicit confirmation it checks out (only their time so far counts)
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788', 'confirm_out' => 1])
             ->assertOk()
             ->assertJsonPath('type', 'CHECK_OUT');
     }
@@ -242,9 +254,9 @@ class KioskFlowTest extends TestCase
 
         // Check-in
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk();
-        // Check-out (past the minimum interval)
+        // Check-out (early → confirm)
         \Carbon\Carbon::setTestNow('2026-07-16 18:00:00');
-        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk();
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788', 'confirm_out' => 1])->assertOk();
 
         $marks = \App\Models\AttendanceMark::withoutGlobalScopes()->where('employee_id', $employee->id)->orderBy('marked_at')->get();
         $this->assertCount(2, $marks); // both punches logged, additively
@@ -330,7 +342,7 @@ class KioskFlowTest extends TestCase
         // Full day worked, clamp on: 08:00–17:00 shift = 9h
         \Carbon\Carbon::setTestNow('2026-07-16 13:00:00'); // Thursday, Lima 08:00
         $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
-        \App\Models\Setting::forCompany($employee->company_id)->update(['clamp_worked_hours' => true, 'min_checkout_minutes' => 0]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['clamp_worked_hours' => true]);
 
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk(); // check-in 08:00
         \Carbon\Carbon::setTestNow('2026-07-16 22:00:00'); // Lima 17:00

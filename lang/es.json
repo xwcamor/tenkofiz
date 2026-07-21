@@ -1,5 +1,8 @@
 {
     "This employee was deleted; their records are kept for history.": "Este empleado fue eliminado; sus registros se conservan para el historial.",
+    "Only your time worked up to now will count.": "Solo contará tu tiempo trabajado hasta ahora.",
+    ":name, you checked in at :in. It is not your end time yet (:end). Do you want to record your CHECK-OUT?": ":name, marcaste tu entrada a las :in. Aún no es tu hora de salida (:end). ¿Deseas registrar tu SALIDA?",
+    ":name, you checked in at :in. You have not completed your workday yet. Do you want to record your CHECK-OUT?": ":name, marcaste tu entrada a las :in. Todavía no completas tu jornada. ¿Deseas registrar tu SALIDA?",
     "Break (min)": "Descanso (min)",
     "Owed": "Debe",
     "Met quota?": "¿Cumplió?",
