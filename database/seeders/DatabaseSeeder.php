@@ -22,24 +22,6 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = Profile::firstOrCreate(['name' => 'Administrator'], [
-            'description' => 'Full access to the system',
-            'permissions' => array_keys(Profile::MODULES),
-            'is_system' => true,
-        ]);
-
-        $supervisor = Profile::firstOrCreate(['name' => 'Supervisor'], [
-            'description' => 'Manages attendance and approves requests',
-            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
-            'is_system' => true,
-        ]);
-
-        $employeeProfile = Profile::firstOrCreate(['name' => 'Employee'], [
-            'description' => 'Views their attendance and requests vacations',
-            'permissions' => [],
-            'is_system' => true,
-        ]);
-
         // Super-admin: owns every workspace, belongs to none (company_id = null)
         User::firstOrCreate(['email' => 'super@test.com'], [
             'name' => 'Super Admin',
@@ -53,7 +35,8 @@ class DatabaseSeeder extends Seeder
         $demo = \App\Models\Company::orderBy('id')->first()
             ?? \App\Models\Company::create(['name' => 'Empresa Demo']);
 
-        CompanyScope::actingAs($demo->id, function () use ($admin, $supervisor, $employeeProfile, $demo) {
+        CompanyScope::actingAs($demo->id, function () use ($demo) {
+            [$admin, $supervisor, $employeeProfile] = $this->seedBaseProfiles();
             User::firstOrCreate(['email' => 'admin@test.com'], ['name' => 'Administrador', 'password' => Hash::make('123456'), 'profile_id' => $admin->id]);
             User::firstOrCreate(['email' => 'aprobador@test.com'], ['name' => 'Aprobador', 'password' => Hash::make('123456'), 'profile_id' => $supervisor->id]);
             User::firstOrCreate(['email' => 'empleado@test.com'], ['name' => 'Empleado', 'password' => Hash::make('123456'), 'profile_id' => $employeeProfile->id]);
@@ -96,7 +79,8 @@ class DatabaseSeeder extends Seeder
             ->first() ?? \App\Models\Company::create(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
         $senati->update(['name' => 'SENATI', 'tax_id' => '20131376503']);
 
-        CompanyScope::actingAs($senati->id, function () use ($senati, $admin) {
+        CompanyScope::actingAs($senati->id, function () use ($senati) {
+            [$admin] = $this->seedBaseProfiles();
             Setting::firstOrCreate(['company_id' => $senati->id], [
                 'company_name' => 'SENATI',
                 'tax_id' => '20131376503',
@@ -134,7 +118,8 @@ class DatabaseSeeder extends Seeder
         // ---- TAS workspace with its sedes ----
         $tas = \App\Models\Company::firstOrCreate(['name' => 'TAS'], ['is_active' => true]);
 
-        CompanyScope::actingAs($tas->id, function () use ($tas, $admin) {
+        CompanyScope::actingAs($tas->id, function () use ($tas) {
+            [$admin] = $this->seedBaseProfiles();
             Setting::firstOrCreate(['company_id' => $tas->id], [
                 'company_name' => 'TAS',
                 'timezone' => 'America/Lima',
@@ -153,6 +138,32 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Admin TAS', 'password' => Hash::make('123456'), 'profile_id' => $admin->id,
             ]);
         });
+    }
+
+    /**
+     * The three base roles for the CURRENT company (call inside a company scope).
+     * Profiles are per company, so each workspace gets its own protected trio.
+     * Returns [Administrator, Supervisor, Employee].
+     */
+    private function seedBaseProfiles(): array
+    {
+        $admin = Profile::firstOrCreate(['name' => 'Administrator'], [
+            'description' => 'Full access to the system',
+            'permissions' => array_keys(Profile::MODULES),
+            'is_system' => true,
+        ]);
+        $supervisor = Profile::firstOrCreate(['name' => 'Supervisor'], [
+            'description' => 'Manages attendance and approves requests',
+            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
+            'is_system' => true,
+        ]);
+        $employee = Profile::firstOrCreate(['name' => 'Employee'], [
+            'description' => 'Views their attendance and requests vacations',
+            'permissions' => [],
+            'is_system' => true,
+        ]);
+
+        return [$admin, $supervisor, $employee];
     }
 
     /** Base schedule so the workspace can register employees from day one */

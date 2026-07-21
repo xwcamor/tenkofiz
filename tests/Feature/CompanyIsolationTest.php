@@ -41,13 +41,21 @@ class CompanyIsolationTest extends TestCase
 
     private function adminFor(Company $company): User
     {
-        return User::create([
-            'name' => 'Admin '.$company->name,
-            'email' => 'admin_'.$company->id.'@x.com',
-            'password' => 'x',
-            'company_id' => $company->id,
-            'profile_id' => Profile::where('name', 'Administrator')->first()->id,
-        ]);
+        // Profiles are per company now, so give this company its own Administrator.
+        return CompanyScope::actingAs($company->id, function () use ($company) {
+            $profile = Profile::firstOrCreate(['name' => 'Administrator'], [
+                'permissions' => array_keys(Profile::MODULES),
+                'is_system' => true,
+            ]);
+
+            return User::create([
+                'name' => 'Admin '.$company->name,
+                'email' => 'admin_'.$company->id.'@x.com',
+                'password' => 'x',
+                'company_id' => $company->id,
+                'profile_id' => $profile->id,
+            ]);
+        });
     }
 
     public function test_same_document_can_exist_in_two_companies(): void

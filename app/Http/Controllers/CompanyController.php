@@ -76,25 +76,25 @@ class CompanyController extends Controller
             'is_active' => true,
         ]);
 
-        // Profiles are global (shared roles); the three base ones (Administrator,
-        // Supervisor, Employee) are seeded once and protected via is_system.
-        $adminProfile = Profile::firstOrCreate(['name' => 'Administrator'], [
-            'description' => 'Full access to the system',
-            'permissions' => array_keys(Profile::MODULES),
-            'is_system' => true,
-        ]);
-        Profile::firstOrCreate(['name' => 'Supervisor'], [
-            'description' => 'Manages attendance and approves requests',
-            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
-            'is_system' => true,
-        ]);
-        Profile::firstOrCreate(['name' => 'Employee'], [
-            'description' => 'Views their attendance and requests vacations',
-            'permissions' => [],
-            'is_system' => true,
-        ]);
+        $adminProfile = CompanyScope::actingAs($company->id, function () use ($company, $data) {
+            // Every workspace is born with its OWN three base roles (per company,
+            // protected via is_system) so it can manage its own data from day one.
+            $admin = Profile::firstOrCreate(['name' => 'Administrator', 'company_id' => $company->id], [
+                'description' => 'Full access to the system',
+                'permissions' => array_keys(Profile::MODULES),
+                'is_system' => true,
+            ]);
+            Profile::firstOrCreate(['name' => 'Supervisor', 'company_id' => $company->id], [
+                'description' => 'Manages attendance and approves requests',
+                'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
+                'is_system' => true,
+            ]);
+            Profile::firstOrCreate(['name' => 'Employee', 'company_id' => $company->id], [
+                'description' => 'Views their attendance and requests vacations',
+                'permissions' => [],
+                'is_system' => true,
+            ]);
 
-        CompanyScope::actingAs($company->id, function () use ($company, $data, $adminProfile) {
             Setting::firstOrCreate(['company_id' => $company->id], [
                 'company_name' => $data['name'],
                 'tax_id' => $data['tax_id'] ?? null,
@@ -122,9 +122,11 @@ class CompanyController extends Controller
                 'name' => $data['admin_name'],
                 'email' => $data['admin_email'],
                 'password' => Hash::make($data['admin_password']),
-                'profile_id' => $adminProfile->id,
+                'profile_id' => $admin->id,
                 'company_id' => $company->id,
             ]);
+
+            return $admin;
         });
 
         safe_mail(

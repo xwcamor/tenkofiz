@@ -58,7 +58,8 @@ class ProfileController extends Controller
     private function validated(Request $request, ?Profile $profile = null): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:50', Rule::unique('profiles')->ignore($profile)],
+            // Name is unique WITHIN the company (each workspace has its own roles)
+            'name' => ['required', 'string', 'max:50', Rule::unique('profiles')->where('company_id', current_company_id())->ignore($profile)],
             'description' => ['nullable', 'string', 'max:200'],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => [Rule::in(array_keys(Profile::MODULES))],
