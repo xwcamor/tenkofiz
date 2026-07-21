@@ -74,6 +74,28 @@ class AttendanceDeleteTest extends TestCase
         $this->assertNull($attendance->fresh()->deleted_at);
     }
 
+    public function test_attendance_list_shows_the_document_and_flags_a_deleted_employee(): void
+    {
+        [$admin, $employee, ] = $this->setUpData();
+
+        // While active: the document is shown, no deleted badge
+        $this->actingAs($admin)->get('/attendances?from=2026-07-01&to=2026-07-31')
+            ->assertOk()
+            ->assertSee('11112222')
+            ->assertDontSee(__('Deleted'));
+
+        // Deleting the employee keeps the attendance and its name; the list flags it
+        $employee->update(['delete_reason' => 'left the company']);
+        $employee->delete();
+
+        $response = $this->actingAs($admin)->get('/attendances?from=2026-07-01&to=2026-07-31');
+        $response->assertOk()
+            ->assertSee('DOE, JOHN')       // name still resolves (withTrashed relation)
+            ->assertSee('11112222')        // document still shown
+            ->assertSee(__('Deleted'));    // and the row is flagged
+        $this->assertSame(1, Attendance::count()); // the attendance was NOT deleted
+    }
+
     public function test_same_day_can_be_marked_again_after_deletion(): void
     {
         [, $employee, $attendance] = $this->setUpData();

@@ -97,7 +97,13 @@
                 @if($showDeleted)
                     <tr>
                         <td>{{ $attendance->date->format('d/m/Y') }}</td>
-                        <td>{{ $attendance->employee->full_name }}</td>
+                        <td>
+                            {{ $attendance->employee->full_name }}
+                            @if($attendance->employee->trashed())
+                                <span class="badge badge-secondary"><i class="fas fa-user-slash"></i> {{ __('Deleted') }}</span>
+                            @endif
+                            <br><small class="text-muted">{{ $attendance->employee->document_type }} {{ $attendance->employee->document_number }}</small>
+                        </td>
                         <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                         <td>{{ to_user_tz($attendance->deleted_at)->format('d/m/Y H:i') }}</td>
                         <td>{{ $attendance->delete_reason ?? '—' }}</td>
@@ -111,7 +117,13 @@
                 @else
                     <tr>
                         <td>{{ $attendance->date->format('d/m/Y') }}</td>
-                        <td>{{ $attendance->employee->full_name }}</td>
+                        <td>
+                            {{ $attendance->employee->full_name }}
+                            @if($attendance->employee->trashed())
+                                <span class="badge badge-secondary" title="{{ __('This employee was deleted; their records are kept for history.') }}"><i class="fas fa-user-slash"></i> {{ __('Deleted') }}</span>
+                            @endif
+                            <br><small class="text-muted">{{ $attendance->employee->document_type }} {{ $attendance->employee->document_number }}</small>
+                        </td>
                         <td>{{ $attendance->employee->site?->name ?? '—' }}</td>
                         <td>{{ $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—' }}
                             @if($attendance->marks->isNotEmpty())
