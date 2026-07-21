@@ -22,10 +22,11 @@ class JustificationController extends Controller
         // Deleted-records view: restricted to administrators (settings module)
         $showDeleted = $request->boolean('deleted') && $user->hasModule('settings');
 
-        $justifications = Justification::with(['employee', 'reviewer'])
+        $justifications = Justification::with(['employee.site', 'reviewer'])
             ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when(!$isManager, fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id)))
+            ->when($request->filled('site_id'), fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('site_id', $request->integer('site_id'))))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
         [$sort, $dir] = $this->applySort($justifications, $request, [
@@ -41,7 +42,9 @@ class JustificationController extends Controller
         $employees = $isManager ? collect() : Employee::where('user_id', $user->id)->get();
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted', 'sort', 'dir'));
+        $sites = $isManager ? $this->visibleSites($request) : collect();
+
+        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted', 'sites', 'sort', 'dir'));
     }
 
     public function store(Request $request)

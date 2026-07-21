@@ -31,7 +31,18 @@
                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
                 @endforeach
             </select>
+            @if(!$showDeleted && $sites->count() > 1)
+                <select name="site_id" class="form-control form-control-sm mr-2">
+                    <option value="">{{ __('All sites') }}</option>
+                    @foreach($sites as $site)
+                        <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            @if(request()->hasAny(['status', 'site_id']))
+                <a href="{{ route('justifications.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+            @endif
         </form>
     </div>
     <div class="card-body">
@@ -45,6 +56,7 @@
                 @else
                     <tr>
                         @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                        @if($sites->count() > 1)<th>{{ __('Site') }}</th>@endif
                         @include('partials.th-sort', ['key' => 'date', 'label' => __('Date')])
                         <th>{{ __('Reason') }}</th>
                         <th>{{ __('Document') }}</th>
@@ -73,6 +85,7 @@
                 @endif
                 <tr>
                     <td>{{ $justification->employee->full_name }}</td>
+                    @if($sites->count() > 1)<td>{{ $justification->employee->site?->name ?? '—' }}</td>@endif
                     <td>{{ $justification->date->format('d/m/Y') }}</td>
                     <td>{{ $justification->reason }}</td>
                     <td>
@@ -109,7 +122,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No justifications') }}</td></tr>
+                <tr><td colspan="{{ !$showDeleted && $sites->count() > 1 ? 7 : 6 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No justifications') }}</td></tr>
             @endforelse
             </tbody>
         </table>

@@ -16,11 +16,12 @@ class VacationController extends Controller
         $isManager = $user->isManager();
         $canApprove = $user->hasModule('vacations_manage');
 
-        $vacations = Vacation::with(['employee', 'approver'])
+        $vacations = Vacation::with(['employee.site', 'approver'])
             ->inCurrentSite()
             ->when(!$isManager, function ($q) use ($user) {
                 $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id));
             })
+            ->when($request->filled('site_id'), fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('site_id', $request->integer('site_id'))))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
         [$sort, $dir] = $this->applySort($vacations, $request, [
@@ -49,7 +50,9 @@ class VacationController extends Controller
 
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances', 'oldEmployee', 'sort', 'dir'));
+        $sites = $isManager ? $this->visibleSites($request) : collect();
+
+        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances', 'oldEmployee', 'sites', 'sort', 'dir'));
     }
 
     public function store(Request $request)

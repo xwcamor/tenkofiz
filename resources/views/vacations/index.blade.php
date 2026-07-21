@@ -22,13 +22,25 @@
                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
                 @endforeach
             </select>
+            @if($sites->count() > 1)
+                <select name="site_id" class="form-control form-control-sm mr-2">
+                    <option value="">{{ __('All sites') }}</option>
+                    @foreach($sites as $site)
+                        <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            @if(request()->hasAny(['status', 'site_id']))
+                <a href="{{ route('vacations.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+            @endif
         </form>
     </div>
     <div class="card-body">
         <table class="table table-bordered table-hover">
             <thead><tr>
                 @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                @if($sites->count() > 1)<th>{{ __('Site') }}</th>@endif
                 @include('partials.th-sort', ['key' => 'start', 'label' => __('Start')])
                 @include('partials.th-sort', ['key' => 'end', 'label' => __('End')])
                 @include('partials.th-sort', ['key' => 'days', 'label' => __('Days')])
@@ -40,6 +52,7 @@
             @forelse($vacations as $vacation)
                 <tr>
                     <td>{{ $vacation->employee->full_name }}</td>
+                    @if($sites->count() > 1)<td>{{ $vacation->employee->site?->name ?? '—' }}</td>@endif
                     <td>{{ $vacation->start_date->format('d/m/Y') }}</td>
                     <td>{{ $vacation->end_date->format('d/m/Y') }}</td>
                     <td>{{ $vacation->days }}
@@ -69,7 +82,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
+                <tr><td colspan="{{ $sites->count() > 1 ? 8 : 7 }}" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
             @endforelse
             </tbody>
         </table>

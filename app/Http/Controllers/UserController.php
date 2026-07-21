@@ -30,6 +30,7 @@ class UserController extends Controller
                 $query->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like));
             })
             ->when($request->filled('profile_id'), fn ($q) => $q->where('profile_id', $request->integer('profile_id')))
+            ->when($request->filled('site_id'), fn ($q) => $q->where('site_id', $request->integer('site_id')))
             ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
             ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false));
 

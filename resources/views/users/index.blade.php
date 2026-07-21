@@ -31,8 +31,16 @@
                 <option value="active" @selected(request('status') === 'active')>{{ __('Active') }}</option>
                 <option value="inactive" @selected(request('status') === 'inactive')>{{ __('Inactive') }}</option>
             </select>
+            @if($sites->count() > 1)
+                <select name="site_id" class="form-control form-control-sm mr-2">
+                    <option value="">{{ __('All sites') }}</option>
+                    @foreach($sites as $site)
+                        <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
-            @if(request()->hasAny(['q', 'profile_id', 'status']))
+            @if(request()->hasAny(['q', 'profile_id', 'status', 'site_id']))
                 <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
             @endif
             <span class="ml-auto text-muted small">{{ __(':total user(s)', ['total' => $users->total()]) }}</span>
