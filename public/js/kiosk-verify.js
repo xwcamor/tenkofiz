@@ -681,35 +681,61 @@ async function unlockEnroll() {
     } catch (e) { setEnrollMessage('enrollPinMessage', 'danger', I18N.connectionError); }
 }
 
-async function enrollNow() {
+// Consent gate → the camera guides the enrollment. Nothing captures until the
+// person accepts the biometric consent (the button is disabled until then).
+function startEnroll() {
     if (!document.getElementById('enrollConsent').checked) {
         setEnrollMessage('enrollMessage', 'warning', I18N.consentRequired);
         return;
     }
-    const btn = document.getElementById('enrollBtn');
-    btn.disabled = true;
+    const card = document.getElementById('enrollCard');
+    if (card) card.style.display = 'none';
+    enrollGuided();
+}
 
+/**
+ * Guided enrollment with the SAME reactive ring + coaching as marking: come
+ * closer / center / hold still. When the face fills the circle and is centred
+ * (ring turns green), it auto-captures the samples — no button — showing
+ * "Registering your face...". Then it saves and goes straight into the mark.
+ */
+async function enrollGuided() {
     const SAMPLES = 3;
     const descriptors = [];
-    for (let i = 1; i <= SAMPLES; i++) {
-        setEnrollMessage('enrollMessage', 'info', spinner + I18N.capturingSample.replace(':current', `<strong>${i}</strong>`).replace(':total', SAMPLES));
-        let detection = null;
-        for (let attempt = 0; attempt < 6 && !detection; attempt++) {
-            try { detection = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { /* retry */ }
-            clearOverlay();
-            setRing(detection ? 'ok' : 'idle');
-            if (!detection) await wait(500);
+
+    while (descriptors.length < SAMPLES) {
+        let det = null;
+        try { det = await faceapi.detectSingleFace(video, DETECTOR()).withFaceLandmarks().withFaceDescriptor(); } catch (e) { det = null; }
+        clearOverlay();
+        setFaceChip(!!det);
+
+        if (!det) {
+            setRing('idle');
+            coach('far', 'info', '<i class="fas fa-magnifying-glass-plus"></i> ' + I18N.comeCloser2);
+            await wait(200);
+            continue;
         }
-        if (!detection) {
-            setEnrollMessage('enrollMessage', 'warning', I18N.noFaceInSample.replace(':current', i));
-            btn.disabled = false;
-            return;
+
+        const place = facePlacement(det.detection.box);
+        setRing(place === 'ok' ? 'ok' : 'adjust');
+        if (place !== 'ok') {
+            const c = place === 'close'
+                ? ['close', 'fa-magnifying-glass-minus', I18N.moveBack]
+                : place === 'offcenter'
+                    ? ['offcenter', 'fa-crosshairs', I18N.centerFace]
+                    : ['far', 'fa-magnifying-glass-plus', I18N.comeCloser2];
+            coach(c[0], 'warning', `<i class="fas ${c[1]}"></i> ` + c[2]);
+            await wait(120);
+            continue;
         }
-        descriptors.push(Array.from(detection.descriptor));
-        await wait(900);
+
+        // Green + centred + right distance → capture this sample automatically
+        descriptors.push(Array.from(det.descriptor));
+        show('success', spinner + I18N.enrollCapturing.replace(':n', descriptors.length).replace(':total', SAMPLES));
+        await wait(650);
     }
 
-    setEnrollMessage('enrollMessage', 'info', spinner + I18N.saving);
+    show('info', spinner + I18N.saving);
     try {
         const { data } = await postJson(window.ENROLL_DESCRIPTOR_URL, {
             employee_id: Number(window.EMPLOYEE.id),
@@ -717,20 +743,17 @@ async function enrollNow() {
             descriptors,
         });
         if (data.ok) {
-            setEnrollMessage('enrollMessage', 'success', '<i class="fas fa-check-circle"></i> ' + I18N.enrolled);
             window.HAS_FACE = true;
             refs = descriptors.map(d => new Float32Array(d));
-            setTimeout(() => {
-                document.getElementById('enrollCard').style.display = 'none';
-                runVerify(); // straight into confirmation → mark
-            }, 1200);
+            show('success', '<i class="fas fa-check-circle"></i> ' + I18N.enrolled);
+            setTimeout(() => { runVerify(); }, 1300); // straight into confirmation → mark
         } else {
-            setEnrollMessage('enrollMessage', 'danger', data.message || I18N.couldNotRecord);
-            btn.disabled = false;
+            show('danger', data.message || I18N.couldNotRecord);
+            showActions(false, true);
         }
     } catch (e) {
-        setEnrollMessage('enrollMessage', 'danger', I18N.connectionError);
-        btn.disabled = false;
+        show('danger', I18N.connectionError);
+        showActions(false, true);
     }
 }
 

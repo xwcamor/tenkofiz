@@ -6,6 +6,8 @@
     "Your face is not enrolled yet": "Tu rostro aún no está registrado",
     "Ask an administrator to register your face from the panel. (Self-enrollment on the kiosk requires an enrollment PIN configured in Settings.)": "Pide a un administrador que registre tu rostro desde el panel. (El auto-registro en el kiosco requiere un PIN de enrolamiento configurado en Ajustes.)",
     "Your face is not enrolled — ask an administrator to register it.": "Tu rostro no está registrado — pide a un administrador que lo registre.",
+    "Accept and start face registration": "Aceptar y comenzar el registro facial",
+    "Registering your face (:n of :total)... hold still": "Registrando tu rostro (:n de :total)... quédate quieto",
     "Break (min)": "Descanso (min)",
     "Owed": "Debe",
     "Met quota?": "¿Cumplió?",

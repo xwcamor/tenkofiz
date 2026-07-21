@@ -103,11 +103,11 @@ class KioskFlowTest extends TestCase
         $this->get('/kiosk/verify')->assertRedirect(route('kiosk'));
     }
 
-    public function test_enroll_page_renders_with_pin_step(): void
+    public function test_the_standalone_enroll_page_no_longer_exists(): void
     {
-        $this->get('/kiosk/enroll')
-            ->assertOk()
-            ->assertSee(__('Supervisor PIN'));
+        // Enrollment now lives inside /kiosk/verify (with a PIN) — the separate
+        // supervisor page was redundant and was removed.
+        $this->get('/kiosk/enroll')->assertNotFound();
     }
 
     // ---------- Calibration is core: super-only, never in company Settings ----------

@@ -92,17 +92,16 @@ class KioskTest extends TestCase
         Setting::instance()->update(['kiosk_enroll_pin' => '4321']);
         app()->forgetInstance('app.setting');
 
-        // Locked without unlocking first
-        $this->postJson('/kiosk/enroll/lookup', ['document_number' => '11112222'])->assertForbidden();
+        // Locked without unlocking first (descriptor is the only enroll endpoint now)
+        $this->postJson('/kiosk/enroll/descriptor', [
+            'employee_id' => $employee->id, 'consent' => true, 'descriptors' => [array_fill(0, 128, 0.2)],
+        ])->assertForbidden();
 
         // Wrong PIN
         $this->postJson('/kiosk/enroll/unlock', ['pin' => '9999'])->assertStatus(422);
 
         // Correct PIN unlocks the session
         $this->postJson('/kiosk/enroll/unlock', ['pin' => '4321'])->assertOk()->assertJsonPath('ok', true);
-
-        $lookup = $this->postJson('/kiosk/enroll/lookup', ['document_number' => '11112222']);
-        $lookup->assertOk()->assertJsonPath('employee_id', $employee->id);
 
         $descriptor = array_fill(0, 128, 0.2);
         $this->postJson('/kiosk/enroll/descriptor', [

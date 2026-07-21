@@ -30,13 +30,19 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
      8 s no aparece ningún rostro, **no se registra nada** y vuelve al teclado.
      El mensaje en pantalla es deliberadamente **neutro** ("Reintentando
      detección...") para no avisarle al tramposo el momento de esconderse.
-   - **Sin rostro enrolado**: el ÚNICO camino es **enrolarse ahí mismo**
-     (consentimiento + 3 muestras; con PIN de supervisor si está configurado) y
-     marcar de inmediato. No hay marcado por documento para no enrolados (§1.2).
+   - **Sin rostro enrolado**: el ÚNICO camino es **enrolarse ahí mismo en
+     `/kiosk/verify`** (requiere PIN de supervisor, §1.2): acepta el consentimiento y
+     la **cámara guía** el registro. No hay marcado por documento para no enrolados
+     (§1.2). Sin PIN, el rostro lo registra un admin desde el panel.
    - **Sin cámara disponible**: un enrolado puede marcar por documento (sin foto);
      un no enrolado no puede marcar (ver §1.2).
-3. **`/kiosk/enroll` (supervisor)**: página propia de enrolamiento (PIN → documento
-   → consentimiento → captura), con la cámara siempre visible arriba.
+3. **Enrolamiento guiado (dentro de `/kiosk/verify`)**: aceptado el consentimiento
+   (obligatorio; sin él la cámara no captura), el registro usa el **mismo anillo
+   reactivo** que el marcado (acércate / céntrate / quieto). Cuando el rostro llena
+   el círculo y está centrado (**anillo verde**), **auto-captura** las 3 muestras
+   ("Registrando tu rostro...") y pasa directo a marcar — sin botón de captura. **Ya
+   no existe una página `/kiosk/enroll` aparte** (era redundante). Enrolamiento masivo
+   sin kiosco: panel de admin (`/employees/{id}/enroll`).
 
 - **Calibración core (solo super-admin, §14)**: el umbral de similitud
   (`kiosk_face_threshold`, 0.35–0.65; 0.50 recomendado; menor = más estricto) y la
@@ -133,10 +139,10 @@ bien dentro del círculo no se confirma identidad ni se corre el gesto (el
 reconocimiento lee el cuadro completo, así que sin este chequeo una cara a medio
 salir del círculo igual validaría — eso es lo que se evita). Los textos
 (instrucción del gesto y conteo) van **debajo del círculo**, sobre el fondo blanco,
-para que se lean; ya no hay texto encima del video. Aparece en verificación, en la fase de evidencia, en el auto-enrolamiento
-(`/kiosk/verify`) y en el enrolamiento de supervisor (`/kiosk/enroll`, con un bucle
-guía continuo). En el enrolamiento importa doble: muestras bien centradas producen
-una plantilla facial mejor para siempre.
+para que se lean; ya no hay texto encima del video. Aparece en verificación, en la
+fase de evidencia y en el **enrolamiento guiado** dentro de `/kiosk/verify` (mismo
+anillo verde + auto-captura, §1-3). En el enrolamiento importa doble: muestras bien
+centradas producen una plantilla facial mejor para siempre.
 
 ### 1.3 Marcado por DNI (respaldo) y política de fotos
 - **Marca FACIAL → NO guarda foto** (decisión de negocio para ahorrar disco): la
@@ -149,9 +155,9 @@ una plantilla facial mejor para siempre.
   verifique en Asistencias (badge amarillo + foto). La foto existe **solo cuando
   hay algo que revisar**.
 - Las evidencias se purgan a los 90 días (`kiosk:purge-evidence`, ver §6).
-- **Enrolamiento sin tapar la cámara**: tanto el auto-enrolamiento en `/kiosk/verify`
-  como el modo supervisor en `/kiosk/enroll` son páginas con la cámara fija arriba y
-  los pasos debajo — no hay modales encima del video.
+- **Enrolamiento sin tapar la cámara**: el enrolamiento guiado ocurre en la misma
+  página `/kiosk/verify`, con la cámara fija arriba y los pasos debajo — no hay
+  modales encima del video.
 
 ### 1.4 Reglas comunes a toda marca (`KioskController::performMark`)
 Se evalúan en este orden:

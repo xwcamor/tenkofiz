@@ -194,17 +194,6 @@ class KioskController extends Controller
         ]).$tail;
     }
 
-    /** Supervisor enrollment as its own page (no stacked modals over the camera) */
-    public function enrollPage(Request $request)
-    {
-        $site = $request->session()->get('kiosk_site') ? Site::find($request->session()->get('kiosk_site')) : null;
-
-        return view('kiosk.enroll', [
-            'site' => $site,
-            'enrollUnlocked' => $this->enrollUnlocked($request),
-        ]);
-    }
-
     /** Device pairing page (outside the kiosk gate; the one-time code is the secret) */
     public function showPair(Request $request)
     {
@@ -710,32 +699,6 @@ class KioskController extends Controller
     private function enrollUnlocked(Request $request): bool
     {
         return $request->session()->get('kiosk_enroll_until', 0) >= now()->timestamp;
-    }
-
-    /** Finds the employee to enroll by document number (must already exist) */
-    public function enrollLookup(Request $request)
-    {
-        abort_unless($this->enrollUnlocked($request), 403, __('Enrollment mode is locked.'));
-
-        $data = $request->validate(['document_number' => ['required', 'digits_between:8,12']]);
-
-        $employee = Employee::where('is_active', true)
-            ->where('document_number', $data['document_number'])
-            ->first();
-
-        if (!$employee) {
-            return response()->json([
-                'ok' => false,
-                'message' => __('No active employee found with that document number. Ask an administrator to register them first.'),
-            ], 422);
-        }
-
-        return response()->json([
-            'ok' => true,
-            'employee_id' => $employee->id,
-            'name' => $employee->full_name,
-            'has_face' => $employee->hasFace(),
-        ]);
     }
 
     /** Stores the face samples captured on the kiosk (requires on-screen consent) */

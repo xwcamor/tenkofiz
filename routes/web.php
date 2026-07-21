@@ -45,14 +45,12 @@ Route::middleware('kiosk.token')->group(function () {
     // Document-first flow: keypad validates the person, THEN the camera page opens
     Route::post('/kiosk/lookup', [KioskController::class, 'lookup'])->name('kiosk.lookup');
     Route::get('/kiosk/verify', [KioskController::class, 'verifyPage'])->name('kiosk.verify');
-    Route::get('/kiosk/enroll', [KioskController::class, 'enrollPage'])->name('kiosk.enrollPage');
     Route::get('/kiosk/descriptors', [KioskController::class, 'descriptors'])->name('kiosk.descriptors');
     Route::get('/kiosk/version', [KioskController::class, 'version'])->name('kiosk.version');
     Route::get('/kiosk/face/{document}', [KioskController::class, 'personFace'])->name('kiosk.face');
     Route::post('/kiosk/mark', [KioskController::class, 'mark'])->name('kiosk.mark');
     Route::post('/kiosk/mark-dni', [KioskController::class, 'markByDni'])->name('kiosk.markDni');
     Route::post('/kiosk/enroll/unlock', [KioskController::class, 'enrollUnlock'])->name('kiosk.enroll.unlock');
-    Route::post('/kiosk/enroll/lookup', [KioskController::class, 'enrollLookup'])->name('kiosk.enroll.lookup');
     Route::post('/kiosk/enroll/descriptor', [KioskController::class, 'enrollDescriptor'])->name('kiosk.enroll.descriptor');
 });
 

@@ -74,11 +74,12 @@
                         {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
                     </div>
                     <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="enrollConsent">
+                        <input class="form-check-input" type="checkbox" id="enrollConsent" onchange="document.getElementById('enrollBtn').disabled = !this.checked">
                         <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
                     </div>
                     <div id="enrollMessage"></div>
-                    <button class="btn btn-success w-100" id="enrollBtn" onclick="enrollNow()"><i class="fas fa-camera"></i> {{ __('Capture my face (3 samples) and continue') }}</button>
+                    {{-- The camera only guides once consent is accepted (button enabled by the checkbox). --}}
+                    <button class="btn btn-success w-100" id="enrollBtn" disabled onclick="startEnroll()"><i class="fas fa-camera"></i> {{ __('Accept and start face registration') }}</button>
                 </div>
             </div>
         @else
@@ -154,6 +155,7 @@
         noFaceInSample: @json(__('No face was detected in sample :current. Move closer, improve the lighting and try again.')),
         saving: @json(__('Saving to the database...')),
         enrolled: @json(__('Enrolled! Now look at the camera to confirm and mark.')),
+        enrollCapturing: @json(__('Registering your face (:n of :total)... hold still')),
     };
 </script>
 <script defer src="{{ vendor_asset('vendor/faceapi/face-api.min.js', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js') }}"></script>

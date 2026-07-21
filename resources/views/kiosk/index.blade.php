@@ -35,7 +35,6 @@
     </div>
 
     <p class="kiosk-help px-2 mt-3 mb-2" style="font-size:.72rem"><i class="fas fa-user-shield"></i> {{ __('Privacy: the camera image is processed on this device; only the match result, time, IP and device are stored. Marking by document number saves an evidence snapshot.') }}</p>
-    <a href="{{ route('kiosk.enrollPage') }}" class="btn btn-sm btn-outline-light" style="opacity:.75"><i class="fas fa-user-plus"></i> {{ __('Enrollment mode (supervisor)') }}</a>
 </div>
 
 <script>
