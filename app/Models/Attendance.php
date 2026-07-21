@@ -34,11 +34,15 @@ class Attendance extends Model
     }
 
     /**
-     * Minutes actually worked this day. When a $shift is passed, the window is
-     * CLAMPED to the schedule — paid time is max(check-in, shift start) →
-     * min(check-out, shift end) — so marking early or leaving late never inflates
-     * the total. Without a $shift it is the raw check-out − check-in. Overnight
-     * shifts and marks (end before start) roll the end to the next day.
+     * Minutes present this day. When a $shift is passed, the window is CLAMPED to
+     * the schedule — max(check-in, shift start) → min(check-out, shift end) — so
+     * marking early or leaving late never inflates the total. Without a $shift it
+     * is the raw check-out − check-in. Overnight shifts and marks (end before
+     * start) roll the end to the next day.
+     *
+     * The break is NOT subtracted here (business rule, Carlos): the break is an
+     * internal detail — you can see when it happened in the break-analysis report —
+     * but it does not reduce the worked/complied hours.
      */
     public function workedMinutes(?ScheduleDay $shift = null): int
     {
@@ -70,8 +74,19 @@ class Attendance extends Model
             }
         }
 
-        // The break time (if any) is not worked time — subtract it.
-        return max(0, (int) $start->diffInMinutes($end) - $this->breakMinutes());
+        return max(0, (int) $start->diffInMinutes($end));
+    }
+
+    /**
+     * Hours that COUNT toward the day's quota: the worked minutes capped at what
+     * was due that day. Overtime is never credited (staying late does not earn
+     * hours — that is handled internally/manually), so this is min(worked, due).
+     * $shift clamps fixed schedules; $expected is the day's quota (shift length or
+     * the flexible daily target).
+     */
+    public function compliedMinutes(int $expected, ?ScheduleDay $shift = null): int
+    {
+        return min($this->workedMinutes($shift), max(0, $expected));
     }
 
     /**

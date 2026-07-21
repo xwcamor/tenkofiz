@@ -26,7 +26,7 @@ class ReportController extends Controller
             'area' => 'area', 'position' => 'position', 'worked_days' => 'worked_days',
             'on_time' => 'on_time', 'late' => 'late', 'late_minutes' => 'late_minutes',
             'absent' => 'absent', 'excused' => 'excused', 'expected' => 'expected_minutes',
-            'worked' => 'worked_minutes', 'balance' => 'balance_minutes', 'vacation' => 'vacation_days',
+            'worked' => 'worked_minutes', 'debt' => 'debt_minutes', 'vacation' => 'vacation_days',
         ], 'employee');
 
         // Chart 1: status distribution across the whole period
@@ -59,20 +59,20 @@ class ReportController extends Controller
         $headers = [
             __('Employee'), __('Document'), __('Contract type'), __('Site'), __('Address'), __('Area'), __('Position'),
             __('Worked days'), __('On time'), __('Late'), __('Late minutes'),
-            __('Absences'), __('Excused'), __('Expected hours'), __('Worked hours'), __('Balance'), __('Vacation days'),
+            __('Absences'), __('Excused'), __('Expected hours'), __('Worked hours'), __('Owed'), __('Met quota?'), __('Vacation days'),
         ];
         // Title on row 1, column headers on row 2 directly above the data (no
         // stray line between the headers and the rows).
         $sheet->setCellValue('A1', __('Attendance report').' · '.__('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
         ]));
-        $sheet->mergeCells('A1:Q1');
+        $sheet->mergeCells('A1:R1');
         $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 12]]);
 
         foreach ($headers as $index => $header) {
             $sheet->setCellValue([$index + 1, 2], $header);
         }
-        $sheet->getStyle('A2:Q2')->applyFromArray([
+        $sheet->getStyle('A2:R2')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F1B2D']],
             'alignment' => ['vertical' => 'center', 'wrapText' => true],
@@ -84,14 +84,14 @@ class ReportController extends Controller
             $sheet->fromArray([
                 $row['employee'], $row['document'], $row['contract_type'], $row['site'], $row['site_address'], $row['area'], $row['position'],
                 $row['worked_days'], $row['on_time'], $row['late'], $row['late_minutes'],
-                $row['absent'], $row['excused'], $row['expected_hours'], $row['worked_hours'], $row['balance_hours'], $row['vacation_days'],
+                $row['absent'], $row['excused'], $row['expected_hours'], $row['worked_hours'], $row['debt_hours'], $row['complied'] ? __('Yes') : __('No'), $row['vacation_days'],
             ], null, 'A'.$rowIndex++);
         }
-        foreach (range('A', 'Q') as $column) {
+        foreach (range('A', 'R') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
         // Enable Excel's column filters/sort on the header row + data
-        $sheet->setAutoFilter('A2:Q'.max(2, $rowIndex - 1));
+        $sheet->setAutoFilter('A2:R'.max(2, $rowIndex - 1));
 
         $file = tempnam(sys_get_temp_dir(), 'report');
         (new Xlsx($spreadsheet))->save($file);
@@ -120,17 +120,11 @@ class ReportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('Detail'));
 
-        // When breaks are on, show the Break column so the arithmetic reads clearly:
-        // Check-out − Check-in − Break = Worked hours (otherwise the gap looks wrong).
-        $breaksOn = (bool) app_setting()->kiosk_breaks_enabled;
-        $headers = array_merge(
-            [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out')],
-            $breaksOn ? [__('Break (min)')] : [],
-            [__('Worked hours'), __('Status')]
-        );
-        $lastCol = $breaksOn ? 'H' : 'G';
-        $workedCol = $breaksOn ? 'G' : 'F';   // column that holds the worked-hours value
-        $totalLabelCol = $breaksOn ? 'F' : 'E'; // one column to its left, for the "Total" label
+        // Per day: worked hours COUNT toward the quota (capped, no overtime), the
+        // day's Expected quota, and what is still Owed. Worked + Owed = Expected on
+        // short days. The break is not shown here — it lives in the break analysis.
+        $headers = [__('Employee'), __('Document'), __('Date'), __('Check-in'), __('Check-out'), __('Worked hours'), __('Expected hours'), __('Owed'), __('Status')];
+        $lastCol = 'I';
 
         $sheet->setCellValue('A1', __('Attendance detail').' · '.__('Period: from :from to :to — Issued: :issued', [
             'from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y'), 'issued' => company_now()->format('d/m/Y H:i'),
@@ -148,38 +142,40 @@ class ReportController extends Controller
         $sheet->freezePane('A3');
 
         $clamp = (bool) app_setting()->clamp_worked_hours;
+        $hm = fn ($m) => sprintf('%d:%02d', intdiv((int) $m, 60), (int) $m % 60);
 
         $rowIndex = 3;
         foreach ($employees as $employee) {
-            $employeeMinutes = 0;
+            $totalComplied = 0;
+            $totalOwed = 0;
 
             foreach ($employee->attendances as $attendance) {
                 $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
-                $dayMinutes = $attendance->workedMinutes($shift);
-                $employeeMinutes += $dayMinutes;
-                $breakMin = $attendance->breakMinutes();
+                $full = $attendance->check_in && $attendance->check_out;
+                $expDay = $full ? ($attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0)) : 0;
+                $complied = $full ? $attendance->compliedMinutes($expDay, $shift) : 0;
+                $owed = max(0, $expDay - $complied);
+                $totalComplied += $complied;
+                $totalOwed += $owed;
 
-                $row = array_merge(
-                    [
-                        $employee->full_name,
-                        $employee->document_number,
-                        $attendance->date->format('d/m/Y'),
-                        $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
-                        $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
-                    ],
-                    $breaksOn ? [$breakMin ?: '—'] : [],
-                    [
-                        $dayMinutes ? sprintf('%d:%02d', intdiv($dayMinutes, 60), $dayMinutes % 60) : '—',
-                        __($attendance->status),
-                    ]
-                );
-                $sheet->fromArray($row, null, 'A'.$rowIndex++);
+                $sheet->fromArray([
+                    $employee->full_name,
+                    $employee->document_number,
+                    $attendance->date->format('d/m/Y'),
+                    $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
+                    $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
+                    $full ? $hm($complied) : '—',
+                    $full ? $hm($expDay) : '—',
+                    $owed > 0 ? $hm($owed) : '—',
+                    __($attendance->status),
+                ], null, 'A'.$rowIndex++);
             }
 
-            // Worked-hours subtotal for the employee
+            // Subtotal per employee: hours that count, and total still owed
             if ($employee->attendances->isNotEmpty()) {
-                $sheet->setCellValue($totalLabelCol.$rowIndex, __('Total'));
-                $sheet->setCellValue($workedCol.$rowIndex, sprintf('%d:%02d', intdiv($employeeMinutes, 60), $employeeMinutes % 60));
+                $sheet->setCellValue('E'.$rowIndex, __('Total'));
+                $sheet->setCellValue('F'.$rowIndex, $hm($totalComplied));
+                $sheet->setCellValue('H'.$rowIndex, $totalOwed > 0 ? $hm($totalOwed) : '—');
                 $sheet->getStyle('A'.$rowIndex.':'.$lastCol.$rowIndex)->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EEF2F8']],
@@ -359,20 +355,23 @@ class ReportController extends Controller
         return $employees->map(function ($employee) use ($clamp) {
             $attendances = $employee->attendances;
 
-            $minutes = 0;
-            $expectedMinutes = 0;
+            $compliedMinutes = 0;  // hours that count: min(present, due) per day, no overtime credit
+            $expectedMinutes = 0;  // the "jornada" due on worked days
+            $deficitMinutes = 0;   // how much they still owe (expected − complied), never negative
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
                 $weekday = $attendance->date->dayOfWeek;
                 $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
-                $minutes += $attendance->workedMinutes($shift);
 
-                // Expected minutes (the "jornada") only on days actually worked, so a
-                // short day (late in / early out) shows as a deficit vs what was due.
-                // Prefer the value frozen at check-in; fall back to a live compute for
-                // older rows without a snapshot.
+                // Only full days (check-in + check-out) carry a quota, so a short day
+                // (late in / early out) shows as a deficit while absences stay separate.
+                // Prefer the quota frozen at check-in; fall back to a live compute.
                 if ($attendance->check_in && $attendance->check_out) {
-                    $expectedMinutes += $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                    $expDay = $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                    $complied = $attendance->compliedMinutes($expDay, $shift);
+                    $expectedMinutes += $expDay;
+                    $compliedMinutes += $complied;
+                    $deficitMinutes += max(0, $expDay - $complied); // staying late never offsets a short day
                 }
 
                 // Late minutes: how far past the scheduled start the check-in was
@@ -385,7 +384,6 @@ class ReportController extends Controller
                     }
                 }
             }
-            $balanceMinutes = $minutes - $expectedMinutes;
 
             return [
                 'id' => $employee->id,
@@ -403,12 +401,13 @@ class ReportController extends Controller
                 'late_minutes' => $lateMinutes,
                 'absent' => $attendances->where('status', 'ABSENT')->count(),
                 'excused' => $attendances->where('status', 'EXCUSED')->count(),
-                'worked_hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
-                'worked_minutes' => $minutes,
+                'worked_hours' => sprintf('%d:%02d', intdiv($compliedMinutes, 60), $compliedMinutes % 60),
+                'worked_minutes' => $compliedMinutes,
                 'expected_hours' => sprintf('%d:%02d', intdiv($expectedMinutes, 60), $expectedMinutes % 60),
                 'expected_minutes' => $expectedMinutes,
-                'balance_minutes' => $balanceMinutes,
-                'balance_hours' => sprintf('%s%d:%02d', $balanceMinutes < 0 ? '-' : '+', intdiv(abs($balanceMinutes), 60), abs($balanceMinutes) % 60),
+                'debt_minutes' => $deficitMinutes,
+                'debt_hours' => sprintf('%d:%02d', intdiv($deficitMinutes, 60), $deficitMinutes % 60),
+                'complied' => $deficitMinutes === 0,
                 'vacation_days' => $employee->vacations->sum('days'),
             ];
         });
@@ -454,16 +453,20 @@ class ReportController extends Controller
         $employee->load('schedule.days', 'site', 'area', 'position');
         $clamp = (bool) $setting->clamp_worked_hours;
 
-        $minutes = 0;
+        $compliedMinutes = 0;
         $expectedMinutes = 0;
+        $deficitMinutes = 0;
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
             $weekday = $attendance->date->dayOfWeek;
             $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
-            $minutes += $attendance->workedMinutes($shift);
 
             if ($attendance->check_in && $attendance->check_out) {
-                $expectedMinutes += $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                $expDay = $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                $complied = $attendance->compliedMinutes($expDay, $shift);
+                $expectedMinutes += $expDay;
+                $compliedMinutes += $complied;
+                $deficitMinutes += max(0, $expDay - $complied);
             }
 
             if ($attendance->status === 'LATE' && $attendance->check_in) {
@@ -475,7 +478,6 @@ class ReportController extends Controller
                 }
             }
         }
-        $balanceMinutes = $minutes - $expectedMinutes;
 
         $summary = [
             'days' => $attendances->whereIn('status', ['ON_TIME', 'LATE'])->count(),
@@ -484,10 +486,11 @@ class ReportController extends Controller
             'late_minutes' => $lateMinutes,
             'absent' => $attendances->where('status', 'ABSENT')->count(),
             'excused' => $attendances->where('status', 'EXCUSED')->count(),
-            'hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),
+            'hours' => sprintf('%d:%02d', intdiv($compliedMinutes, 60), $compliedMinutes % 60),
             'expected_hours' => sprintf('%d:%02d', intdiv($expectedMinutes, 60), $expectedMinutes % 60),
-            'balance' => sprintf('%s%d:%02d', $balanceMinutes < 0 ? '-' : '+', intdiv(abs($balanceMinutes), 60), abs($balanceMinutes) % 60),
-            'balance_minutes' => $balanceMinutes,
+            'debt' => sprintf('%d:%02d', intdiv($deficitMinutes, 60), $deficitMinutes % 60),
+            'debt_minutes' => $deficitMinutes,
+            'complied' => $deficitMinutes === 0,
         ];
 
         $vacations = $employee->vacations()

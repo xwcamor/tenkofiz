@@ -218,8 +218,9 @@ entrada + 1 salida). Encendido:
   salida?" en la 2ª marca) → si break: SALIDA-BREAK, RETORNO, SALIDA. Máximo 4
   marcas (1 break). Nada de N marcas.
 - `break_required`: la 2ª marca es siempre el break (sin preguntar).
-- **Las horas del break se restan** de las trabajadas (`Attendance::workedMinutes`
-  resta `breakMinutes`).
+- **El break NO se descuenta de las horas trabajadas** (regla de Carlos): es un
+  detalle **interno** (a qué hora fue), visible en el análisis de breaks (§1.4h), pero
+  `Attendance::workedMinutes` **no** lo resta.
 - `break_limit_minutes`: si el break supera el límite, el reporte/lista solo marca
   **"tiempo excedido (Nmin)"** — nunca penaliza, solo para análisis
   (`breakExceededMinutes`).
@@ -260,16 +261,23 @@ Reglas:
   coordenadas, con la precisión en el tooltip.
 - Aplica a marca facial y a marca por DNI por igual.
 
-### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Saldo
-El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) compara tres
-cosas por empleado en el periodo:
+### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Debe (¿cumplió?)
+El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) responde, por
+empleado en el periodo, **¿cumplió sus horas y cuánto debe?** (regla de Carlos):
 - **Horas esperadas** (`Schedule::expectedMinutesFor(weekday)`): la "jornada" que
   debía — largo del turno en horario **fijo**, o la **meta diaria** en **flexible**.
-  Se suma **solo en los días efectivamente trabajados** (con entrada y salida), para
-  que un día corto salga como déficit y no se mezcle con las faltas.
-- **Horas trabajadas**: las realmente cumplidas (recortadas al turno en fijo, §1.4b).
-- **Saldo** = trabajadas − esperadas (negativo = llegó tarde / salió antes de forma
-  habitual; positivo = trabajó de más).
+  Se suma **solo en los días con entrada y salida**, para que un día corto salga como
+  déficit y no se mezcle con las faltas.
+- **Horas trabajadas (que cuentan)** = `min(permanencia dentro del turno, jornada)`
+  por día (`Attendance::compliedMinutes`). **Topadas a la jornada: el sobretiempo NO
+  se acredita** — quedarse hasta tarde no da horas a favor (eso se maneja de forma
+  interna/manual; el supervisor edita la marca si corresponde). Ejemplos: entra 8am
+  y sale 8pm en un turno 8–5 → cuenta 9h (cumplió, debe 0); entra 8:30 → cuenta 8:30
+  (debe 30 min). En flexible con meta 8h, si está 10h igual cuentan 8h.
+- **Debe (déficit)** = `esperadas − trabajadas`, **nunca negativo** (día largo no
+  compensa un día corto). **¿Cumplió?** = Debe == 0.
+- **El break NO se descuenta** de las horas (§1.4f/1.4g): es un detalle interno (a qué
+  hora fue), se ve en el análisis de breaks, pero no reduce las horas que cuentan.
 
 **Horas esperadas congeladas**: al registrar la ENTRADA se guarda
 `attendances.expected_minutes` (la jornada de ese día), igual que se congela el
@@ -280,10 +288,10 @@ reasignar un horario.
 
 Punto clave a entender: **la tolerancia solo afecta la ETIQUETA** (PUNTUAL/TARDANZA),
 no las horas. Las horas siempre se cuentan desde la marca real (por el recorte), así
-un profesor que entra 4 min tarde sale PUNTUAL pero su Saldo baja 4 min/día — el
-reporte lo delata. El control del tiempo se hace **a posteriori en Reportes** (no en
-tiempo real en la fila): el supervisor observa puntualidad (tardanzas + minutos) y
-cumplimiento (esperadas vs trabajadas + saldo).
+un profesor que entra 4 min tarde sale PUNTUAL pero **Debe** 4 min/día — el reporte lo
+delata. El control del tiempo se hace **a posteriori en Reportes** (no en tiempo real
+en la fila): el supervisor observa puntualidad (tardanzas + minutos) y cumplimiento
+(esperadas vs trabajadas + ¿cumplió?/debe).
 
 ### 1.4k Ordenamiento por columna (todos los listados)
 Todas las tablas de listado (Empleados, Usuarios, Asistencias, Vacaciones,

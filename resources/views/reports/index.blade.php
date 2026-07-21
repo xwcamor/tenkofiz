@@ -72,7 +72,8 @@
                     @include('partials.th-sort', ['key' => 'excused', 'label' => __('Excused')])
                     @include('partials.th-sort', ['key' => 'expected', 'label' => __('Expected hours')])
                     @include('partials.th-sort', ['key' => 'worked', 'label' => __('Worked hours')])
-                    @include('partials.th-sort', ['key' => 'balance', 'label' => __('Balance')])
+                    @include('partials.th-sort', ['key' => 'debt', 'label' => __('Owed')])
+                    <th>{{ __('Met quota?') }}</th>
                     @include('partials.th-sort', ['key' => 'vacation', 'label' => __('Vacation days')])
                     <th>{{ __('Sheet') }}</th>
                 </tr>
@@ -93,7 +94,14 @@
                     <td class="text-center">{{ $row['excused'] }}</td>
                     <td class="text-center text-muted">{{ $row['expected_hours'] }}</td>
                     <td class="text-center font-weight-bold">{{ $row['worked_hours'] }}</td>
-                    <td class="text-center font-weight-bold {{ $row['balance_minutes'] < 0 ? 'text-danger' : 'text-success' }}">{{ $row['balance_hours'] }}</td>
+                    <td class="text-center font-weight-bold {{ $row['debt_minutes'] > 0 ? 'text-danger' : 'text-muted' }}">{{ $row['debt_minutes'] > 0 ? $row['debt_hours'] : '—' }}</td>
+                    <td class="text-center">
+                        @if($row['complied'])
+                            <span class="badge badge-success"><i class="fas fa-check"></i> {{ __('Yes') }}</span>
+                        @else
+                            <span class="badge badge-danger" title="{{ __('Owes :t', ['t' => $row['debt_hours']]) }}"><i class="fas fa-times"></i> {{ __('No') }}</span>
+                        @endif
+                    </td>
                     <td class="text-center">{{ $row['vacation_days'] }}</td>
                     <td class="text-center">
                         <a href="{{ route('reports.sheet', $row['id']) }}?from={{ $from->toDateString() }}&to={{ $to->toDateString() }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
@@ -102,7 +110,7 @@
             @endforeach
             </tbody>
         </table>
-        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {{ __('Expected = the hours due per their schedule on the days worked; Worked = the hours actually completed; Balance = the difference (a chronic late arrival or early leave shows as a negative). Use the buttons to export to Excel or print.') }}</p>
+        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {{ __('Expected = the hours due per their schedule on the days worked; Worked = the hours that count, capped at the day\'s quota (working overtime never earns extra — that is handled internally); Owed = how much is still missing. The break is not deducted here (see the break analysis). Use the buttons to export to Excel or print.') }}</p>
     </div>
 </div>
 @endsection

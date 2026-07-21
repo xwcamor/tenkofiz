@@ -1,6 +1,12 @@
 {
     "This employee was deleted; their records are kept for history.": "Este empleado fue eliminado; sus registros se conservan para el historial.",
     "Break (min)": "Descanso (min)",
+    "Owed": "Debe",
+    "Met quota?": "¿Cumplió?",
+    "Yes": "Sí",
+    "No": "No",
+    "Owes :t": "Debe :t",
+    "Expected = the hours due per their schedule on the days worked; Worked = the hours that count, capped at the day's quota (working overtime never earns extra — that is handled internally); Owed = how much is still missing. The break is not deducted here (see the break analysis). Use the buttons to export to Excel or print.": "Esperadas = las horas que debía según su horario en los días trabajados; Trabajadas = las horas que cuentan, topadas a la jornada del día (hacer sobretiempo nunca da horas extra — eso se maneja de forma interna); Debe = cuánto le falta todavía. El break no se descuenta aquí (ver el análisis de breaks). Usa los botones para exportar a Excel o imprimir.",
     "Break analysis": "Análisis de breaks",
     "Duration (min)": "Duración (min)",
     "Limit (min)": "Límite (min)",

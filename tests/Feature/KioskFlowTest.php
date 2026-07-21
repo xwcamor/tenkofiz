@@ -201,8 +201,11 @@ class KioskFlowTest extends TestCase
         $this->postJson('/kiosk/mark-dni', ['document_number' => '55667788'])->assertOk()->assertJsonPath('type', 'CHECK_OUT');
 
         $att = \App\Models\Attendance::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
-        $this->assertSame(60, $att->breakMinutes());       // 12:00–13:00
-        $this->assertSame(480, $att->workedMinutes());     // 9h − 1h break = 8h
+        $this->assertSame(60, $att->breakMinutes());       // 12:00–13:00 (tracked, internal detail)
+        // The break is NOT subtracted from worked hours (business rule): worked = span.
+        $this->assertSame(540, $att->workedMinutes());     // 08:00–17:00 = 9h
+        // Complied is capped at the day's quota (9h), so a full day owes nothing.
+        $this->assertSame(540, $att->compliedMinutes(540)); // min(9h worked, 9h due) = 9h
     }
 
     public function test_breaks_off_keeps_the_classic_two_mark_flow(): void
@@ -247,6 +250,29 @@ class KioskFlowTest extends TestCase
         $this->assertCount(2, $marks); // both punches logged, additively
         $this->assertSame(['CHECK_IN', 'CHECK_OUT'], $marks->pluck('kind')->all());
         $this->assertNotNull($marks->first()->attendance_id); // linked to the day
+    }
+
+    public function test_worked_hours_ignore_break_and_never_credit_overtime(): void
+    {
+        // Carlos's rule. Fixed shift 08:00–17:00 (9h due).
+        $shift = new \App\Models\ScheduleDay(['start_time' => '08:00:00', 'end_time' => '17:00:00']);
+
+        // Day A: 08:00→20:00 with a 1h break. Present clamps to 9h; the break is NOT
+        // subtracted; complied is capped at the 9h quota (overtime earns nothing).
+        $a = new \App\Models\Attendance(['date' => '2026-06-01', 'check_in' => '08:00:00', 'check_out' => '20:00:00', 'break_out' => '12:00:00', 'break_in' => '13:00:00']);
+        $this->assertSame(540, $a->workedMinutes($shift));        // 9h, break not deducted
+        $this->assertSame(540, $a->compliedMinutes(540, $shift)); // capped at 9h
+        $this->assertSame(0, 540 - $a->compliedMinutes(540, $shift)); // owes nothing → cumplió
+
+        // Day B: arrive 08:30 → 8.5h, owes 30 min
+        $b = new \App\Models\Attendance(['date' => '2026-06-02', 'check_in' => '08:30:00', 'check_out' => '17:00:00']);
+        $this->assertSame(510, $b->compliedMinutes(540, $shift));
+        $this->assertSame(30, 540 - $b->compliedMinutes(540, $shift));
+
+        // Flexible: 8h daily target, present 10h → complied capped at 8h, no credit
+        $c = new \App\Models\Attendance(['date' => '2026-06-03', 'check_in' => '08:00:00', 'check_out' => '18:00:00']);
+        $this->assertSame(600, $c->workedMinutes());        // 10h present
+        $this->assertSame(480, $c->compliedMinutes(480));   // only the 8h target counts
     }
 
     public function test_geolocation_is_stored_on_the_mark_when_enabled(): void
