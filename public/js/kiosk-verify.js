@@ -764,7 +764,7 @@ async function startEnroll() {
 }
 
 const ENROLL_SAMPLES = 3;
-const ENROLL_HOLD_SECONDS = 4;   // green "hold still" time that actually captures
+const ENROLL_HOLD_SECONDS = 5;   // green "hold still" time that actually captures
 const ENROLL_TICK_MS = 160;      // one placement check per tick
 const ENROLL_GOOD_TICKS = Math.round(ENROLL_HOLD_SECONDS * 1000 / ENROLL_TICK_MS);
 const ENROLL_LOST_TICKS = 20;    // ~3s fully off frame → restart the guidance
