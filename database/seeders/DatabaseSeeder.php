@@ -25,16 +25,19 @@ class DatabaseSeeder extends Seeder
         $admin = Profile::firstOrCreate(['name' => 'Administrator'], [
             'description' => 'Full access to the system',
             'permissions' => array_keys(Profile::MODULES),
+            'is_system' => true,
         ]);
 
         $supervisor = Profile::firstOrCreate(['name' => 'Supervisor'], [
             'description' => 'Manages attendance and approves requests',
             'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
+            'is_system' => true,
         ]);
 
         $employeeProfile = Profile::firstOrCreate(['name' => 'Employee'], [
             'description' => 'Views their attendance and requests vacations',
             'permissions' => [],
+            'is_system' => true,
         ]);
 
         // Super-admin: owns every workspace, belongs to none (company_id = null)

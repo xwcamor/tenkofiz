@@ -43,6 +43,9 @@ class ProfileController extends Controller
 
     public function destroy(Profile $profile)
     {
+        if ($profile->is_system) {
+            return back()->with('error', __('This is a base system profile and cannot be deleted.'));
+        }
         if ($profile->users()->exists()) {
             return back()->with('error', __('Cannot delete: there are users with this profile.'));
         }
@@ -64,6 +67,17 @@ class ProfileController extends Controller
         $data['permissions'] = array_values($data['permissions'] ?? []);
         // New records are always active; the toggle only appears when editing
         $data['is_active'] = $profile ? $request->boolean('is_active') : true;
+
+        // Base system profiles are protected: their name is fixed, they cannot be
+        // deactivated, and the Administrator always keeps every module (so no one
+        // can lock the workspace out of its own settings).
+        if ($profile && $profile->is_system) {
+            $data['name'] = $profile->name;
+            $data['is_active'] = true;
+            if ($profile->isAdministratorRole()) {
+                $data['permissions'] = array_keys(Profile::MODULES);
+            }
+        }
 
         return $data;
     }

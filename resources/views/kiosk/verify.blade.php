@@ -86,7 +86,7 @@
     window.HAS_FACE = @json($employee->hasFace());
     window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
-    window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 10));
+    window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 15));
     window.KIOSK_NEXT_ACTION = @json($nextAction);
     window.KIOSK_EARLY_EXIT_WARN = @json($earlyExitWarn);
     window.KIOSK_GEO = @json((bool) app_setting()->kiosk_geolocation);

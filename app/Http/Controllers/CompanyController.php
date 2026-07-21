@@ -33,7 +33,7 @@ class CompanyController extends Controller
             $setting = Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
             $company->recognition = [
                 'threshold' => (float) ($setting->kiosk_face_threshold ?? 0.50),
-                'seconds' => (int) ($setting->kiosk_verify_seconds ?? 10),
+                'seconds' => (int) ($setting->kiosk_verify_seconds ?? 15),
             ];
 
             return $company;
@@ -76,9 +76,22 @@ class CompanyController extends Controller
             'is_active' => true,
         ]);
 
+        // Profiles are global (shared roles); the three base ones (Administrator,
+        // Supervisor, Employee) are seeded once and protected via is_system.
         $adminProfile = Profile::firstOrCreate(['name' => 'Administrator'], [
             'description' => 'Full access to the system',
             'permissions' => array_keys(Profile::MODULES),
+            'is_system' => true,
+        ]);
+        Profile::firstOrCreate(['name' => 'Supervisor'], [
+            'description' => 'Manages attendance and approves requests',
+            'permissions' => ['employees', 'attendances', 'reports', 'vacations_manage', 'justifications_manage', 'kiosk'],
+            'is_system' => true,
+        ]);
+        Profile::firstOrCreate(['name' => 'Employee'], [
+            'description' => 'Views their attendance and requests vacations',
+            'permissions' => [],
+            'is_system' => true,
         ]);
 
         CompanyScope::actingAs($company->id, function () use ($company, $data, $adminProfile) {

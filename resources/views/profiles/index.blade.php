@@ -18,7 +18,12 @@
             <tbody>
             @forelse($profiles as $profile)
                 <tr>
-                    <td><strong>{{ $profile->name }}</strong></td>
+                    <td>
+                        <strong>{{ $profile->name }}</strong>
+                        @if($profile->is_system)
+                            <span class="badge badge-dark ml-1" title="{{ __('Base role: cannot be deleted or renamed') }}"><i class="fas fa-lock"></i> {{ __('System') }}</span>
+                        @endif
+                    </td>
                     <td>{{ $profile->description }}</td>
                     <td>
                         @forelse($profile->permissions ?? [] as $permission)
@@ -37,13 +42,19 @@
                                 'description' => $profile->description,
                                 'permissions' => $profile->permissions ?? [],
                                 'is_active' => $profile->is_active,
+                                'is_system' => (bool) $profile->is_system,
+                                'is_admin_role' => $profile->isAdministratorRole(),
                             ]);
                         @endphp
                         <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openProfileModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
-                        <form method="POST" action="{{ route('profiles.destroy', $profile) }}" class="d-inline delete-form">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                        </form>
+                        @if($profile->is_system)
+                            <button class="btn btn-sm btn-danger" disabled title="{{ __('Base role: cannot be deleted') }}"><i class="fas fa-lock"></i></button>
+                        @else
+                            <form method="POST" action="{{ route('profiles.destroy', $profile) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        @endif
                     </td>
                 </tr>
             @empty
@@ -118,6 +129,17 @@ function openProfileModal(data = null) {
     document.getElementById('profileActiveRow').style.display = data ? '' : 'none';
     document.querySelectorAll('.profile-permission').forEach(box => {
         box.checked = data ? data.permissions.includes(box.value) : false;
+    });
+    // Base system roles: lock the name, keep them active, and (Administrator) lock
+    // every permission on. The server enforces this too; this just mirrors it.
+    const isSystem = !!(data && data.is_system);
+    const isAdminRole = !!(data && data.is_admin_role);
+    document.getElementById('profileName').readOnly = isSystem;
+    document.getElementById('profileActive').disabled = isSystem;
+    if (isSystem) document.getElementById('profileActiveRow').style.display = 'none';
+    document.querySelectorAll('.profile-permission').forEach(box => {
+        if (isAdminRole) box.checked = true;
+        box.disabled = isAdminRole;
     });
     $('#profileModal').modal('show');
 }
