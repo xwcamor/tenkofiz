@@ -206,10 +206,10 @@ async function linkUser(id, name) {
                                 </form>
                             @else
                                 <button type="button" class="btn btn-xs btn-outline-success" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
-                                        onclick="createUser({{ $employee->id }}, this.dataset.name)"
+                                        onclick="createUser('{{ $employee->getRouteKey() }}', this.dataset.name)"
                                         title="{{ __('Creates a sign-in with their email (default profile: Employee; initial password: their document number)') }}"><i class="fas fa-user-plus"></i> {{ __('Enable sign-in') }}</button>
                                 <button type="button" class="btn btn-xs btn-outline-primary" data-name="{{ $employee->first_name.' '.$employee->last_name }}"
-                                        onclick="linkUser({{ $employee->id }}, this.dataset.name)"
+                                        onclick="linkUser('{{ $employee->getRouteKey() }}', this.dataset.name)"
                                         title="{{ __('Link an existing user account') }}"><i class="fas fa-link"></i></button>
                             @endif
                         </td>
