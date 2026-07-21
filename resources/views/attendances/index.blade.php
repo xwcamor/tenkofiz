@@ -94,7 +94,7 @@
                     @include('partials.th-sort', ['key' => 'check_out', 'label' => __('Check-out')])
                     <th>{{ __('Hours') }}</th>
                     @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
-                    @include('partials.th-sort', ['key' => 'method', 'label' => __('Method')])
+                    @include('partials.th-sort', ['key' => 'method', 'label' => __('Verification')])
                     <th>{{ __('Note') }}</th>
                     <th style="width:90px">{{ __('Actions') }}</th>
                 </tr></thead>
@@ -154,10 +154,20 @@
                         <td class="text-center font-weight-bold">{{ $workedHours($attendance) }}</td>
                         <td><span class="badge badge-{{ $statusBadge($attendance->status) }}">{{ __($attendance->status) }}</span></td>
                         <td>
-                            @if($attendance->method === 'DNI')
-                                <span class="badge badge-warning" title="{{ __('Marked by typing the document number: verify with the evidence photo') }}"><i class="fas fa-keyboard"></i> DNI</span>
+                            @php
+                                // Day-level verification: ANY mark made by document (or a legacy
+                                // DNI attendance) raises the flag — regardless of mark order — so
+                                // a suspicious punch is never hidden behind a facial check-in.
+                                $dniMarks = $attendance->marks->where('method', 'DNI')->count();
+                                $needsReview = $dniMarks > 0 || $attendance->method === 'DNI';
+                            @endphp
+                            @if($needsReview)
+                                <span class="badge badge-warning" title="{{ __('One or more marks were made by document (no facial recognition): review the evidence photos below.') }}"><i class="fas fa-triangle-exclamation"></i> {{ __('Review') }}</span>
+                                @if($dniMarks > 0)<div class="small text-muted">{{ $dniMarks }} {{ __('by document') }}</div>@endif
+                            @elseif($attendance->method === 'MANUAL')
+                                <span class="badge badge-secondary" title="{{ __('Entered manually by an administrator') }}"><i class="fas fa-pencil-alt"></i> {{ __('Manual') }}</span>
                             @else
-                                <i class="fas fa-{{ $attendance->method === 'FACIAL' ? 'id-badge' : 'pencil-alt' }}"></i> {{ __($attendance->method) }}
+                                <span class="badge badge-success" title="{{ __('All marks confirmed by face') }}"><i class="fas fa-id-badge"></i> {{ __('Facial') }}</span>
                             @endif
                             @if($attendance->evidence_photo)
                                 <a href="{{ asset($attendance->evidence_photo) }}" target="_blank" class="btn btn-xs btn-outline-secondary ml-1 file-preview" title="{{ __('View evidence photo') }}"><i class="fas fa-camera"></i></a>
