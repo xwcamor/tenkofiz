@@ -89,7 +89,7 @@
         <table class="table table-bordered table-hover data-table">
             <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Day') }}</th><th>{{ __('Holiday name') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
             <tbody>
-            @foreach($holidays as $holiday)
+            @forelse($holidays as $holiday)
                 <tr>
                     <td data-order="{{ $holiday->date->toDateString() }}">{{ $holiday->date->format('d/m/Y') }}</td>
                     <td>{{ ucfirst($holiday->date->locale(app()->getLocale())->dayName) }}</td>
@@ -109,7 +109,9 @@
                         </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="4" class="text-center text-muted py-4">{{ __('No holidays generated for this year yet.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
     </div>

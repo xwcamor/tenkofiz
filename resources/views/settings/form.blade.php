@@ -104,6 +104,12 @@
                         <label class="custom-control-label" for="clampWorkedHours">{{ __('Count worked hours within the schedule only (recommended)') }}</label>
                     </div>
                     <small class="text-muted d-block mb-2">{{ __('ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents "marking at 6am to rack up hours". OFF: hours are the raw check-out minus check-in.') }}</small>
+                    {{-- Allow marking on public holidays (companies that operate them) --}}
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="allow_holiday_marking" value="1" class="custom-control-input" id="allowHolidayMarking" @checked(old('allow_holiday_marking', $setting->allow_holiday_marking))>
+                        <label class="custom-control-label" for="allowHolidayMarking">{{ __('Allow attendance marking on holidays') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('ON: employees can mark on public holidays (retail, security, healthcare…); the mark is tagged as made on a holiday. OFF (default): the kiosk tells them marking is not required on a holiday.') }}</small>
                     {{-- Geolocation on the kiosk mark (where the punch happened) --}}
                     <div class="custom-control custom-switch mb-2">
                         <input type="checkbox" name="kiosk_geolocation" value="1" class="custom-control-input" id="kioskGeolocation" @checked(old('kiosk_geolocation', $setting->kiosk_geolocation))>

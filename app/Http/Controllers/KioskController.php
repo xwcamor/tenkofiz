@@ -379,7 +379,8 @@ class KioskController extends Controller
     {
         $today = $now->toDateString();
 
-        if ($holiday = Holiday::onDate($today)) {
+        // Holidays block marking UNLESS the company operates on holidays (a setting).
+        if (!app_setting()->allow_holiday_marking && ($holiday = Holiday::onDate($today))) {
             return __('Today is a holiday (:name): attendance marking is not required.', ['name' => $holiday->name]);
         }
 
@@ -545,6 +546,10 @@ class KioskController extends Controller
             // First mark of the day = CHECK-IN; lateness depends on TODAY's weekday hours
             $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
             $status = 'ON_TIME';
+            // Tag a mark made on a holiday (only reachable when the company allows it)
+            if ($holiday = Holiday::onDate($today)) {
+                $extra['note'] = trim((($extra['note'] ?? '').' '.__('Mark made on a holiday (:name).', ['name' => $holiday->name])));
+            }
             if (!$todayShift) {
                 // No shift today (e.g. Sunday on a Mon-Sat schedule): there is no
                 // start time to be late against, so the mark records as on-time —

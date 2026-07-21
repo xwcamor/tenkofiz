@@ -371,8 +371,10 @@
                 pageLength: 25,
                 ordering: !this.hasAttribute('data-server-sort'),
                 dom: "<'row'<'col-sm-6'B><'col-sm-6'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+                {{-- Excel export is handled server-side (with AutoFilter + all columns);
+                     the client-side Excel button is intentionally omitted to avoid a
+                     second, inconsistent export. Print/Copy stay for quick use. --}}
                 buttons: [
-                    { extend: 'excelHtml5', text: '<i class="fas fa-file-excel"></i> Excel', className: 'btn btn-success btn-sm' },
                     { extend: 'print', text: '<i class="fas fa-print"></i> {{ __('Print') }}', className: 'btn btn-secondary btn-sm' },
                     { extend: 'copyHtml5', text: '<i class="fas fa-copy"></i> {{ __('Copy') }}', className: 'btn btn-info btn-sm' }
                 ],

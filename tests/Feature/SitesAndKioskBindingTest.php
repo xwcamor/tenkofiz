@@ -205,6 +205,43 @@ class SitesAndKioskBindingTest extends TestCase
         $this->postJson('/kiosk/mark-dni', ['document_number' => '77778888'])->assertOk();
     }
 
+    // ---------- Holiday marking (special-case companies) ----------
+
+    /** Shared setup: an enrolled employee on a seeded-holiday date, kiosk open. */
+    private function holidayScenario(bool $allow): Employee
+    {
+        $this->seed(DatabaseSeeder::class);
+        // Set flags BEFORE any request resolves app_setting() (cached per test run).
+        // early_check_in 0 keeps the afternoon mark out of the early-window rule so
+        // the only thing under test is the holiday gate.
+        Setting::query()->update(['allow_holiday_marking' => $allow, 'early_check_in_minutes' => 0]);
+
+        $schedule = Schedule::first();
+        $site = Site::first();
+        $face = json_encode([array_fill(0, 128, 0.1)]);
+        $emp = Employee::create(['document_number' => '99990000', 'first_name' => 'Holi', 'last_name' => 'DAY', 'schedule_id' => $schedule->id, 'site_id' => $site->id, 'face_descriptor' => $face]);
+
+        \App\Models\Holiday::firstOrCreate(['date' => '2026-07-28'], ['name' => 'Fiestas Patrias']);
+        Carbon::setTestNow('2026-07-28 14:30:00'); // Tuesday afternoon (after any shift start)
+        $this->get('/kiosk?site='.$site->id)->assertOk();
+
+        return $emp;
+    }
+
+    public function test_holidays_block_marking_by_default(): void
+    {
+        $this->holidayScenario(allow: false);
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '99990000'])->assertStatus(422);
+        $this->assertDatabaseMissing('attendances', ['date' => '2026-07-28']);
+    }
+
+    public function test_holidays_can_be_marked_when_the_company_allows_it(): void
+    {
+        $emp = $this->holidayScenario(allow: true);
+        $this->postJson('/kiosk/mark-dni', ['document_number' => '99990000'])->assertOk();
+        $this->assertDatabaseHas('attendances', ['employee_id' => $emp->id, 'date' => '2026-07-28']);
+    }
+
     public function test_a_sites_token_link_opens_only_that_sites_kiosk(): void
     {
         $this->seed(DatabaseSeeder::class);

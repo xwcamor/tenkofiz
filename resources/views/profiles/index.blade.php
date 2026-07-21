@@ -16,7 +16,7 @@
                 <th style="width:110px">{{ __('Actions') }}</th>
             </tr></thead>
             <tbody>
-            @foreach($profiles as $profile)
+            @forelse($profiles as $profile)
                 <tr>
                     <td><strong>{{ $profile->name }}</strong></td>
                     <td>{{ $profile->description }}</td>
@@ -46,7 +46,9 @@
                         </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="6" class="text-center text-muted py-4">{{ __('No profiles yet.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
     </div>

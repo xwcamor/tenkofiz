@@ -15,7 +15,7 @@
                 <th style="width:110px">{{ __('Actions') }}</th>
             </tr></thead>
             <tbody>
-            @foreach($schedules as $schedule)
+            @forelse($schedules as $schedule)
                 <tr>
                     <td>{{ $schedule->name }}
                         @unless($schedule->is_active)<span class="badge badge-secondary ml-1">{{ __('Inactive') }}</span>@endunless
@@ -51,7 +51,9 @@
                         </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="5" class="text-center text-muted py-4">{{ __('No schedules yet.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
     </div>

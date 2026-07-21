@@ -202,6 +202,8 @@ class ReportController extends Controller
      */
     public function breaks(Request $request)
     {
+        abort_unless(app_setting()->kiosk_breaks_enabled, 404);
+
         [$from, $to] = $this->range($request);
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
         $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;
@@ -216,6 +218,8 @@ class ReportController extends Controller
     /** The same break analysis as an Excel file (with filters enabled) */
     public function breaksExport(Request $request)
     {
+        abort_unless(app_setting()->kiosk_breaks_enabled, 404);
+
         [$from, $to] = $this->range($request);
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
         $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;

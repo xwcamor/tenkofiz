@@ -12,6 +12,33 @@ comportamiento del sistema, empieza aquí en lugar de leer los controladores com
 
 Flujo completo en `app/Http/Controllers/KioskController.php`.
 
+### 1.0 Casuística de marcado (tabla resumen)
+
+Todos los casos que el sistema ya resuelve al marcar. El detalle de cada uno está en las sub-secciones siguientes.
+
+| # | Caso | Qué hace el sistema | Dónde se controla |
+|---|------|---------------------|-------------------|
+| 1 | **Entrada a tiempo** (horario fijo) | Marca `ON_TIME`; primera marca del día = entrada. | `performMark` |
+| 2 | **Tardanza** (fijo) | Marca `LATE` + minutos de tardanza sobre la hora de inicio del día. | `performMark` |
+| 3 | **Marcado anticipado** (fijo) | Solo se permite dentro de la ventana `early_check_in_minutes` (15 por defecto); antes de eso se rechaza con aviso. | `earlyCheckInMessage` |
+| 4 | **Salida anticipada** (fijo) | Se pide **confirmación** ("¿marcar salida antes de la hora?") con tiempo de espera; el back reconfirma (`confirm_out`). | `isEarlyCheckout` + JS |
+| 5 | **Horario flexible** | Sin hora fija: no hay tardanza ni ventana anticipada; solo debe cumplir su meta de minutos/día (`target_minutes`). | `Schedule::isFlexible` |
+| 6 | **Salida antes de la meta** (flexible) | Igual que #4: confirma antes de cerrar si aún no cumple su meta. | `isEarlyCheckout` |
+| 7 | **Breaks** (salir y volver) | Si está activo `kiosk_breaks_enabled`, la 2ª/3ª marca puede ser break; se pregunta break vs salida. El límite (`break_limit_minutes`) solo se **reporta**, nunca penaliza. | §1.4f |
+| 8 | **Horas trabajadas** | = tramo dentro del turno (recortado si `clamp_worked_hours`), **sin descontar el break**. El break es interno. | §1.4b / `Attendance::workedMinutes` |
+| 9 | **Cumplimiento** | Cumplido = mín(trabajado, esperado); **sin crédito por sobretiempo**. Debe = esperado − cumplido (nunca negativo). Asistencias y Reporte muestran lo mismo. | §1.4d |
+| 10 | **Turno nocturno** (cruza medianoche) | Una marca antes del mediodía cierra el turno abierto de ayer como salida, no abre uno nuevo. | §3 |
+| 11 | **Día no laborable** (ej. domingo que vino a "recuperar") | **Sí puede marcar**; se registra con nota "Marca en día no laborable" y **esperadas = 0** (no cuenta contra una cuota, no genera falta). | `performMark` (nota) |
+| 12 | **Feriado** | Por defecto **bloqueado** ("no es necesario marcar"). Con `allow_holiday_marking` ON, **sí puede marcar** y la marca se etiqueta "hecha en feriado" (para comercio, seguridad, salud). | §1.4l |
+| 13 | **Vacaciones aprobadas** | Bloquea el marcado ese día. | `hardBlockMessage` |
+| 14 | **Falta / no marcó** | Genera falta automática (comando programado); ver §4. | §4 |
+| 15 | **Sin rostro enrolado** | No puede marcar por documento; se le ofrece el enrolamiento guiado (una sola vez). | §1.2 / §1.2b |
+| 16 | **Reconocimiento falla teniendo rostro** | Respaldo: marca por documento con foto de evidencia. | §1.3 |
+| 17 | **GPS** | Si `kiosk_geolocation` ON, guarda la ubicación; si además `kiosk_geolocation_required`, sin ubicación no abre la cámara ni marca. | §1.4g |
+| 18 | **Justificación de una falta** | El empleado sube una justificación; si el aprobador la acepta, el día pasa a `EXCUSED`. | §7-permisos / módulo Justificaciones |
+
+> **Caso pendiente (roadmap):** marcado por **turnos rotativos/múltiples franjas en el mismo día** (colegios, universidades, hospitales con guardias) — hoy el horario es una franja por día. Ver la nota al final de §2.
+
 ### 1.1 Flujo por páginas (documento primero, luego cámara)
 El kiosco funciona en **páginas separadas** (nada de modales encima de la cámara):
 
@@ -362,6 +389,18 @@ Las horas de los reportes se calculan en `Attendance::workedMinutes(?$shift)`:
 - Los **minutos tarde** se miden desde la hora de inicio del horario (no desde el
   fin de la tolerancia): 8:15 con tolerancia 10 → TARDANZA y **15 min** tarde.
 
+### 1.4l Marcado en feriados (`settings.allow_holiday_marking`)
+
+- Por defecto **OFF**: en un feriado (`Holiday::onDate`), el kiosco bloquea el
+  marcado con "hoy es feriado, no es necesario marcar" (`hardBlockMessage`).
+- **ON**: para empresas que sí operan feriados (comercio, seguridad, salud), el
+  bloqueo se levanta. La marca se registra normal y su nota queda etiquetada como
+  **"Marca hecha en feriado (:name)"** para que en el reporte se distinga.
+- Migración `2026_01_30_000001_add_allow_holiday_marking_to_settings`.
+- No confundir con **día no laborable** (§1.0 #11): un domingo/sábado fuera del
+  horario **siempre** se puede marcar (no es feriado), se registra con nota y
+  esperadas = 0. El feriado es una fecha del calendario nacional/empresa.
+
 ### 1.5 Seguridad del kiosco (POR SEDE)
 La seguridad es **por sede**: cada sede (tablet) tiene su propio token y su propio
 dispositivo vinculado (`app/Http/Middleware/VerifyKioskToken.php`). El middleware
@@ -409,6 +448,13 @@ Modelo en `app/Models/Schedule.php` + `app/Models/ScheduleDay.php`.
 - `tolerance_minutes` vive en el horario (no por día) y aplica a la entrada.
 - Todo empleado debe tener horario asignado (validación en `EmployeeController`):
   sin horario no se puede calcular tardanza ni falta.
+
+> **Roadmap — turnos rotativos / múltiples franjas por día.** Hoy el horario es
+> **una franja por día** (una entrada y una salida). Casos como colegios,
+> universidades u hospitales con **guardias/turnos rotativos** (mañana un día,
+> tarde otro, o dos franjas el mismo día) requerirían: (a) varias franjas por día
+> en el horario, o (b) asignación de turno por fecha. Es el único caso grande que
+> falta; se puede hacer sin romper lo actual (una franja = caso particular de N).
 
 ---
 

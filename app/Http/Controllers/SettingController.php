@@ -41,6 +41,7 @@ class SettingController extends Controller
         $data['kiosk_geolocation'] = $request->boolean('kiosk_geolocation');
         // "Force" only makes sense when geolocation is on
         $data['kiosk_geolocation_required'] = $data['kiosk_geolocation'] && $request->boolean('kiosk_geolocation_required');
+        $data['allow_holiday_marking'] = $request->boolean('allow_holiday_marking');
         $data['kiosk_fast_mode'] = $request->boolean('kiosk_fast_mode');
         $data['kiosk_liveness'] = $request->boolean('kiosk_liveness');
         // Recognition calibration (threshold + verify seconds) is core: it is

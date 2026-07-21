@@ -19,7 +19,7 @@
                 <th style="width:280px">{{ __('Actions') }}</th>
             </tr></thead>
             <tbody>
-            @foreach($companies as $company)
+            @forelse($companies as $company)
                 <tr class="{{ $company->trashed() ? 'table-danger' : (!$company->is_active ? 'table-warning' : '') }}">
                     <td class="font-weight-500">
                         {{ $company->name }}
@@ -84,7 +84,9 @@
                         @endif
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="7" class="text-center text-muted py-4">{{ __('No workspaces yet.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
     </div>
