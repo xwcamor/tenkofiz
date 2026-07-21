@@ -26,3 +26,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /public/vendor
+
+# Runtime kiosk evidence photos (never version these)
+/public/uploads/kiosk_evidence/*
+!/public/uploads/kiosk_evidence/.gitkeep
