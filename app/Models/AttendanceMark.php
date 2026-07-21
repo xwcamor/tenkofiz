@@ -15,7 +15,7 @@ class AttendanceMark extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'employee_id', 'attendance_id', 'marked_at', 'kind', 'method', 'lat', 'lng', 'accuracy', 'ip', 'user_agent',
+        'company_id', 'employee_id', 'attendance_id', 'marked_at', 'kind', 'method', 'photo', 'lat', 'lng', 'accuracy', 'ip', 'user_agent',
     ];
 
     protected $casts = ['marked_at' => 'datetime', 'lat' => 'float', 'lng' => 'float', 'accuracy' => 'integer'];
@@ -24,6 +24,12 @@ class AttendanceMark extends Model
     public function hasLocation(): bool
     {
         return $this->lat !== null && $this->lng !== null;
+    }
+
+    /** True when this punch has its own evidence photo (document/DNI marks) */
+    public function hasPhoto(): bool
+    {
+        return !empty($this->photo);
     }
 
     public function employee()

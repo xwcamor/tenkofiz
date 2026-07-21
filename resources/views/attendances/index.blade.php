@@ -185,25 +185,40 @@
                     </tr>
                     @if($attendance->marks->isNotEmpty())
                         <tr id="marks-{{ $attendance->id }}" style="display:none">
-                            <td></td>
+                            <td class="bg-light"></td>
                             <td colspan="9" class="bg-light">
-                                <small class="text-muted mr-1"><i class="fas fa-stream"></i> {{ __('Raw punches (kiosk log):') }}</small>
-                                @foreach($attendance->marks as $mark)
-                                    <span class="badge badge-light border mr-1">
-                                        {{ to_user_tz($mark->marked_at)->format('H:i:s') }} ·
-                                        @switch($mark->kind)
-                                            @case('CHECK_IN'){{ __('Check-in') }}@break
-                                            @case('CHECK_OUT'){{ __('Check-out') }}@break
-                                            @case('BREAK_OUT'){{ __('Break start') }}@break
-                                            @case('BREAK_IN'){{ __('Break end') }}@break
-                                            @default{{ $mark->kind }}
-                                        @endswitch ·
-                                        {{ __($mark->method) }}
-                                        @if($mark->hasLocation())
-                                            <a href="https://www.google.com/maps?q={{ $mark->lat }},{{ $mark->lng }}" target="_blank" rel="noopener" class="ml-1 text-danger" title="{{ __('Location') }}: {{ $mark->lat }}, {{ $mark->lng }}@if($mark->accuracy) (±{{ $mark->accuracy }} m)@endif"><i class="fas fa-map-marker-alt"></i></a>
-                                        @endif
-                                    </span>
-                                @endforeach
+                                <div class="text-muted small mb-2"><i class="fas fa-stream"></i> {{ __('Marks of the day (kiosk log) — one card per punch, with its evidence photo:') }}</div>
+                                <div class="d-flex flex-wrap" style="gap:.6rem">
+                                    @foreach($attendance->marks as $mark)
+                                        @php
+                                            $kindLabel = ['CHECK_IN' => __('Check-in'), 'CHECK_OUT' => __('Check-out'), 'BREAK_OUT' => __('Break start'), 'BREAK_IN' => __('Break end')][$mark->kind] ?? $mark->kind;
+                                            $kindIcon = ['CHECK_IN' => 'sign-in-alt', 'CHECK_OUT' => 'sign-out-alt', 'BREAK_OUT' => 'mug-hot', 'BREAK_IN' => 'reply'][$mark->kind] ?? 'clock';
+                                        @endphp
+                                        <div class="border rounded bg-white text-center p-2" style="width:150px">
+                                            <div class="font-weight-bold"><i class="fas fa-{{ $kindIcon }} text-muted"></i> {{ to_user_tz($mark->marked_at)->format('H:i:s') }}</div>
+                                            <div class="small text-muted mb-1">{{ $kindLabel }}</div>
+                                            <div class="mb-1">
+                                                @if($mark->method === 'DNI')
+                                                    <span class="badge badge-warning"><i class="fas fa-keyboard"></i> DNI</span>
+                                                @else
+                                                    <span class="badge badge-info"><i class="fas fa-id-badge"></i> {{ __($mark->method) }}</span>
+                                                @endif
+                                                @if($mark->hasLocation())
+                                                    <a href="https://www.google.com/maps?q={{ $mark->lat }},{{ $mark->lng }}" target="_blank" rel="noopener" class="text-danger ml-1" title="{{ __('Location') }}: {{ $mark->lat }}, {{ $mark->lng }}@if($mark->accuracy) (±{{ $mark->accuracy }} m)@endif"><i class="fas fa-map-marker-alt"></i></a>
+                                                @endif
+                                            </div>
+                                            @if($mark->hasPhoto())
+                                                <a href="{{ asset($mark->photo) }}" target="_blank" class="file-preview d-block" title="{{ __('View evidence photo') }}">
+                                                    <img src="{{ asset($mark->photo) }}" class="img-thumbnail" style="max-height:70px" alt="{{ __('Evidence') }}">
+                                                </a>
+                                            @elseif($mark->method === 'DNI')
+                                                <div class="small text-muted"><i class="fas fa-image"></i> {{ __('no photo') }}</div>
+                                            @else
+                                                <div class="small text-success"><i class="fas fa-check-circle"></i> {{ __('face verified') }}</div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
                             </td>
                         </tr>
                     @endif

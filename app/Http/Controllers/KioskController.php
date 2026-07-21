@@ -455,7 +455,7 @@ class KioskController extends Controller
      * in/out computation). Kept out of the response path so a logging hiccup can
      * never block a mark.
      */
-    private function recordMark(Request $request, Employee $employee, Attendance $attendance, string $kind, string $method): void
+    private function recordMark(Request $request, Employee $employee, Attendance $attendance, string $kind, string $method, ?string $photo = null): void
     {
         try {
             // Geolocation (only when enabled and sent by the kiosk browser)
@@ -474,6 +474,9 @@ class KioskController extends Controller
                 'marked_at' => now(),
                 'kind' => $kind,
                 'method' => $method,
+                // Evidence photo of THIS punch (only DNI/document marks carry one), so
+                // an admin can verify each mark individually — not just the day's first.
+                'photo' => $photo,
                 'lat' => $lat,
                 'lng' => $lng,
                 'accuracy' => $accuracy,
@@ -527,7 +530,7 @@ class KioskController extends Controller
 
             if ($openOvernight) {
                 $openOvernight->update(['check_out' => $currentTime] + $device);
-                $this->recordMark($request, $employee, $openOvernight, 'CHECK_OUT', $method);
+                $this->recordMark($request, $employee, $openOvernight, 'CHECK_OUT', $method, $extra['evidence_photo'] ?? null);
 
                 return response()->json([
                     'ok' => true,
@@ -582,7 +585,7 @@ class KioskController extends Controller
                 'shift_end' => ($todayShift && $employee->schedule->isFixed()) ? $todayShift->end_time : null,
                 'method' => $method,
             ] + $extra + $device)->save();
-            $this->recordMark($request, $employee, $attendance, 'CHECK_IN', $method);
+            $this->recordMark($request, $employee, $attendance, 'CHECK_IN', $method, $extra['evidence_photo'] ?? null);
 
             return response()->json([
                 'ok' => true,
@@ -603,7 +606,7 @@ class KioskController extends Controller
                     return response()->json(['ok' => false, 'message' => __('You just marked your break. Try again in a moment.')], 422);
                 }
                 $attendance->update(['break_in' => $currentTime] + $device);
-                $this->recordMark($request, $employee, $attendance, 'BREAK_IN', $method);
+                $this->recordMark($request, $employee, $attendance, 'BREAK_IN', $method, $extra['evidence_photo'] ?? null);
 
                 return response()->json([
                     'ok' => true, 'type' => 'BREAK_IN',
@@ -619,7 +622,7 @@ class KioskController extends Controller
                 $action = $request->input('action'); // 'break' | 'out' | null
                 if ($setting->break_required || $action === 'break') {
                     $attendance->update(['break_out' => $currentTime] + $device);
-                    $this->recordMark($request, $employee, $attendance, 'BREAK_OUT', $method);
+                    $this->recordMark($request, $employee, $attendance, 'BREAK_OUT', $method, $extra['evidence_photo'] ?? null);
 
                     return response()->json([
                         'ok' => true, 'type' => 'BREAK_OUT',
@@ -654,7 +657,7 @@ class KioskController extends Controller
             // Second mark = CHECK-OUT. Leaving early is not annotated here: the
             // person already confirmed it above and the report shows the owed time.
             $attendance->update(['check_out' => $currentTime] + array_filter($extra) + $device);
-            $this->recordMark($request, $employee, $attendance, 'CHECK_OUT', $method);
+            $this->recordMark($request, $employee, $attendance, 'CHECK_OUT', $method, $extra['evidence_photo'] ?? null);
 
             return response()->json([
                 'ok' => true,
