@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToScopedSite;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
 {
-    use BelongsToScopedSite, SoftDeletes;
+    use BelongsToScopedSite, HasHashid, SoftDeletes;
 
     public const STATUSES = ['ON_TIME', 'LATE', 'ABSENT', 'EXCUSED'];
 

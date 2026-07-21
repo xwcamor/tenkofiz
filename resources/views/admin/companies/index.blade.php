@@ -52,7 +52,7 @@
                     </td>
                     <td>
                         @if($company->trashed())
-                            <form method="POST" action="{{ route('admin.companies.restore', $company->id) }}" class="d-inline">
+                            <form method="POST" action="{{ route('admin.companies.restore', $company) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>

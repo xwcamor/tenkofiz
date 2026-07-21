@@ -78,14 +78,14 @@ class CompanyIsolationTest extends TestCase
         // From ACME's context, binding those ids must resolve to NULL → the route
         // 404s instead of letting ACME mutate Globex's user/attendance (IDOR).
         CompanyScope::actingAs($this->acme->id, function () use ($globexUser, $globexAttendance) {
-            $this->assertNull((new User)->resolveRouteBinding($globexUser->id), 'cross-tenant user must not bind');
-            $this->assertNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->id), 'cross-tenant attendance must not bind');
+            $this->assertNull((new User)->resolveRouteBinding($globexUser->getRouteKey()), 'cross-tenant user must not bind');
+            $this->assertNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->getRouteKey()), 'cross-tenant attendance must not bind');
         });
 
         // From Globex's own context, they DO bind (normal operation still works).
         CompanyScope::actingAs($this->globex->id, function () use ($globexUser, $globexAttendance) {
-            $this->assertNotNull((new User)->resolveRouteBinding($globexUser->id));
-            $this->assertNotNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->id));
+            $this->assertNotNull((new User)->resolveRouteBinding($globexUser->getRouteKey()));
+            $this->assertNotNull((new \App\Models\Attendance)->resolveRouteBinding($globexAttendance->getRouteKey()));
         });
     }
 
@@ -101,8 +101,8 @@ class CompanyIsolationTest extends TestCase
     public function test_a_company_user_cannot_open_another_companys_employee(): void
     {
         $this->actingAs($this->adminFor($this->acme));
-        $this->get('/employees/'.$this->globexEmp->id.'/edit')->assertNotFound();
-        $this->get('/employees/'.$this->acmeEmp->id.'/edit')->assertOk();
+        $this->get('/employees/'.$this->globexEmp->getRouteKey().'/edit')->assertNotFound();
+        $this->get('/employees/'.$this->acmeEmp->getRouteKey().'/edit')->assertOk();
     }
 
     public function test_super_admin_scopes_to_the_workspace_they_enter(): void
@@ -114,7 +114,7 @@ class CompanyIsolationTest extends TestCase
         $this->actingAs($super)->get('/')->assertRedirect(route('admin.companies.index'));
 
         // Enter ACME → only ACME data is visible
-        $this->actingAs($super)->post('/admin/companies/'.$this->acme->id.'/enter')->assertRedirect();
+        $this->actingAs($super)->post('/admin/companies/'.$this->acme->getRouteKey().'/enter')->assertRedirect();
         $this->actingAs($super)->withSession(['acting_company_id' => $this->acme->id]);
         session(['acting_company_id' => $this->acme->id]);
         $this->assertEqualsCanonicalizing([$this->acmeEmp->id], Employee::pluck('id')->all());

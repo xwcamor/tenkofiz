@@ -130,9 +130,9 @@ class CutoffAndPrintTest extends TestCase
             'reason' => 'Medical appointment',
         ]);
 
-        $this->actingAs($admin)->get("/vacations/{$vacation->id}/print")
+        $this->actingAs($admin)->get("/vacations/{$vacation->getRouteKey()}/print")
             ->assertOk()->assertSee('Family trip');
-        $this->actingAs($admin)->get("/justifications/{$justification->id}/print")
+        $this->actingAs($admin)->get("/justifications/{$justification->getRouteKey()}/print")
             ->assertOk()->assertSee('Medical appointment');
     }
 
@@ -157,7 +157,7 @@ class CutoffAndPrintTest extends TestCase
             'profile_id' => $profile->id,
         ]);
 
-        $this->actingAs($stranger)->get("/vacations/{$vacation->id}/print")->assertForbidden();
+        $this->actingAs($stranger)->get("/vacations/{$vacation->getRouteKey()}/print")->assertForbidden();
 
         // The owner can print it
         $owner = User::create([
@@ -168,6 +168,6 @@ class CutoffAndPrintTest extends TestCase
         ]);
         $employee->update(['user_id' => $owner->id]);
 
-        $this->actingAs($owner)->get("/vacations/{$vacation->id}/print")->assertOk();
+        $this->actingAs($owner)->get("/vacations/{$vacation->getRouteKey()}/print")->assertOk();
     }
 }

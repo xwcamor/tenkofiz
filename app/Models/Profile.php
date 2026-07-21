@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 
 class Profile extends Model
 {
-    use BelongsToCompany; // profiles are per company (each workspace has its own roles)
+    use BelongsToCompany, HasHashid; // profiles are per company (each workspace has its own roles)
 
     /** Modules that can be granted to a profile (key => translatable label) */
     public const MODULES = [

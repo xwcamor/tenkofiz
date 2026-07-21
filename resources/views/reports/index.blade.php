@@ -105,7 +105,7 @@
                     </td>
                     <td class="text-center">{{ $row['vacation_days'] }}</td>
                     <td class="text-center">
-                        <a href="{{ route('reports.sheet', $row['id']) }}?from={{ $from->toDateString() }}&to={{ $to->toDateString() }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
+                        <a href="{{ route('reports.sheet', $row['sheet_key']) }}?from={{ $from->toDateString() }}&to={{ $to->toDateString() }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
                     </td>
                 </tr>
             @endforeach

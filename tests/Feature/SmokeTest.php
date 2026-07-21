@@ -61,7 +61,7 @@ class SmokeTest extends TestCase
     {
         $admin = $this->admin();
 
-        $this->actingAs($admin)->delete("/users/{$admin->id}");
+        $this->actingAs($admin)->delete("/users/{$admin->getRouteKey()}");
 
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
@@ -114,11 +114,11 @@ class SmokeTest extends TestCase
         $descriptor = array_fill(0, 128, 0.1);
 
         $this->actingAs($admin)
-            ->postJson("/employees/{$employee->id}/descriptor", ['descriptors' => [$descriptor]])
+            ->postJson("/employees/{$employee->getRouteKey()}/descriptor", ['descriptors' => [$descriptor]])
             ->assertStatus(422);
 
         $this->actingAs($admin)
-            ->postJson("/employees/{$employee->id}/descriptor", ['descriptors' => [$descriptor], 'consent' => true])
+            ->postJson("/employees/{$employee->getRouteKey()}/descriptor", ['descriptors' => [$descriptor], 'consent' => true])
             ->assertOk();
 
         $this->assertNotNull($employee->fresh()->biometric_consent_at);

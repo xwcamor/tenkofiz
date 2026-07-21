@@ -109,7 +109,7 @@ class WorkspaceCommercialTest extends TestCase
             ->assertSessionHasErrors('email');
 
         // Restore brings everything back
-        $this->actingAs($this->super())->post(route('admin.companies.restore', $company->id));
+        $this->actingAs($this->super())->post(route('admin.companies.restore', $company));
         $this->assertNull($company->fresh()->deleted_at);
     }
 

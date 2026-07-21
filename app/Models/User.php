@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use App\Models\Scopes\CompanyScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, HasHashid, Notifiable, SoftDeletes;
 
     /**
      * The User model is deliberately NOT globally company-scoped: the auth guard
@@ -38,19 +40,15 @@ class User extends Authenticatable
     }
 
     /**
-     * IDOR guard: bind {user} only within the current company (a super-admin not
-     * acting inside a workspace still sees all). Without this, a users-module
-     * admin could PUT/DELETE another company's user by changing the id in the URL
-     * — an account takeover. inCompany() is a no-op when no company is active.
+     * IDOR guard for route-model binding (via HasHashid): bind {user} only within
+     * the current company (a super-admin not acting inside a workspace still sees
+     * all). Without this, a users-module admin could PUT/DELETE another company's
+     * user by changing the id in the URL — an account takeover. inCompany() is a
+     * no-op when no company is active.
      */
-    public function resolveRouteBinding($value, $field = null)
+    public function tenantBindingQuery(): Builder
     {
-        return $this->inCompany()->where($field ?? $this->getRouteKeyName(), $value)->first();
-    }
-
-    public function resolveSoftDeletableRouteBinding($value, $field = null)
-    {
-        return $this->inCompany()->withTrashed()->where($field ?? $this->getRouteKeyName(), $value)->first();
+        return $this->inCompany();
     }
 
     protected $fillable = [

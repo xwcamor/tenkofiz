@@ -33,20 +33,12 @@ trait BelongsToScopedSite
     }
 
     /**
-     * IDOR guard: route-model binding ({attendance}, {vacation}, {justification})
-     * is resolved through the tenant scope, so a changed id that points at another
-     * company's/site's row returns 404 instead of being mutated. This closes the
-     * binding hole that plain implicit binding left open (index queries were
-     * scoped, but the bound model for update/destroy was not).
+     * IDOR guard for route-model binding: HasHashid resolves the bound model
+     * through this tenant-scoped query, so a changed/foreign id 404s instead of
+     * being read or mutated (index queries were scoped, but plain binding was not).
      */
-    public function resolveRouteBinding($value, $field = null)
+    public function tenantBindingQuery(): Builder
     {
-        return $this->inCurrentSite()->where($field ?? $this->getRouteKeyName(), $value)->first();
-    }
-
-    /** Same tenant guard for the soft-deleted (restore) routes. */
-    public function resolveSoftDeletableRouteBinding($value, $field = null)
-    {
-        return $this->inCurrentSite()->withTrashed()->where($field ?? $this->getRouteKeyName(), $value)->first();
+        return $this->inCurrentSite();
     }
 }

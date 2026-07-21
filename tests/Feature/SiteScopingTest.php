@@ -74,9 +74,10 @@ class SiteScopingTest extends TestCase
     {
         $this->actingAs($this->siteManager($this->lima));
 
-        // Route-model binding respects the global scope: the Cusco employee is a 404
-        $this->get('/employees/'.$this->cuscoEmployee->id.'/edit')->assertNotFound();
-        $this->get('/employees/'.$this->limaEmployee->id.'/edit')->assertOk();
+        // Route-model binding respects the global scope: even with a VALID hashid,
+        // the Cusco employee (another site) resolves to a 404 for a Lima-bound manager
+        $this->get('/employees/'.$this->cuscoEmployee->getRouteKey().'/edit')->assertNotFound();
+        $this->get('/employees/'.$this->limaEmployee->getRouteKey().'/edit')->assertOk();
     }
 
     public function test_attendances_are_scoped_to_the_users_site(): void

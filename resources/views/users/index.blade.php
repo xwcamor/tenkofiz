@@ -75,7 +75,7 @@
                         <td>{{ to_user_tz($user->deleted_at)->format('d/m/Y H:i') }}</td>
                         <td>{{ $user->delete_reason ?? '—' }}</td>
                         <td>
-                            <form method="POST" action="{{ route('users.restore', $user->id) }}" class="d-inline">
+                            <form method="POST" action="{{ route('users.restore', $user) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>

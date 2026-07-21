@@ -49,11 +49,11 @@ class AttendanceDeleteTest extends TestCase
     {
         [$admin, , $attendance] = $this->setUpData();
 
-        $this->actingAs($admin)->delete("/attendances/{$attendance->id}")
+        $this->actingAs($admin)->delete("/attendances/{$attendance->getRouteKey()}")
             ->assertSessionHasErrors('delete_reason');
         $this->assertNull($attendance->fresh()->deleted_at);
 
-        $this->actingAs($admin)->delete("/attendances/{$attendance->id}", ['delete_reason' => 'Duplicated mark'])
+        $this->actingAs($admin)->delete("/attendances/{$attendance->getRouteKey()}", ['delete_reason' => 'Duplicated mark'])
             ->assertSessionHas('ok');
         $this->assertSoftDeleted('attendances', ['id' => $attendance->id]);
         $this->assertSame(0, Attendance::count());
@@ -62,7 +62,7 @@ class AttendanceDeleteTest extends TestCase
     public function test_admin_sees_deleted_and_can_restore(): void
     {
         [$admin, , $attendance] = $this->setUpData();
-        $this->actingAs($admin)->delete("/attendances/{$attendance->id}", ['delete_reason' => 'Mistake']);
+        $this->actingAs($admin)->delete("/attendances/{$attendance->getRouteKey()}", ['delete_reason' => 'Mistake']);
 
         $deleted = $this->actingAs($admin)
             ->get('/attendances?deleted=1&from=2026-07-01&to=2026-07-31')
@@ -70,7 +70,7 @@ class AttendanceDeleteTest extends TestCase
         $this->assertSame(1, $deleted->total());
         $this->assertSame('Mistake', $deleted->first()->delete_reason);
 
-        $this->actingAs($admin)->post("/attendances/{$attendance->id}/restore")->assertSessionHas('ok');
+        $this->actingAs($admin)->post("/attendances/{$attendance->getRouteKey()}/restore")->assertSessionHas('ok');
         $this->assertNull($attendance->fresh()->deleted_at);
     }
 
@@ -102,7 +102,7 @@ class AttendanceDeleteTest extends TestCase
         $admin = User::where('email', 'admin@test.com')->first();
 
         // Delete the mark, then the kiosk records a fresh one for the same date
-        $this->actingAs($admin)->delete("/attendances/{$attendance->id}", ['delete_reason' => 'Wrong person']);
+        $this->actingAs($admin)->delete("/attendances/{$attendance->getRouteKey()}", ['delete_reason' => 'Wrong person']);
 
         Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday 09:30 Lima
         $this->postJson('/kiosk/mark-dni', ['document_number' => '11112222'])

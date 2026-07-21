@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use App\Models\Scopes\SiteScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use BelongsToCompany, SoftDeletes;
+    use BelongsToCompany, HasHashid, SoftDeletes;
 
     protected static function booted(): void
     {

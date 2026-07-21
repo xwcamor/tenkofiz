@@ -105,11 +105,11 @@
                     @if($isManager)
                         <select name="employee_id" id="vacationEmployee" class="employee-select @error('employee_id') is-invalid @enderror"
                                 data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
-                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
+                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->getRouteKey() }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
                     @else
                         <select name="employee_id" id="vacationEmployee" class="form-control @error('employee_id') is-invalid @enderror" required>
                             @foreach($employees as $employee)
-                                <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
+                                <option value="{{ $employee->getRouteKey() }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
                             @endforeach
                         </select>
                     @endif

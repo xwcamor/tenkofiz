@@ -104,7 +104,7 @@ class SchedulesAndBalanceTest extends TestCase
         // 11 days > 10 allowance
         $this->actingAs(User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
             ->post('/vacations', [
-                'employee_id' => $employee->id,
+                'employee_id' => $employee->getRouteKey(),
                 'start_date' => '2026-08-01',
                 'end_date' => '2026-08-11',
                 'reason' => 'Too long',
@@ -125,10 +125,10 @@ class SchedulesAndBalanceTest extends TestCase
         $first = Vacation::create(['employee_id' => $employee->id, 'start_date' => '2026-08-01', 'end_date' => '2026-08-07', 'days' => 7, 'reason' => 'A']);
         $second = Vacation::create(['employee_id' => $employee->id, 'start_date' => '2026-09-01', 'end_date' => '2026-09-07', 'days' => 7, 'reason' => 'B']);
 
-        $this->actingAs($admin)->patch("/vacations/{$first->id}/status", ['status' => 'APPROVED']);
+        $this->actingAs($admin)->patch("/vacations/{$first->getRouteKey()}/status", ['status' => 'APPROVED']);
         $this->assertSame('APPROVED', $first->fresh()->status);
 
-        $this->actingAs($admin)->patch("/vacations/{$second->id}/status", ['status' => 'APPROVED']);
+        $this->actingAs($admin)->patch("/vacations/{$second->getRouteKey()}/status", ['status' => 'APPROVED']);
         $this->assertSame('PENDING', $second->fresh()->status); // blocked: only 3 days left
 
         $this->assertSame(3, $employee->fresh()->remainingVacationDays(2026));

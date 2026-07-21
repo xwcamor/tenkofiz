@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class Site extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, HasHashid;
 
     protected $fillable = [
         'company_id', 'name', 'address', 'timezone', 'is_active',

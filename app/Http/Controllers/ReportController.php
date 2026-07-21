@@ -206,7 +206,7 @@ class ReportController extends Controller
 
         [$from, $to] = $this->range($request);
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
-        $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;
+        $employeeId = request_employee_id($request); // obfuscated id → raw key
 
         $data = $this->buildBreakData($from, $to, $siteId, $employeeId);
         $sites = $this->visibleSites($request);
@@ -222,7 +222,7 @@ class ReportController extends Controller
 
         [$from, $to] = $this->range($request);
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
-        $employeeId = $request->filled('employee_id') ? $request->integer('employee_id') : null;
+        $employeeId = request_employee_id($request); // obfuscated id → raw key
 
         $data = $this->buildBreakData($from, $to, $siteId, $employeeId);
         $limit = $data['limit'];
@@ -394,6 +394,7 @@ class ReportController extends Controller
 
             return [
                 'id' => $employee->id,
+                'sheet_key' => $employee->getRouteKey(), // obfuscated id for the sheet URL
                 'employee' => $employee->full_name,
                 'document' => $employee->document_type.' '.$employee->document_number,
                 'document_number' => $employee->document_number,
@@ -429,7 +430,7 @@ class ReportController extends Controller
             return redirect()->route('dashboard')->with('error', __('Your user is not linked to an employee.'));
         }
 
-        return redirect()->route('reports.sheet', ['employee' => $employee->id] + $request->only(['from', 'to', 'month']));
+        return redirect()->route('reports.sheet', ['employee' => $employee] + $request->only(['from', 'to', 'month']));
     }
 
     /** Printable formal sheet (PDF via browser): managers see anyone, employees only their own */

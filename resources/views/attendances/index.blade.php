@@ -54,7 +54,7 @@
             <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
             <select name="employee_id" class="employee-select mr-3" data-url="{{ route('employees.search') }}"
                     data-placeholder="{{ __('All employees') }}" data-width="240px"
-                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->id }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
+                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
             <select name="status" class="form-control form-control-sm mr-3">
                 <option value="">{{ __('All statuses') }}</option>
                 @foreach(\App\Models\Attendance::STATUSES as $status)
@@ -115,7 +115,7 @@
                         <td>{{ to_user_tz($attendance->deleted_at)->format('d/m/Y H:i') }}</td>
                         <td>{{ $attendance->delete_reason ?? '—' }}</td>
                         <td>
-                            <form method="POST" action="{{ route('attendances.restore', $attendance->id) }}" class="d-inline">
+                            <form method="POST" action="{{ route('attendances.restore', $attendance) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>
@@ -256,7 +256,7 @@
                     <label>{{ __('Employee') }}</label>
                     <select name="employee_id" class="employee-select @error('employee_id') is-invalid @enderror"
                             data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
-                            @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
+                            @if($oldEmployee) data-selected-id="{{ $oldEmployee->getRouteKey() }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="row">

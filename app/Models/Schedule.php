@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 
 class Schedule extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, HasHashid;
 
     public const TYPE_FIXED = 'fixed';       // start time + tolerance judge punctuality
     public const TYPE_FLEXIBLE = 'flexible'; // no fixed start; complete a daily hour target

@@ -14,9 +14,11 @@ class CalendarController extends Controller
         $user = $request->user();
         $isManager = $user->isManager();
 
-        // Managers can pick an employee; employees see their own calendar
-        $employee = $isManager && $request->filled('employee_id')
-            ? Employee::find($request->integer('employee_id'))
+        // Managers can pick an employee; employees see their own calendar.
+        // The employee_id in the URL is an obfuscated Hashid, never the raw key.
+        $employeeId = request_employee_id($request);
+        $employee = $isManager && $employeeId
+            ? Employee::find($employeeId)
             : Employee::where('user_id', $user->id)->first();
 
         $events = [];

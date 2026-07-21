@@ -22,7 +22,7 @@
             @endif
             <select name="employee_id" class="employee-select mr-3" data-url="{{ route('employees.search') }}"
                     data-placeholder="{{ __('All employees') }}" data-width="220px"
-                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->id }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
+                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
             <a href="{{ route('reports.breaksExport', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId, 'employee_id' => $selectedEmployee?->id])) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Excel') }}</a>
             <a href="{{ route('reports.index', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-secondary ml-2"><i class="fas fa-arrow-left"></i> {{ __('Hours report') }}</a>

@@ -173,7 +173,7 @@ async function linkUser(id, name) {
                         <td>{{ to_user_tz($employee->deleted_at)->format('d/m/Y H:i') }}</td>
                         <td>{{ $employee->delete_reason ?? '—' }}</td>
                         <td>
-                            <form method="POST" action="{{ route('employees.restore', $employee->id) }}" class="d-inline">
+                            <form method="POST" action="{{ route('employees.restore', $employee) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>

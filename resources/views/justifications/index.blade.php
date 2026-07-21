@@ -75,7 +75,7 @@
                         <td>{{ to_user_tz($justification->deleted_at)->format('d/m/Y H:i') }}</td>
                         <td>{{ $justification->delete_reason ?? '—' }}</td>
                         <td>
-                            <form method="POST" action="{{ route('justifications.restore', $justification->id) }}" class="d-inline">
+                            <form method="POST" action="{{ route('justifications.restore', $justification) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>
@@ -146,11 +146,11 @@
                     @if($isManager)
                         <select name="employee_id" class="employee-select @error('employee_id') is-invalid @enderror"
                                 data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
-                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->id }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
+                                @if($oldEmployee) data-selected-id="{{ $oldEmployee->getRouteKey() }}" data-selected-text="{{ $oldEmployee->full_name }}" @endif></select>
                     @else
                         <select name="employee_id" class="form-control @error('employee_id') is-invalid @enderror" required>
                             @foreach($employees as $employee)
-                                <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
+                                <option value="{{ $employee->getRouteKey() }}" @selected(old('employee_id') == $employee->id)>{{ $employee->full_name }}</option>
                             @endforeach
                         </select>
                     @endif

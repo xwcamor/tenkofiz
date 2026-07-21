@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class KioskDevice extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, HasHashid;
 
     protected $fillable = ['company_id', 'site_id', 'name', 'device_hash', 'last_seen_at'];
 

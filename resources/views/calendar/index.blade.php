@@ -8,7 +8,7 @@
             <label class="mr-2">{{ __('View calendar of:') }}</label>
             <select name="employee_id" class="employee-select mr-2" data-url="{{ route('employees.search') }}"
                     data-placeholder="— {{ __('Select an employee') }} —" data-width="300px" onchange="this.form.submit()"
-                    @if($employee) data-selected-id="{{ $employee->id }}" data-selected-text="{{ $employee->full_name }}" @endif></select>
+                    @if($employee) data-selected-id="{{ $employee->getRouteKey() }}" data-selected-text="{{ $employee->full_name }}" @endif></select>
         </form>
     </div>
 </div>

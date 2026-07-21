@@ -174,7 +174,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'results' => collect($employees->items())->map(fn ($employee) => [
-                'id' => $employee->id,
+                'id' => $employee->getRouteKey(), // obfuscated id; controllers decode it back
                 'text' => $employee->full_name.' — '.$employee->document_number,
                 'balance' => max(0, ($employee->vacation_days_per_year ?? 30) - (int) $employee->approved_vacation_days),
             ]),

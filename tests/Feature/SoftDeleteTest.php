@@ -51,12 +51,12 @@ class SoftDeleteTest extends TestCase
         Attendance::create(['employee_id' => $employee->id, 'date' => '2026-07-16', 'status' => 'ON_TIME', 'method' => 'MANUAL']);
 
         // Without a reason: rejected
-        $this->actingAs($admin)->delete("/employees/{$employee->id}")
+        $this->actingAs($admin)->delete("/employees/{$employee->getRouteKey()}")
             ->assertSessionHasErrors('delete_reason');
         $this->assertNull($employee->fresh()->deleted_at);
 
         // With a reason: soft deleted, attendance history intact
-        $this->actingAs($admin)->delete("/employees/{$employee->id}", ['delete_reason' => 'Left the company'])
+        $this->actingAs($admin)->delete("/employees/{$employee->getRouteKey()}", ['delete_reason' => 'Left the company'])
             ->assertSessionHas('ok');
 
         $this->assertSoftDeleted('employees', ['id' => $employee->id]);
@@ -75,7 +75,7 @@ class SoftDeleteTest extends TestCase
     {
         $admin = $this->admin();
         $employee = $this->makeEmployee();
-        $this->actingAs($admin)->delete("/employees/{$employee->id}", ['delete_reason' => 'Mistake']);
+        $this->actingAs($admin)->delete("/employees/{$employee->getRouteKey()}", ['delete_reason' => 'Mistake']);
 
         // Trash view lists it
         $deleted = $this->actingAs($admin)->get('/employees?deleted=1')->viewData('employees');
@@ -83,7 +83,7 @@ class SoftDeleteTest extends TestCase
         $this->assertSame('Mistake', $deleted->first()->delete_reason);
 
         // Restore brings it back cleanly
-        $this->actingAs($admin)->post("/employees/{$employee->id}/restore")->assertSessionHas('ok');
+        $this->actingAs($admin)->post("/employees/{$employee->getRouteKey()}/restore")->assertSessionHas('ok');
         $this->assertNull($employee->fresh()->deleted_at);
         $this->assertNull($employee->fresh()->delete_reason);
     }
@@ -94,13 +94,13 @@ class SoftDeleteTest extends TestCase
         $approver = User::where('email', 'aprobador@test.com')->first(); // manager, but no settings module
         $employee = $this->makeEmployee();
 
-        $this->actingAs($approver)->delete("/employees/{$employee->id}", ['delete_reason' => 'Test']);
+        $this->actingAs($approver)->delete("/employees/{$employee->getRouteKey()}", ['delete_reason' => 'Test']);
 
         // The deleted toggle is silently ignored for non-admins
         $this->assertSame(0, $this->actingAs($approver)->get('/employees?deleted=1')->viewData('employees')->total());
 
         // Restore is forbidden
-        $this->actingAs($approver)->post("/employees/{$employee->id}/restore")->assertForbidden();
+        $this->actingAs($approver)->post("/employees/{$employee->getRouteKey()}/restore")->assertForbidden();
     }
 
     public function test_deleted_user_cannot_sign_in_and_can_be_restored(): void
@@ -108,7 +108,7 @@ class SoftDeleteTest extends TestCase
         $admin = $this->admin();
         $victim = User::where('email', 'empleado@test.com')->first();
 
-        $this->actingAs($admin)->delete("/users/{$victim->id}", ['delete_reason' => 'Duplicated account'])
+        $this->actingAs($admin)->delete("/users/{$victim->getRouteKey()}", ['delete_reason' => 'Duplicated account'])
             ->assertSessionHas('ok');
         $this->assertSoftDeleted('users', ['id' => $victim->id]);
 
@@ -117,7 +117,7 @@ class SoftDeleteTest extends TestCase
         $this->post('/login', ['email' => 'empleado@test.com', 'password' => '123456'])
             ->assertSessionHasErrors();
 
-        $this->actingAs($admin)->post("/users/{$victim->id}/restore")->assertSessionHas('ok');
+        $this->actingAs($admin)->post("/users/{$victim->getRouteKey()}/restore")->assertSessionHas('ok');
         $this->assertNull($victim->fresh()->deleted_at);
     }
 }

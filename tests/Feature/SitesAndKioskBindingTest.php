@@ -56,7 +56,7 @@ class SitesAndKioskBindingTest extends TestCase
         $site = Site::first(); // the seeded "Sede Principal"
 
         // Admin generates a one-time pairing code FOR THIS SITE
-        $this->actingAs($admin)->post('/sites/'.$site->id.'/kiosk-pair-code')
+        $this->actingAs($admin)->post('/sites/'.$site->getRouteKey().'/kiosk-pair-code')
             ->assertSessionHas('pair_code')
             ->assertSessionHas('pair_site', $site->id);
         $code = session('pair_code');
@@ -91,7 +91,7 @@ class SitesAndKioskBindingTest extends TestCase
         // Pair TWO tablets, each with its own code and its own name
         $secrets = [];
         foreach (['Reception', 'Warehouse'] as $name) {
-            $this->actingAs($admin)->post('/sites/'.$site->id.'/kiosk-pair-code');
+            $this->actingAs($admin)->post('/sites/'.$site->getRouteKey().'/kiosk-pair-code');
             $code = session('pair_code');
             $pair = $this->post('/kiosk/pair', ['code' => $code, 'device_name' => $name]);
             $pair->assertRedirect();
@@ -120,7 +120,7 @@ class SitesAndKioskBindingTest extends TestCase
 
         $secrets = [];
         foreach (['A', 'B'] as $name) {
-            $this->actingAs($admin)->post('/sites/'.$site->id.'/kiosk-pair-code');
+            $this->actingAs($admin)->post('/sites/'.$site->getRouteKey().'/kiosk-pair-code');
             $pair = $this->post('/kiosk/pair', ['code' => session('pair_code'), 'device_name' => $name]);
             $secrets[$name] = $pair->headers->getCookies()[0]->getValue();
         }
@@ -128,7 +128,7 @@ class SitesAndKioskBindingTest extends TestCase
         $tabletA = $site->kioskDevices->firstWhere('name', 'A');
 
         // Revoke tablet A only
-        $this->actingAs($admin)->delete('/sites/'.$site->id.'/kiosk-device/'.$tabletA->id)->assertRedirect();
+        $this->actingAs($admin)->delete('/sites/'.$site->getRouteKey().'/kiosk-device/'.$tabletA->getRouteKey())->assertRedirect();
         $this->assertDatabaseMissing('kiosk_devices', ['id' => $tabletA->id]);
 
         // A can no longer open it; B still can
@@ -143,12 +143,12 @@ class SitesAndKioskBindingTest extends TestCase
         $siteA = Site::first();
         $siteB = Site::create(['name' => 'Other']);
 
-        $this->actingAs($admin)->post('/sites/'.$siteA->id.'/kiosk-pair-code');
+        $this->actingAs($admin)->post('/sites/'.$siteA->getRouteKey().'/kiosk-pair-code');
         $this->post('/kiosk/pair', ['code' => session('pair_code'), 'device_name' => 'A-tablet']);
         $device = $siteA->kioskDevices()->first();
 
         // Trying to revoke A's device through site B's route is a 404
-        $this->actingAs($admin)->delete('/sites/'.$siteB->id.'/kiosk-device/'.$device->id)->assertNotFound();
+        $this->actingAs($admin)->delete('/sites/'.$siteB->getRouteKey().'/kiosk-device/'.$device->getRouteKey())->assertNotFound();
         $this->assertDatabaseHas('kiosk_devices', ['id' => $device->id]);
     }
 

@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 
 class Holiday extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, HasHashid;
 
     protected $fillable = ['company_id', 'date', 'name'];
 

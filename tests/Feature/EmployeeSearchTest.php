@@ -75,7 +75,9 @@ class EmployeeSearchTest extends TestCase
         $data = $this->actingAs($admin)->getJson('/lookup/employees?q=00000004')->json();
 
         $this->assertCount(1, $data['results']);
-        $this->assertSame($employee->id, $data['results'][0]['id']);
+        // The autocomplete returns the obfuscated (Hashid) id, never the raw key
+        $this->assertSame($employee->getRouteKey(), $data['results'][0]['id']);
+        $this->assertSame($employee->id, \App\Support\Hashid::decode($data['results'][0]['id']));
         $this->assertStringContainsString('00000004', $data['results'][0]['text']);
         $this->assertSame(23, $data['results'][0]['balance']); // 30 allowance - 7 approved
     }

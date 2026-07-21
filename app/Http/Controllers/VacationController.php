@@ -57,6 +57,9 @@ class VacationController extends Controller
 
     public function store(Request $request)
     {
+        // The form submits the employee as an obfuscated Hashid; decode first
+        $request->merge(['employee_id' => request_employee_id($request)]);
+
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],

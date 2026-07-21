@@ -34,7 +34,7 @@ class EmployeeUserLinkTest extends TestCase
         $supervisorProfile = Profile::where('name', 'Supervisor')->first();
 
         $this->actingAs($admin)
-            ->postJson("/employees/{$employee->id}/create-user", [
+            ->postJson("/employees/{$employee->getRouteKey()}/create-user", [
                 'email' => 'super@test.test',
                 'profile_id' => $supervisorProfile->id,
             ])
@@ -51,7 +51,7 @@ class EmployeeUserLinkTest extends TestCase
         $employee = $this->seedBase();
 
         $this->actingAs(User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail())
-            ->postJson("/employees/{$employee->id}/create-user", ['email' => 'worker@test.test'])
+            ->postJson("/employees/{$employee->getRouteKey()}/create-user", ['email' => 'worker@test.test'])
             ->assertOk();
 
         $this->assertSame('Employee', User::where('email', 'worker@test.test')->first()->profile->name);
@@ -71,7 +71,7 @@ class EmployeeUserLinkTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post("/employees/{$employee->id}/link-user", ['user_id' => $free->id])
+            ->post("/employees/{$employee->getRouteKey()}/link-user", ['user_id' => $free->id])
             ->assertRedirect();
         $this->assertSame($free->id, $employee->fresh()->user_id);
 
@@ -83,11 +83,11 @@ class EmployeeUserLinkTest extends TestCase
             'schedule_id' => Schedule::first()->id,
         ]);
         $this->actingAs($admin)
-            ->post("/employees/{$other->id}/link-user", ['user_id' => $free->id])
+            ->post("/employees/{$other->getRouteKey()}/link-user", ['user_id' => $free->id])
             ->assertSessionHasErrors('user_id');
 
         $this->actingAs($admin)
-            ->post("/employees/{$employee->id}/unlink-user")
+            ->post("/employees/{$employee->getRouteKey()}/unlink-user")
             ->assertRedirect();
         $this->assertNull($employee->fresh()->user_id);
         $this->assertNotNull(User::find($free->id)); // the account survives

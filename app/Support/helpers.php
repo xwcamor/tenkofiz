@@ -152,6 +152,20 @@ if (!function_exists('last_closed_period')) {
     }
 }
 
+if (!function_exists('request_employee_id')) {
+    /**
+     * The employee id that arrives in a request (the Select2 autocomplete value, a
+     * filter query string, or a form field) is a Hashid, never the raw database id
+     * — URLs and forms must not leak sequential ids. This decodes it back to the
+     * integer key; returns null when absent or malformed (so a filter just becomes
+     * "all" and a form field fails validation, never binds a foreign row).
+     */
+    function request_employee_id(\Illuminate\Http\Request $request, string $key = 'employee_id'): ?int
+    {
+        return \App\Support\Hashid::decode($request->input($key));
+    }
+}
+
 if (!function_exists('vendor_asset')) {
     /**
      * Local-first asset: serves the file from public/ when it exists (run

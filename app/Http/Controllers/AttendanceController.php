@@ -21,12 +21,15 @@ class AttendanceController extends Controller
         // Deleted-records view: restricted to administrators (settings module)
         $showDeleted = $request->boolean('deleted') && $request->user()->hasModule('settings');
 
+        // The employee_id in the URL is an obfuscated Hashid, never the raw key
+        $employeeId = request_employee_id($request);
+
         // Server-side pagination: this table grows without bounds
         $attendances = Attendance::with('employee.site', 'employee.schedule.days', 'marks')
             ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
-            ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))
+            ->when($employeeId, fn ($q) => $q->where('employee_id', $employeeId))
             ->when($request->filled('site_id'), fn ($q) => $q->whereHas('employee', fn ($e) => $e->where('site_id', $request->integer('site_id'))))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
 
@@ -45,7 +48,8 @@ class AttendanceController extends Controller
 
         // The employee selectors use AJAX autocomplete; only resolve the labels
         // of the values already chosen (filter and re-opened modal after errors)
-        $selectedEmployee = $request->filled('employee_id') ? Employee::find($request->integer('employee_id')) : null;
+        $selectedEmployee = $employeeId ? Employee::find($employeeId) : null;
+        // After a failed store() the id was normalised to the raw key in old input
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
         $sites = $this->visibleSites($request);
 
@@ -55,6 +59,9 @@ class AttendanceController extends Controller
     /** Manual entry (e.g. corrections) by managers */
     public function store(Request $request)
     {
+        // The form submits the employee as a Hashid; decode before validation
+        $request->merge(['employee_id' => request_employee_id($request)]);
+
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id'],
             'date' => ['required', 'date'],
