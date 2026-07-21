@@ -11,6 +11,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReportController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     /** Report of worked hours and days per employee within a date range */
     public function index(Request $request)
     {
@@ -18,6 +20,14 @@ class ReportController extends Controller
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
         $rows = $this->buildRows($from, $to, $siteId);
         $sites = $this->visibleSites($request);
+
+        [$rows, $sort, $dir] = $this->sortCollection($rows, $request, [
+            'employee' => 'employee', 'document' => 'document_number', 'site' => 'site',
+            'area' => 'area', 'position' => 'position', 'worked_days' => 'worked_days',
+            'on_time' => 'on_time', 'late' => 'late', 'late_minutes' => 'late_minutes',
+            'absent' => 'absent', 'excused' => 'excused', 'expected' => 'expected_minutes',
+            'worked' => 'worked_minutes', 'balance' => 'balance_minutes', 'vacation' => 'vacation_days',
+        ], 'employee');
 
         // Chart 1: status distribution across the whole period
         $statusTotals = [
@@ -32,7 +42,7 @@ class ReportController extends Controller
         $hoursLabels = $topHours->pluck('employee');
         $hoursData = $topHours->map(fn ($r) => round($r['worked_minutes'] / 60, 1));
 
-        return view('reports.index', compact('rows', 'from', 'to', 'statusTotals', 'hoursLabels', 'hoursData', 'sites', 'siteId'));
+        return view('reports.index', compact('rows', 'from', 'to', 'statusTotals', 'hoursLabels', 'hoursData', 'sites', 'siteId', 'sort', 'dir'));
     }
 
     /** Same report as a server-generated Excel file (full data, not just the visible page) */

@@ -59,9 +59,22 @@
         <table class="table table-bordered table-hover report-table">
             <thead>
                 <tr>
-                    <th>{{ __('Employee') }}</th><th>{{ __('Document') }}</th><th>{{ __('Site') }}</th><th>{{ __('Area') }}</th><th>{{ __('Position') }}</th>
-                    <th>{{ __('Worked days') }}</th><th>{{ __('On time') }}</th><th>{{ __('Late') }}</th><th>{{ __('Late minutes') }}</th><th>{{ __('Absences') }}</th><th>{{ __('Excused') }}</th>
-                    <th>{{ __('Expected hours') }}</th><th>{{ __('Worked hours') }}</th><th>{{ __('Balance') }}</th><th>{{ __('Vacation days') }}</th><th>{{ __('Sheet') }}</th>
+                    @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                    @include('partials.th-sort', ['key' => 'document', 'label' => __('Document')])
+                    @include('partials.th-sort', ['key' => 'site', 'label' => __('Site')])
+                    @include('partials.th-sort', ['key' => 'area', 'label' => __('Area')])
+                    @include('partials.th-sort', ['key' => 'position', 'label' => __('Position')])
+                    @include('partials.th-sort', ['key' => 'worked_days', 'label' => __('Worked days')])
+                    @include('partials.th-sort', ['key' => 'on_time', 'label' => __('On time')])
+                    @include('partials.th-sort', ['key' => 'late', 'label' => __('Late')])
+                    @include('partials.th-sort', ['key' => 'late_minutes', 'label' => __('Late minutes')])
+                    @include('partials.th-sort', ['key' => 'absent', 'label' => __('Absences')])
+                    @include('partials.th-sort', ['key' => 'excused', 'label' => __('Excused')])
+                    @include('partials.th-sort', ['key' => 'expected', 'label' => __('Expected hours')])
+                    @include('partials.th-sort', ['key' => 'worked', 'label' => __('Worked hours')])
+                    @include('partials.th-sort', ['key' => 'balance', 'label' => __('Balance')])
+                    @include('partials.th-sort', ['key' => 'vacation', 'label' => __('Vacation days')])
+                    <th>{{ __('Sheet') }}</th>
                 </tr>
             </thead>
             <tbody>

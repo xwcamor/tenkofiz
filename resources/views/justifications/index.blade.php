@@ -43,7 +43,14 @@
                 @if($showDeleted)
                     <tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
-                    <tr><th>{{ __('Employee') }}</th><th>{{ __('Date') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Document') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canReview ? 180 : 60 }}px">{{ __('Actions') }}</th></tr>
+                    <tr>
+                        @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                        @include('partials.th-sort', ['key' => 'date', 'label' => __('Date')])
+                        <th>{{ __('Reason') }}</th>
+                        <th>{{ __('Document') }}</th>
+                        @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                        <th style="width:{{ $canReview ? 180 : 60 }}px">{{ __('Actions') }}</th>
+                    </tr>
                 @endif
             </thead>
             <tbody>

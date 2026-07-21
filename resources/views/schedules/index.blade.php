@@ -7,7 +7,13 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Working days') }}</th><th>{{ __('Tolerance') }}</th><th>{{ __('Employees') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'name', 'label' => __('Name')])
+                <th>{{ __('Working days') }}</th>
+                @include('partials.th-sort', ['key' => 'tolerance', 'label' => __('Tolerance')])
+                @include('partials.th-sort', ['key' => 'employees', 'label' => __('Employees')])
+                <th style="width:110px">{{ __('Actions') }}</th>
+            </tr></thead>
             <tbody>
             @foreach($schedules as $schedule)
                 <tr>

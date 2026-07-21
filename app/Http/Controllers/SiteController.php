@@ -10,11 +10,18 @@ use Illuminate\Validation\Rule;
 
 class SiteController extends Controller
 {
-    public function index()
-    {
-        $sites = Site::withCount('employees')->orderBy('name')->get();
+    use \App\Http\Controllers\Concerns\Sortable;
 
-        return view('sites.index', compact('sites'));
+    public function index(Request $request)
+    {
+        $query = Site::withCount('employees');
+        [$sort, $dir] = $this->applySort($query, $request, [
+            'name' => 'name', 'address' => 'address', 'timezone' => 'timezone',
+            'employees' => 'employees_count', 'status' => 'is_active',
+        ], 'name');
+        $sites = $query->get();
+
+        return view('sites.index', compact('sites', 'sort', 'dir'));
     }
 
     public function store(Request $request)

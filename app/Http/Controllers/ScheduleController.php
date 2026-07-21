@@ -10,10 +10,16 @@ use Illuminate\Validation\Rule;
 
 class ScheduleController extends Controller
 {
-    public function index()
+    use \App\Http\Controllers\Concerns\Sortable;
+
+    public function index(Request $request)
     {
-        $schedules = Schedule::withCount('employees')->with('days')->orderBy('name')->get();
-        return view('schedules.index', compact('schedules'));
+        $query = Schedule::withCount('employees')->with('days');
+        [$sort, $dir] = $this->applySort($query, $request, [
+            'name' => 'name', 'tolerance' => 'tolerance_minutes', 'employees' => 'employees_count',
+        ], 'name');
+        $schedules = $query->get();
+        return view('schedules.index', compact('schedules', 'sort', 'dir'));
     }
 
     public function store(Request $request)

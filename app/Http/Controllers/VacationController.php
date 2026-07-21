@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 class VacationController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -19,10 +21,17 @@ class VacationController extends Controller
             ->when(!$isManager, function ($q) use ($user) {
                 $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id));
             })
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->orderByDesc('created_at')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
+
+        [$sort, $dir] = $this->applySort($vacations, $request, [
+            'employee' => fn ($q, $d) => $q->orderBy(Employee::withTrashed()->select('last_name')->whereColumn('employees.id', 'vacations.employee_id'), $d),
+            'start' => 'start_date',
+            'end' => 'end_date',
+            'days' => 'days',
+            'status' => 'status',
+        ], 'start', 'desc');
+
+        $vacations = $vacations->paginate(25)->withQueryString();
 
         // Managers pick the employee with an AJAX autocomplete (which returns the
         // balance); non-managers only get their own employee in the modal
@@ -40,7 +49,7 @@ class VacationController extends Controller
 
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances', 'oldEmployee'));
+        return view('vacations.index', compact('vacations', 'isManager', 'canApprove', 'employees', 'balances', 'oldEmployee', 'sort', 'dir'));
     }
 
     public function store(Request $request)

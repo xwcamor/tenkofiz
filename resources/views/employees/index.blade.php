@@ -150,7 +150,17 @@ async function linkUser(id, name) {
                 @if($showDeleted)
                     <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
-                    <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Site') }}</th><th>{{ __('Area / Position') }}</th><th>{{ __('Schedule') }}</th><th>{{ __('Web access') }}</th><th>{{ __('Face') }}</th><th>{{ __('Status') }}</th><th style="width:150px">{{ __('Actions') }}</th></tr>
+                    <tr>
+                        @include('partials.th-sort', ['key' => 'document', 'label' => __('Document')])
+                        @include('partials.th-sort', ['key' => 'name', 'label' => __('Last and first names')])
+                        @include('partials.th-sort', ['key' => 'site', 'label' => __('Site')])
+                        @include('partials.th-sort', ['key' => 'position', 'label' => __('Area / Position')])
+                        <th>{{ __('Schedule') }}</th>
+                        <th>{{ __('Web access') }}</th>
+                        <th>{{ __('Face') }}</th>
+                        @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                        <th style="width:150px">{{ __('Actions') }}</th>
+                    </tr>
                 @endif
             </thead>
             <tbody>

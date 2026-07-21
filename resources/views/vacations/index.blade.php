@@ -27,7 +27,15 @@
     </div>
     <div class="card-body">
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Employee') }}</th><th>{{ __('Start') }}</th><th>{{ __('End') }}</th><th>{{ __('Days') }}</th><th>{{ __('Reason') }}</th><th>{{ __('Status') }}</th><th style="width:{{ $canApprove ? 150 : 60 }}px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                @include('partials.th-sort', ['key' => 'start', 'label' => __('Start')])
+                @include('partials.th-sort', ['key' => 'end', 'label' => __('End')])
+                @include('partials.th-sort', ['key' => 'days', 'label' => __('Days')])
+                <th>{{ __('Reason') }}</th>
+                @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                <th style="width:{{ $canApprove ? 150 : 60 }}px">{{ __('Actions') }}</th>
+            </tr></thead>
             <tbody>
             @forelse($vacations as $vacation)
                 <tr>

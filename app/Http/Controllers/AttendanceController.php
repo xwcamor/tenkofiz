@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     public function index(Request $request)
     {
         // Default range = current payroll cut-off period (configured in Settings)
@@ -26,11 +28,20 @@ class AttendanceController extends Controller
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))
             ->when($request->filled('site_id'), fn ($q) => $q->whereHas('employee', fn ($e) => $e->where('site_id', $request->integer('site_id'))))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->orderByDesc('date')
-            ->orderBy('employee_id')
-            ->paginate(50)
-            ->withQueryString();
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
+
+        $employeeName = fn ($d) => Employee::withTrashed()->select('last_name')->whereColumn('employees.id', 'attendances.employee_id');
+        [$sort, $dir] = $this->applySort($attendances, $request, [
+            'date' => fn ($q, $d) => $q->orderBy('date', $d)->orderBy('employee_id'),
+            'employee' => fn ($q, $d) => $q->orderBy($employeeName($d), $d),
+            'site' => fn ($q, $d) => $q->orderBy(Employee::withTrashed()->select('site_id')->whereColumn('employees.id', 'attendances.employee_id'), $d),
+            'check_in' => 'check_in',
+            'check_out' => 'check_out',
+            'status' => 'status',
+            'method' => 'method',
+        ], 'date', 'desc');
+
+        $attendances = $attendances->paginate(50)->withQueryString();
 
         // The employee selectors use AJAX autocomplete; only resolve the labels
         // of the values already chosen (filter and re-opened modal after errors)
@@ -38,7 +49,7 @@ class AttendanceController extends Controller
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
         $sites = $this->visibleSites($request);
 
-        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to', 'showDeleted', 'sites'));
+        return view('attendances.index', compact('attendances', 'selectedEmployee', 'oldEmployee', 'from', 'to', 'showDeleted', 'sites', 'sort', 'dir'));
     }
 
     /** Manual entry (e.g. corrections) by managers */

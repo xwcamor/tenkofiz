@@ -47,7 +47,15 @@
                 @if($showDeleted)
                     <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
-                    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Site') }}</th><th>{{ __('Marks attendance') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr>
+                    <tr>
+                        @include('partials.th-sort', ['key' => 'name', 'label' => __('Name')])
+                        @include('partials.th-sort', ['key' => 'email', 'label' => __('Email')])
+                        @include('partials.th-sort', ['key' => 'profile', 'label' => __('Profile')])
+                        @include('partials.th-sort', ['key' => 'site', 'label' => __('Site')])
+                        <th>{{ __('Marks attendance') }}</th>
+                        @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                        <th style="width:110px">{{ __('Actions') }}</th>
+                    </tr>
                 @endif
             </thead>
             <tbody>

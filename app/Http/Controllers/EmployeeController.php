@@ -14,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     public function index(Request $request)
     {
         // Server-side pagination + search: this list must stay fast with thousands of employees
@@ -36,15 +38,25 @@ class EmployeeController extends Controller
             ->when($request->input('face') === 'enrolled', fn ($q) => $q->whereNotNull('face_descriptor'))
             ->when($request->input('face') === 'pending', fn ($q) => $q->whereNull('face_descriptor'))
             ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
-            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false))
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false));
+
+        [$sort, $dir] = $this->applySort($employees, $request, [
+            'name' => fn ($q, $d) => $q->orderBy('last_name', $d)->orderBy('first_name', $d),
+            'document' => 'document_number',
+            'area' => fn ($q, $d) => $q->orderBy(Area::select('name')->whereColumn('areas.id', 'employees.area_id'), $d),
+            'position' => fn ($q, $d) => $q->orderBy(Position::select('name')->whereColumn('positions.id', 'employees.position_id'), $d),
+            'site' => fn ($q, $d) => $q->orderBy(\App\Models\Site::select('name')->whereColumn('sites.id', 'employees.site_id'), $d),
+            'hire_date' => 'hire_date',
+            'status' => 'is_active',
+        ], 'name');
+
+        $employees = $employees->paginate(25)->withQueryString();
 
         return view('employees.index', [
             'employees' => $employees,
             'showDeleted' => $showDeleted,
+            'sort' => $sort,
+            'dir' => $dir,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),

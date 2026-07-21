@@ -8,7 +8,15 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Address') }}</th><th>{{ __('Timezone') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Status') }}</th><th>{{ __('Kiosk') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'name', 'label' => __('Name')])
+                @include('partials.th-sort', ['key' => 'address', 'label' => __('Address')])
+                @include('partials.th-sort', ['key' => 'timezone', 'label' => __('Timezone')])
+                @include('partials.th-sort', ['key' => 'employees', 'label' => __('Employees')])
+                @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                <th>{{ __('Kiosk') }}</th>
+                <th style="width:110px">{{ __('Actions') }}</th>
+            </tr></thead>
             <tbody>
             @foreach($sites as $site)
                 <tr>

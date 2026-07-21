@@ -21,7 +21,9 @@ use Illuminate\Validation\Rule;
  */
 class CompanyController extends Controller
 {
-    public function index()
+    use \App\Http\Controllers\Concerns\Sortable;
+
+    public function index(Request $request)
     {
         $companies = Company::withTrashed()->orderBy('name')->get()->map(function (Company $company) {
             $company->users_count = User::withoutGlobalScopes()->where('company_id', $company->id)->count();
@@ -37,8 +39,14 @@ class CompanyController extends Controller
             return $company;
         });
 
+        [$companies, $sort, $dir] = $this->sortCollection($companies, $request, [
+            'name' => 'name', 'users' => 'users_count', 'employees' => 'employees_count', 'sites' => 'sites_count',
+        ], 'name');
+
         return view('admin.companies.index', [
             'companies' => $companies,
+            'sort' => $sort,
+            'dir' => $dir,
             'countries' => HolidayTemplate::COUNTRIES,
             'timezones' => \DateTimeZone::listIdentifiers(),
             'modules' => Profile::MODULES,

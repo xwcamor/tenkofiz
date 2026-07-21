@@ -9,7 +9,15 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Workspace') }}</th><th>{{ __('Plan') }}</th><th>{{ __('Users') }}</th><th>{{ __('Employees') }}</th><th>{{ __('Sites') }}</th><th>{{ __('Status') }}</th><th style="width:280px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'name', 'label' => __('Workspace')])
+                <th>{{ __('Plan') }}</th>
+                @include('partials.th-sort', ['key' => 'users', 'label' => __('Users')])
+                @include('partials.th-sort', ['key' => 'employees', 'label' => __('Employees')])
+                @include('partials.th-sort', ['key' => 'sites', 'label' => __('Sites')])
+                <th>{{ __('Status') }}</th>
+                <th style="width:280px">{{ __('Actions') }}</th>
+            </tr></thead>
             <tbody>
             @foreach($companies as $company)
                 <tr class="{{ $company->trashed() ? 'table-danger' : (!$company->is_active ? 'table-warning' : '') }}">

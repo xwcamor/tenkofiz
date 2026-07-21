@@ -285,6 +285,17 @@ reporte lo delata. El control del tiempo se hace **a posteriori en Reportes** (n
 tiempo real en la fila): el supervisor observa puntualidad (tardanzas + minutos) y
 cumplimiento (esperadas vs trabajadas + saldo).
 
+### 1.4k Ordenamiento por columna (todos los listados)
+Todas las tablas de listado (Empleados, Usuarios, Asistencias, Vacaciones,
+Justificaciones, Reportes, Sedes, Horarios, Perfiles, Auditoría, Workspaces) tienen
+**encabezados clicables** que ordenan en **servidor** vía `?sort=<clave>&dir=<asc|desc>`
+(trait `Concerns\Sortable` + partial `partials/th-sort`). Es en servidor (no un
+DataTables de cliente) para que ordene **todo el conjunto**, no solo la página visible
+— las listas grandes siguen paginadas por escala. Las claves de orden están en una
+**lista blanca** por controlador (columna propia o subconsulta correlacionada para
+relaciones como el nombre del empleado o la sede), así el query string nunca inyecta
+una columna arbitraria. Un clic alterna asc/desc y la flecha del encabezado lo refleja.
+
 ### 1.4h Reporte de análisis de breaks (`ReportController::breaks`)
 Vista **solo de análisis** para RH/supervisor (módulo Reportes), aparece cuando
 `kiosk_breaks_enabled` está activo. Responde "quién tardó cuánto en su break y quién

@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     public function index(Request $request)
     {
         // Server-side pagination + search so the list stays fast with thousands of accounts.
@@ -29,14 +31,21 @@ class UserController extends Controller
             })
             ->when($request->filled('profile_id'), fn ($q) => $q->where('profile_id', $request->integer('profile_id')))
             ->when($request->input('status') === 'active', fn ($q) => $q->where('is_active', true))
-            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false))
-            ->orderBy('name')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->input('status') === 'inactive', fn ($q) => $q->where('is_active', false));
+
+        [$sort, $dir] = $this->applySort($users, $request, [
+            'name' => 'name',
+            'email' => 'email',
+            'profile' => fn ($q, $d) => $q->orderBy(Profile::select('name')->whereColumn('profiles.id', 'users.profile_id'), $d),
+            'site' => fn ($q, $d) => $q->orderBy(Site::select('name')->whereColumn('sites.id', 'users.site_id'), $d),
+            'status' => 'is_active',
+        ], 'name');
+
+        $users = $users->paginate(25)->withQueryString();
 
         $profiles = Profile::where('is_active', true)->orderBy('name')->get();
         $sites = Site::where('is_active', true)->orderBy('name')->get();
-        return view('users.index', compact('users', 'profiles', 'sites', 'showDeleted'));
+        return view('users.index', compact('users', 'profiles', 'sites', 'showDeleted', 'sort', 'dir'));
     }
 
     public function store(Request $request)

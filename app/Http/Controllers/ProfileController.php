@@ -9,10 +9,16 @@ use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
-    public function index()
+    use \App\Http\Controllers\Concerns\Sortable;
+
+    public function index(Request $request)
     {
-        $profiles = Profile::withCount('users')->orderBy('name')->get();
-        return view('profiles.index', compact('profiles'));
+        $query = Profile::withCount('users');
+        [$sort, $dir] = $this->applySort($query, $request, [
+            'name' => 'name', 'users' => 'users_count', 'status' => 'is_active',
+        ], 'name');
+        $profiles = $query->get();
+        return view('profiles.index', compact('profiles', 'sort', 'dir'));
     }
 
     public function store(Request $request)

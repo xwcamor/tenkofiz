@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class JustificationController extends Controller
 {
+    use \App\Http\Controllers\Concerns\Sortable;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -24,17 +26,22 @@ class JustificationController extends Controller
             ->inCurrentSite()
             ->when($showDeleted, fn ($q) => $q->onlyTrashed())
             ->when(!$isManager, fn ($q) => $q->whereHas('employee', fn ($w) => $w->where('user_id', $user->id)))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->orderByDesc('date')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
+
+        [$sort, $dir] = $this->applySort($justifications, $request, [
+            'employee' => fn ($q, $d) => $q->orderBy(Employee::withTrashed()->select('last_name')->whereColumn('employees.id', 'justifications.employee_id'), $d),
+            'date' => 'date',
+            'status' => 'status',
+        ], 'date', 'desc');
+
+        $justifications = $justifications->paginate(25)->withQueryString();
 
         // Managers pick the employee with an AJAX autocomplete; non-managers
         // only get their own employee in the modal
         $employees = $isManager ? collect() : Employee::where('user_id', $user->id)->get();
         $oldEmployee = old('employee_id') ? Employee::find(old('employee_id')) : null;
 
-        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted'));
+        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted', 'sort', 'dir'));
     }
 
     public function store(Request $request)

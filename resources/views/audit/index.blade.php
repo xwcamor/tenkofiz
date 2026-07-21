@@ -23,7 +23,15 @@
     <div class="card-body">
         @php $showCompany = auth()->user()->isSuperAdmin() && !session('acting_company_id'); @endphp
         <table class="table table-bordered table-hover">
-            <thead><tr><th>{{ __('Date and time') }}</th>@if($showCompany)<th>{{ __('Workspace') }}</th>@endif<th>{{ __('User') }}</th><th>{{ __('Action') }}</th><th>{{ __('Module') }}</th><th>{{ __('Description') }}</th><th>IP</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'date', 'label' => __('Date and time')])
+                @if($showCompany)<th>{{ __('Workspace') }}</th>@endif
+                @include('partials.th-sort', ['key' => 'user', 'label' => __('User')])
+                @include('partials.th-sort', ['key' => 'action', 'label' => __('Action')])
+                @include('partials.th-sort', ['key' => 'module', 'label' => __('Module')])
+                <th>{{ __('Description') }}</th>
+                @include('partials.th-sort', ['key' => 'ip', 'label' => 'IP'])
+            </tr></thead>
             <tbody>
             @forelse($logs as $log)
                 <tr>

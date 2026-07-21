@@ -79,7 +79,18 @@
             @if($showDeleted)
                 <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Status') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:120px">{{ __('Actions') }}</th></tr></thead>
             @else
-                <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Site') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Hours') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th><th style="width:90px">{{ __('Actions') }}</th></tr></thead>
+                <thead><tr>
+                    @include('partials.th-sort', ['key' => 'date', 'label' => __('Date')])
+                    @include('partials.th-sort', ['key' => 'employee', 'label' => __('Employee')])
+                    @include('partials.th-sort', ['key' => 'site', 'label' => __('Site')])
+                    @include('partials.th-sort', ['key' => 'check_in', 'label' => __('Check-in')])
+                    @include('partials.th-sort', ['key' => 'check_out', 'label' => __('Check-out')])
+                    <th>{{ __('Hours') }}</th>
+                    @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                    @include('partials.th-sort', ['key' => 'method', 'label' => __('Method')])
+                    <th>{{ __('Note') }}</th>
+                    <th style="width:90px">{{ __('Actions') }}</th>
+                </tr></thead>
             @endif
             <tbody>
             @forelse($attendances as $attendance)

@@ -7,7 +7,14 @@
 <div class="card card-primary card-outline">
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
-            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Description') }}</th><th>{{ __('Permissions') }}</th><th>{{ __('Users') }}</th><th>{{ __('Status') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
+            <thead><tr>
+                @include('partials.th-sort', ['key' => 'name', 'label' => __('Name')])
+                <th>{{ __('Description') }}</th>
+                <th>{{ __('Permissions') }}</th>
+                @include('partials.th-sort', ['key' => 'users', 'label' => __('Users')])
+                @include('partials.th-sort', ['key' => 'status', 'label' => __('Status')])
+                <th style="width:110px">{{ __('Actions') }}</th>
+            </tr></thead>
             <tbody>
             @foreach($profiles as $profile)
                 <tr>
