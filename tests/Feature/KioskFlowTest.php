@@ -249,6 +249,41 @@ class KioskFlowTest extends TestCase
         $this->assertNotNull($marks->first()->attendance_id); // linked to the day
     }
 
+    public function test_geolocation_is_stored_on_the_mark_when_enabled(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        \App\Models\Setting::forCompany($employee->company_id)->update(['kiosk_geolocation' => true]);
+
+        $this->postJson('/kiosk/mark-dni', [
+            'document_number' => '55667788',
+            'lat' => -12.0463731, 'lng' => -77.0427934, 'accuracy' => 18,
+        ])->assertOk();
+
+        $mark = \App\Models\AttendanceMark::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
+        $this->assertSame(-12.0463731, $mark->lat);
+        $this->assertSame(-77.0427934, $mark->lng);
+        $this->assertSame(18, $mark->accuracy);
+        $this->assertTrue($mark->hasLocation());
+    }
+
+    public function test_geolocation_is_ignored_when_disabled(): void
+    {
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday
+        $employee = $this->makeEmployee(['face_descriptor' => json_encode([array_fill(0, 128, 0.1)])]);
+        // kiosk_geolocation defaults to false — coordinates must not be stored
+
+        $this->postJson('/kiosk/mark-dni', [
+            'document_number' => '55667788',
+            'lat' => -12.0463731, 'lng' => -77.0427934, 'accuracy' => 18,
+        ])->assertOk();
+
+        $mark = \App\Models\AttendanceMark::withoutGlobalScopes()->where('employee_id', $employee->id)->first();
+        $this->assertNull($mark->lat);
+        $this->assertNull($mark->lng);
+        $this->assertFalse($mark->hasLocation());
+    }
+
     public function test_expected_minutes_are_frozen_on_check_in(): void
     {
         \Carbon\Carbon::setTestNow('2026-07-16 14:30:00'); // Thursday, General schedule 08:00–17:00 (9h)

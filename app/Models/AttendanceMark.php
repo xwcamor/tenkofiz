@@ -15,10 +15,16 @@ class AttendanceMark extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'employee_id', 'attendance_id', 'marked_at', 'kind', 'method', 'ip', 'user_agent',
+        'company_id', 'employee_id', 'attendance_id', 'marked_at', 'kind', 'method', 'lat', 'lng', 'accuracy', 'ip', 'user_agent',
     ];
 
-    protected $casts = ['marked_at' => 'datetime'];
+    protected $casts = ['marked_at' => 'datetime', 'lat' => 'float', 'lng' => 'float', 'accuracy' => 'integer'];
+
+    /** True when this punch carries GPS coordinates */
+    public function hasLocation(): bool
+    {
+        return $this->lat !== null && $this->lng !== null;
+    }
 
     public function employee()
     {

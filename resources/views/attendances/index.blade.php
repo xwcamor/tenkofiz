@@ -160,6 +160,9 @@
                                             @default{{ $mark->kind }}
                                         @endswitch ·
                                         {{ __($mark->method) }}
+                                        @if($mark->hasLocation())
+                                            <a href="https://www.google.com/maps?q={{ $mark->lat }},{{ $mark->lng }}" target="_blank" rel="noopener" class="ml-1 text-danger" title="{{ __('Location') }}: {{ $mark->lat }}, {{ $mark->lng }}@if($mark->accuracy) (±{{ $mark->accuracy }} m)@endif"><i class="fas fa-map-marker-alt"></i></a>
+                                        @endif
                                     </span>
                                 @endforeach
                             </td>

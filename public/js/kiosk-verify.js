@@ -34,6 +34,21 @@ const EARLY_EXIT_WARN = !!window.KIOSK_EARLY_EXIT_WARN;
 let MARK_ACTION = null;      // 'break' | 'out' once chosen (ambiguous case)
 let earlyConfirmed = false;  // the person confirmed an early check-out
 
+// Geolocation: capture the device location (once) to send with the mark.
+const GEO_ENABLED = !!window.KIOSK_GEO;
+let geoCoords = null;
+function fetchGeo() {
+    return new Promise(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+        );
+    });
+}
+async function ensureGeo() { if (GEO_ENABLED && !geoCoords) geoCoords = await fetchGeo(); }
+
 let shownType = null, shownHtml = null;
 function show(type, html) {
     // Skip identical re-renders: rewriting the same HTML every frame restarts the
@@ -236,6 +251,7 @@ function debugUpdate(pose, distance, identityOk, challenge, pitchBaseline) {
 /* ---------- startup ---------- */
 async function start() {
     try {
+        ensureGeo(); // ask for the location early, in the background (no await)
         show('secondary', spinner + I18N.loadingModels);
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
@@ -506,6 +522,7 @@ async function autoMarkByDocument() {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
             action: MARK_ACTION,
+            ...(geoCoords || {}),
         });
         if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);
@@ -534,6 +551,7 @@ async function commitFacial(distance) {
             employee_id: Number(window.EMPLOYEE.id),
             distance: distance.toFixed(4),
             action: MARK_ACTION,
+            ...(geoCoords || {}),
         });
         finishWithResult(data);
     } catch (e) {
@@ -564,6 +582,7 @@ async function markByDocument() {
             document_number: window.EMPLOYEE.document,
             photo: captureSnapshot(),
             action: MARK_ACTION,
+            ...(geoCoords || {}),
         });
         if (data.ok) {
             finishWithResult(data, I18N.verifyFailedPhoto);

@@ -97,6 +97,7 @@
     window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 10));
     window.KIOSK_NEXT_ACTION = @json($nextAction);
     window.KIOSK_EARLY_EXIT_WARN = @json($earlyExitWarn);
+    window.KIOSK_GEO = @json((bool) app_setting()->kiosk_geolocation);
     window.KIOSK_I18N = {
         loadingModels: @json(__('Loading recognition models...')),
         startingCamera: @json(__('Starting camera...')),

@@ -115,6 +115,12 @@
                         <label class="custom-control-label" for="clampWorkedHours">{{ __('Count worked hours within the schedule only (recommended)') }}</label>
                     </div>
                     <small class="text-muted d-block mb-2">{{ __('ON: paid hours are capped to the shift — from the scheduled start (even if they marked earlier) to the scheduled end (even if they marked later). Punctuality is still judged on the real mark. This prevents "marking at 6am to rack up hours". OFF: hours are the raw check-out minus check-in.') }}</small>
+                    {{-- Geolocation on the kiosk mark (where the punch happened) --}}
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="kiosk_geolocation" value="1" class="custom-control-input" id="kioskGeolocation" @checked(old('kiosk_geolocation', $setting->kiosk_geolocation))>
+                        <label class="custom-control-label" for="kioskGeolocation">{{ __('Record where each mark was made (GPS geolocation)') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2">{{ __('ON: when marking, the kiosk asks the browser for permission and saves the coordinates with the punch, shown as a map link in Attendances. Useful for staff who mark from another site or work in the field. If the person denies permission the mark still goes through, just without a location. OFF (default): no location is requested or stored.') }}</small>
                     <div class="form-group">
                         <label>{{ __('Kiosk enrollment PIN') }} <small class="text-muted">({{ __('4-8 digits; empty = enrollment mode disabled') }})</small></label>
                         <input name="kiosk_enroll_pin" value="{{ old('kiosk_enroll_pin', $setting->kiosk_enroll_pin) }}" class="form-control @error('kiosk_enroll_pin') is-invalid @enderror" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off">

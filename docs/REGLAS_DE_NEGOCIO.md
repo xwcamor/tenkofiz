@@ -245,6 +245,21 @@ En Asistencias, cada fila puede **expandir** ("Marcas del día") y mostrar cada 
 con hora, tipo y método (`Attendance::marks()`, `AttendanceMark`). El registro es
 best-effort (un fallo al loguear el punch nunca bloquea la marca).
 
+### 1.4g Geolocalización de la marca (`settings.kiosk_geolocation`)
+Opcional, **por workspace, desactivado por defecto**. Cuando está activo, al marcar el
+kiosco pide permiso de ubicación al navegador y guarda las coordenadas (`lat`, `lng`,
+`accuracy` en metros) en cada punch de `attendance_marks`. El caso de uso: personal que
+marca desde **otra sede** o trabaja **en campo** (el "tercero" que marca desde otro sitio).
+Reglas:
+- Es **best-effort y no bloqueante**: si la persona niega el permiso o el GPS falla, la
+  marca se registra igual, solo sin ubicación (`hasLocation()` = false).
+- El backend solo guarda coordenadas si el ajuste está activo **y** `lat`/`lng` son
+  numéricos (`KioskController::recordMark`); si el ajuste está apagado, aunque el cliente
+  envíe coordenadas, se ignoran.
+- En Asistencias, cada punch con ubicación muestra un pin (📍) que abre Google Maps en las
+  coordenadas, con la precisión en el tooltip.
+- Aplica a marca facial y a marca por DNI por igual.
+
 ### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Saldo
 El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) compara tres
 cosas por empleado en el periodo:

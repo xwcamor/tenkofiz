@@ -423,6 +423,15 @@ class KioskController extends Controller
     private function recordMark(Request $request, Employee $employee, Attendance $attendance, string $kind, string $method): void
     {
         try {
+            // Geolocation (only when enabled and sent by the kiosk browser)
+            $lat = $lng = $accuracy = null;
+            if (app_setting()->kiosk_geolocation
+                && is_numeric($request->input('lat')) && is_numeric($request->input('lng'))) {
+                $lat = round((float) $request->input('lat'), 7);
+                $lng = round((float) $request->input('lng'), 7);
+                $accuracy = is_numeric($request->input('accuracy')) ? (int) $request->input('accuracy') : null;
+            }
+
             \App\Models\AttendanceMark::create([
                 'company_id' => $employee->company_id,
                 'employee_id' => $employee->id,
@@ -430,6 +439,9 @@ class KioskController extends Controller
                 'marked_at' => now(),
                 'kind' => $kind,
                 'method' => $method,
+                'lat' => $lat,
+                'lng' => $lng,
+                'accuracy' => $accuracy,
                 'ip' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 255),
             ]);
