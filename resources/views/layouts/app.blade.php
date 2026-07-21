@@ -98,26 +98,45 @@
                     @endif
                     <i class="fas fa-caret-down ml-2 text-muted"></i>
                 </a>
-                <div class="dropdown-menu dropdown-menu-right" style="min-width:240px">
-                    <div class="px-3 py-2">
-                        <div class="font-weight-bold">{{ $currentUser->name }}</div>
-                        <div class="text-muted small">{{ $currentUser->email }}</div>
-                        <span class="badge badge-primary mt-1">{{ $currentUser->profile?->name }}</span>
+                <div class="dropdown-menu dropdown-menu-right border-0 shadow pt-0" style="min-width:264px;overflow:hidden">
+                    <!-- Identity header (brand banner) -->
+                    <div class="d-flex align-items-center px-3 py-3" style="background:linear-gradient(135deg,#2a78d6,#1d5fb0);color:#fff">
+                        @if($currentUser->photo)
+                            <img src="{{ asset($currentUser->photo) }}" alt="" class="img-circle mr-2 flex-shrink-0" style="width:46px;height:46px;object-fit:cover;border:2px solid rgba(255,255,255,.7)">
+                        @else
+                            <span class="d-inline-flex align-items-center justify-content-center img-circle mr-2 flex-shrink-0" style="width:46px;height:46px;background:rgba(255,255,255,.22);color:#fff;font-weight:700;font-size:1.1rem">{{ strtoupper(mb_substr($currentUser->name, 0, 1)) }}</span>
+                        @endif
+                        <div class="text-truncate">
+                            <div class="font-weight-bold text-truncate" style="line-height:1.2">{{ $currentUser->name }}</div>
+                            <div class="small text-truncate" style="opacity:.85">{{ $currentUser->email }}</div>
+                            @if($currentUser->profile?->name)
+                                <span class="badge badge-light mt-1" style="color:#1d5fb0;font-weight:600">{{ $currentUser->profile->name }}</span>
+                            @endif
+                        </div>
                     </div>
-                    <div class="dropdown-divider"></div>
-                    <a href="{{ route('account.edit') }}" class="dropdown-item"><i class="fas fa-user-cog mr-2 text-muted"></i> {{ __('My account') }}</a>
-                    <a href="#" class="dropdown-item" onclick="toggleTheme(); return false;"><i class="fas fa-moon mr-2 text-muted" id="themeIcon"></i> {{ __('Toggle dark mode') }}</a>
-                    <div class="dropdown-divider"></div>
-                    <span class="dropdown-item-text text-muted small"><i class="fas fa-globe mr-1"></i> {{ __('Language') }}</span>
-                    @foreach(['es' => 'Español', 'en' => 'English'] as $code => $label)
-                        <form method="POST" action="{{ route('locale.switch') }}">@csrf
-                            <input type="hidden" name="locale" value="{{ $code }}">
-                            <button class="dropdown-item {{ app()->getLocale() === $code ? 'active' : '' }}">{{ $label }}</button>
-                        </form>
-                    @endforeach
-                    <div class="dropdown-divider"></div>
-                    <form method="POST" action="{{ route('logout') }}">@csrf
-                        <button class="dropdown-item text-danger"><i class="fas fa-sign-out-alt mr-2"></i> {{ __('Sign out') }}</button>
+
+                    <a href="{{ route('account.edit') }}" class="dropdown-item py-2"><i class="fas fa-user-cog fa-fw mr-2 text-muted"></i> {{ __('My account') }}</a>
+                    <a href="#" class="dropdown-item py-2" onclick="toggleTheme(); return false;"><i class="fas fa-moon fa-fw mr-2 text-muted" id="themeIcon"></i> {{ __('Toggle dark mode') }}</a>
+
+                    <div class="dropdown-divider my-1"></div>
+
+                    <!-- Language as a compact segmented control (no more full-width blue bar) -->
+                    <div class="px-3 py-1">
+                        <div class="text-muted small mb-1"><i class="fas fa-globe fa-fw mr-1"></i> {{ __('Language') }}</div>
+                        <div class="d-flex" style="gap:.4rem">
+                            @foreach(['es' => 'Español', 'en' => 'English'] as $code => $label)
+                                <form method="POST" action="{{ route('locale.switch') }}" class="flex-fill mb-0">@csrf
+                                    <input type="hidden" name="locale" value="{{ $code }}">
+                                    <button class="btn btn-sm btn-block mb-0 {{ app()->getLocale() === $code ? 'btn-primary' : 'btn-outline-secondary' }}" style="font-weight:600">{{ $label }}</button>
+                                </form>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="dropdown-divider my-1"></div>
+
+                    <form method="POST" action="{{ route('logout') }}" class="mb-0">@csrf
+                        <button class="dropdown-item py-2 text-danger"><i class="fas fa-sign-out-alt fa-fw mr-2"></i> {{ __('Sign out') }}</button>
                     </form>
                 </div>
             </li>
