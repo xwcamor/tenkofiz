@@ -44,17 +44,6 @@
         <div id="status" class="alert alert-secondary d-inline-block px-4">{{ __('Loading models...') }}</div>
     </div>
 
-    {{-- End-of-window options: explicit buttons, nothing happens behind your back.
-         Document marking is ONLY the fallback for someone already enrolled whose
-         recognition failed — a non-enrolled person never gets that button. --}}
-    <div id="actionRow" class="mt-1" style="display:none">
-        <button class="btn btn-primary px-4 m-1" id="retryBtn" onclick="retryVerify()"><i class="fas fa-redo"></i> {{ __('Try again') }}</button>
-        @if($employee->hasFace())
-            <button class="btn btn-outline-warning px-4 m-1" id="markDocBtn" onclick="markByDocument()" style="display:none"><i class="fas fa-id-card"></i> {{ __('Mark by document (photo evidence)') }}</button>
-        @endif
-        <a href="{{ route('kiosk') }}" class="btn btn-outline-light px-4 m-1">{{ __('Cancel') }}</a>
-    </div>
-
     {{-- Guided self-enrollment on the first mark (only when this person has no face
          yet). Consent is a hard gate: the button stays disabled until accepted, and
          only then the camera guides the capture. No PIN — the keypad already
@@ -72,6 +61,18 @@
             <div id="enrollMessage"></div>
         </div>
     @endunless
+
+    {{-- End-of-window options: explicit buttons, nothing happens behind your back.
+         Kept at the bottom so Cancel sits under the consent card. Document marking
+         is ONLY the fallback for someone already enrolled whose recognition failed —
+         a non-enrolled person never gets that button. --}}
+    <div id="actionRow" class="mt-2" style="display:none">
+        <button class="btn btn-primary px-4 m-1" id="retryBtn" onclick="retryVerify()"><i class="fas fa-redo"></i> {{ __('Try again') }}</button>
+        @if($employee->hasFace())
+            <button class="btn btn-outline-warning px-4 m-1" id="markDocBtn" onclick="markByDocument()" style="display:none"><i class="fas fa-id-card"></i> {{ __('Mark by document (photo evidence)') }}</button>
+        @endif
+        <a href="{{ route('kiosk') }}" class="btn btn-outline-light px-4 m-1">{{ __('Cancel') }}</a>
+    </div>
 </div>
 
 <script>
