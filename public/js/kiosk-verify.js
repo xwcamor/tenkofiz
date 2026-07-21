@@ -283,6 +283,9 @@ async function geoGate() {
 function openCamera() {
     return new Promise(async (resolve, reject) => {
         try {
+            // Reveal the circle now (it stays hidden until the camera actually opens)
+            const area = document.getElementById('cameraArea');
+            if (area) area.style.display = '';
             show('secondary', spinner + I18N.startingCamera);
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
             video.srcObject = stream;

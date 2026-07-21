@@ -23,16 +23,21 @@
         <div class="d-flex gap-2 justify-content-center flex-wrap" id="actionChoiceButtons"></div>
     </div>
 
-    <div class="video-frame">
-        <video id="video" autoplay muted playsinline></video>
-        <canvas id="overlay"></canvas>
-    </div>
-    {{-- Countdown BELOW the circle (readable), not over the camera --}}
-    <div id="countdown" class="kiosk-countdown" style="display:none"></div>
-    <div class="progress kiosk-progress"><div class="progress-bar bg-info" id="verifyProgress" style="width:0%"></div></div>
-    {{-- Face presence indicator: instant feedback while searching --}}
-    <div class="mt-2" id="faceChip" style="display:none">
-        <span class="badge px-3 py-2" id="faceChipBadge" style="font-size:.85rem"></span>
+    {{-- Camera area (circle + countdown + progress + face chip). Hidden until the
+         camera actually opens: for a non-enrolled person nothing shows here until
+         they accept consent, so the first screen is just the consent message. --}}
+    <div id="cameraArea" style="{{ $employee->hasFace() ? '' : 'display:none' }}">
+        <div class="video-frame">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="overlay"></canvas>
+        </div>
+        {{-- Countdown BELOW the circle (readable), not over the camera --}}
+        <div id="countdown" class="kiosk-countdown" style="display:none"></div>
+        <div class="progress kiosk-progress"><div class="progress-bar bg-info" id="verifyProgress" style="width:0%"></div></div>
+        {{-- Face presence indicator: instant feedback while searching --}}
+        <div class="mt-2" id="faceChip" style="display:none">
+            <span class="badge px-3 py-2" id="faceChipBadge" style="font-size:.85rem"></span>
+        </div>
     </div>
 
     <div id="result" class="mt-3">
