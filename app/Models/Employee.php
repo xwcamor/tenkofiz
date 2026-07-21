@@ -41,7 +41,7 @@ class Employee extends Model
 
     protected $fillable = [
         'company_id', 'user_id', 'schedule_id', 'area_id', 'position_id', 'site_id', 'document_type', 'document_number',
-        'first_name', 'last_name', 'hire_date', 'contract_type', 'vacation_days_per_year', 'face_descriptor',
+        'first_name', 'last_name', 'hire_date', 'termination_date', 'contract_type', 'vacation_days_per_year', 'face_descriptor',
         'biometric_consent_at', 'is_active', 'delete_reason',
     ];
 
@@ -53,8 +53,14 @@ class Employee extends Model
 
     protected $casts = [
         'hire_date' => 'date',
+        'termination_date' => 'date',
         'biometric_consent_at' => 'datetime',
         'is_active' => 'boolean',
+    ];
+
+    /** A new employee is active by default (matches the DB default, even before reload). */
+    protected $attributes = [
+        'is_active' => true,
     ];
 
     public function user()
@@ -137,5 +143,81 @@ class Employee extends Model
             ->whereDate('start_date', '<=', $date)
             ->whereDate('end_date', '>=', $date)
             ->exists();
+    }
+
+    /**
+     * Day-by-day attendance for a period, DERIVING the days that have no record so
+     * reports are always complete without depending on the nightly absence job.
+     * Each returned day is one of:
+     *   - a real Attendance (an actual mark, or an EXCUSED/ABSENT row already saved),
+     *   - a virtual 'VACATION' day (covered by an approved vacation), or
+     *   - a virtual 'ABSENT' day (a scheduled working day with nothing on it).
+     * Days the person is NOT expected are skipped entirely: non-working weekday,
+     * holiday, before hire, after termination, and anything in the future. When an
+     * inactive employee has no termination date, the window closes at their last
+     * record so a former worker never accrues endless faltas.
+     *
+     * @param  \Illuminate\Support\Collection|null  $attendances  Pre-loaded rows (avoids a query)
+     * @return \Illuminate\Support\Collection<int, array{date:\Carbon\Carbon, attendance:?Attendance, status:string, virtual:bool}>
+     */
+    public function periodBreakdown($from, $to, $attendances = null): \Illuminate\Support\Collection
+    {
+        $from = $from instanceof \Carbon\CarbonInterface ? $from->copy()->startOfDay() : \Carbon\Carbon::parse($from)->startOfDay();
+        $to = $to instanceof \Carbon\CarbonInterface ? $to->copy()->startOfDay() : \Carbon\Carbon::parse($to)->startOfDay();
+
+        $rows = ($attendances ?? $this->attendances()
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get())
+            ->keyBy(fn ($a) => $a->date->toDateString());
+
+        // Clamp to the employment window and never into the future.
+        $start = $this->hire_date ? $from->max($this->hire_date->copy()->startOfDay()) : $from->copy();
+        $end = $to->copy()->min(company_now()->startOfDay());
+        if ($this->termination_date) {
+            $end = $end->min($this->termination_date->copy()->startOfDay());
+        } elseif (!$this->is_active && $rows->isNotEmpty()) {
+            // Left, but no date recorded: close at their last known record.
+            $end = $end->min(\Carbon\Carbon::parse($rows->keys()->max())->startOfDay());
+        }
+
+        $schedule = $this->schedule;
+
+        // Preload holidays and approved vacations ONCE for the range (not per day), so
+        // a multi-employee report doesn't fire thousands of queries.
+        $holidays = $start->lte($end)
+            ? Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->pluck('date')
+                ->map(fn ($d) => $d instanceof \Carbon\CarbonInterface ? $d->toDateString() : \Carbon\Carbon::parse($d)->toDateString())
+                ->flip()
+            : collect();
+
+        $vacations = $this->relationLoaded('vacations')
+            ? $this->vacations->where('status', 'APPROVED')
+            : $this->vacations()->where('status', 'APPROVED')->get();
+        $onVacation = fn (string $key) => $vacations->contains(fn ($v) => $key >= $v->start_date->toDateString() && $key <= $v->end_date->toDateString());
+
+        $days = collect();
+
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            $key = $d->toDateString();
+
+            if ($rows->has($key)) {
+                $att = $rows->get($key);
+                $days->push(['date' => $d->copy(), 'attendance' => $att, 'status' => $att->status, 'virtual' => false]);
+                continue;
+            }
+
+            // No record: only scheduled working days that aren't holidays can be a "falta"
+            if (!$schedule?->worksOn($d->dayOfWeek) || $holidays->has($key)) {
+                continue;
+            }
+            if ($onVacation($key)) {
+                $days->push(['date' => $d->copy(), 'attendance' => null, 'status' => 'VACATION', 'virtual' => true]);
+                continue;
+            }
+
+            $days->push(['date' => $d->copy(), 'attendance' => null, 'status' => 'ABSENT', 'virtual' => true]);
+        }
+
+        return $days;
     }
 }

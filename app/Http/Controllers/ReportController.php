@@ -359,8 +359,12 @@ class ReportController extends Controller
             ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
             ->orderBy('last_name')->get();
 
-        return $employees->map(function ($employee) use ($clamp) {
+        return $employees->map(function ($employee) use ($clamp, $from, $to) {
             $attendances = $employee->attendances;
+            // Same derived day-by-day view the printable sheet uses, so the "Absences"
+            // column matches the sheet even when the nightly job never generated them.
+            $absentDays = $employee->periodBreakdown($from, $to, $attendances)
+                ->where('status', 'ABSENT')->count();
 
             $compliedMinutes = 0;  // hours that count: min(present, due) per day, no overtime credit
             $expectedMinutes = 0;  // the "jornada" due on worked days
@@ -407,7 +411,7 @@ class ReportController extends Controller
                 'on_time' => $attendances->where('status', 'ON_TIME')->count(),
                 'late' => $attendances->where('status', 'LATE')->count(),
                 'late_minutes' => $lateMinutes,
-                'absent' => $attendances->where('status', 'ABSENT')->count(),
+                'absent' => $absentDays,
                 'excused' => $attendances->where('status', 'EXCUSED')->count(),
                 'worked_hours' => sprintf('%d:%02d', intdiv($compliedMinutes, 60), $compliedMinutes % 60),
                 'worked_minutes' => $compliedMinutes,
@@ -461,6 +465,11 @@ class ReportController extends Controller
         $employee->load('schedule.days', 'site', 'area', 'position');
         $clamp = (bool) $setting->clamp_worked_hours;
 
+        // Full period day by day: real rows + DERIVED faltas/vacaciones, so the sheet
+        // is complete even if the nightly absence job never ran (and it respects the
+        // hire/termination window, holidays, days off and approved vacations).
+        $breakdown = $employee->periodBreakdown($from, $to, $attendances);
+
         $compliedMinutes = 0;
         $expectedMinutes = 0;
         $deficitMinutes = 0;
@@ -492,7 +501,7 @@ class ReportController extends Controller
             'on_time' => $attendances->where('status', 'ON_TIME')->count(),
             'late' => $attendances->where('status', 'LATE')->count(),
             'late_minutes' => $lateMinutes,
-            'absent' => $attendances->where('status', 'ABSENT')->count(),
+            'absent' => $breakdown->where('status', 'ABSENT')->count(), // real + derived faltas
             'excused' => $attendances->where('status', 'EXCUSED')->count(),
             'hours' => sprintf('%d:%02d', intdiv($compliedMinutes, 60), $compliedMinutes % 60),
             'expected_hours' => sprintf('%d:%02d', intdiv($expectedMinutes, 60), $expectedMinutes % 60),
@@ -510,7 +519,7 @@ class ReportController extends Controller
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->get();
 
-        $data = compact('employee', 'setting', 'attendances', 'summary', 'vacations', 'justifications', 'from', 'to', 'selectedMonth');
+        $data = compact('employee', 'setting', 'attendances', 'breakdown', 'summary', 'vacations', 'justifications', 'from', 'to', 'selectedMonth');
 
         // Server-side PDF (identical to the printable view, no browser needed)
         if ($request->input('format') === 'pdf') {

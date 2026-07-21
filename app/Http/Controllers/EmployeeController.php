@@ -437,6 +437,7 @@ class EmployeeController extends Controller
             // site-bound users depend on it). The site must be of THIS company.
             'site_id' => ['required', Rule::exists('sites', 'id')->where('company_id', current_company_id())],
             'hire_date' => ['nullable', 'date'],
+            'termination_date' => ['nullable', 'date', 'after_or_equal:hire_date'],
             'contract_type' => ['nullable', Rule::in(array_keys(Employee::CONTRACT_TYPES))],
             'vacation_days_per_year' => ['required', 'integer', 'min:0', 'max:60'],
             'schedule_id' => ['required', 'exists:schedules,id'],

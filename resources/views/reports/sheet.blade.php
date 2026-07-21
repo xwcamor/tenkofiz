@@ -100,14 +100,16 @@
 <table>
     <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Check-in') }}</th><th>{{ __('Check-out') }}</th><th>{{ __('Status') }}</th><th>{{ __('Method') }}</th><th>{{ __('Note') }}</th></tr></thead>
     <tbody>
-    @forelse($attendances as $attendance)
+    @php $statusInk = ['ON_TIME' => '#28a745', 'LATE' => '#fab219', 'ABSENT' => '#dc3545', 'EXCUSED' => '#2a78d6', 'VACATION' => '#17a2b8']; @endphp
+    @forelse($breakdown as $day)
+        @php $att = $day['attendance']; $st = $day['status']; @endphp
         <tr>
-            <td>{{ $attendance->date->format('d/m/Y') }}</td>
-            <td style="text-align:center">{{ $attendance->check_in ?? '—' }}</td>
-            <td style="text-align:center">{{ $attendance->check_out ?? '—' }}</td>
-            <td style="text-align:center">{{ __($attendance->status) }}</td>
-            <td style="text-align:center">{{ __($attendance->method) }}</td>
-            <td>{{ $attendance->note }}</td>
+            <td>{{ $day['date']->format('d/m/Y') }}</td>
+            <td style="text-align:center">{{ $att->check_in ?? '—' }}</td>
+            <td style="text-align:center">{{ $att->check_out ?? '—' }}</td>
+            <td style="text-align:center;color:{{ $statusInk[$st] ?? '#333' }};font-weight:bold">{{ $st === 'VACATION' ? __('Vacation') : __($st) }}</td>
+            <td style="text-align:center">{{ $att ? __($att->method) : ($day['virtual'] ? '—' : '') }}</td>
+            <td>{{ $att->note ?? ($day['virtual'] && $st === 'ABSENT' ? __('No check-in (derived)') : '') }}</td>
         </tr>
     @empty
         <tr><td colspan="6" style="text-align:center;color:#888">{{ __('No records in the period') }}</td></tr>

@@ -105,9 +105,19 @@
                         <p class="text-muted mb-2"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
                     @endif
                     @if($employee->exists)
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active))>
-                            <label class="custom-control-label" for="employeeActive">{{ __('Active') }} <small class="text-muted">({{ __('turn off to mark as terminated') }})</small></label>
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active))>
+                                    <label class="custom-control-label" for="employeeActive">{{ __('Active') }} <small class="text-muted">({{ __('turn off to mark as terminated') }})</small></label>
+                                </div>
+                            </div>
+                            <div class="col-md-4 form-group mb-0">
+                                <label class="mb-1">{{ __('Termination date') }} <small class="text-muted">({{ __('optional') }})</small></label>
+                                <input type="date" name="termination_date" value="{{ old('termination_date', $employee->termination_date?->toDateString()) }}" class="form-control form-control-sm @error('termination_date') is-invalid @enderror">
+                                <small class="text-muted">{{ __('Stops counting absences after this day.') }}</small>
+                                @error('termination_date')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                            </div>
                         </div>
                     @endif
                 </div>
