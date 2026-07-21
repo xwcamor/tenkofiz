@@ -36,6 +36,7 @@ let earlyConfirmed = false;  // the person confirmed an early check-out
 
 // Geolocation: capture the device location (once) to send with the mark.
 const GEO_ENABLED = !!window.KIOSK_GEO;
+const GEO_REQUIRED = !!window.KIOSK_GEO_REQUIRED; // no location → no mark (camera stays closed)
 let geoCoords = null;
 function fetchGeo() {
     return new Promise(resolve => {
@@ -251,7 +252,19 @@ function debugUpdate(pose, distance, identityOk, challenge, pitchBaseline) {
 /* ---------- startup ---------- */
 async function start() {
     try {
-        ensureGeo(); // ask for the location early, in the background (no await)
+        // Forced geolocation: we MUST have a location before the camera opens. No
+        // location → stop here with a retry, the camera never activates.
+        if (GEO_REQUIRED) {
+            show('secondary', spinner + I18N.requestingLocation);
+            await ensureGeo();
+            if (!geoCoords) {
+                show('warning', '<i class="fas fa-map-marker-alt"></i> ' + I18N.locationRequired);
+                showActions(false, true); // "Try again" re-requests the location
+                return;
+            }
+        } else {
+            ensureGeo(); // ask for the location early, in the background (no await)
+        }
         show('secondary', spinner + I18N.loadingModels);
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
@@ -563,7 +576,22 @@ async function autoMarkByDocument() {
 }
 
 function retryVerify() {
-    if (window.HAS_FACE) { runVerify(); } else { begin(); hideActions(); }
+    // Camera never opened (e.g. forced location was denied, or the camera failed):
+    // restart from scratch so it re-requests the location / camera.
+    if (!cameraOk) { hideActions(); start(); return; }
+    if (window.HAS_FACE) { runVerify(); return; }
+    // No face yet. If consent was already accepted (the checkbox auto-started the
+    // capture and then it failed), go straight back into the guided capture — the
+    // now-disabled checkbox will not fire its onchange again.
+    hideActions();
+    const consent = document.getElementById('enrollConsent');
+    if (consent && consent.checked) {
+        const card = document.getElementById('enrollCard');
+        if (card) card.style.display = 'none';
+        enrollGuided();
+    } else {
+        begin();
+    }
 }
 
 /* ---------- marking ---------- */

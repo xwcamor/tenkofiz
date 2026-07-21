@@ -42,8 +42,11 @@ verificación SSL en el código como "solución".
 - [ ] **Razón social, RUC, dirección, teléfono, logo** — salen en los PDF (fichas, vacaciones, justificaciones).
 - [ ] **Zona horaria de la empresa** (ej. `America/Lima`) — manda sobre marcados del kiosco, tardanzas y generación de faltas.
 - [ ] **Día de corte** (ej. 19 → periodos del 20 al 19) — Asistencias y Reportes se abren en ese periodo por defecto. Vacío = mes calendario.
-- [ ] **Token del kiosco** — genera el token y abre el enlace autorizado UNA VEZ en la tablet; así nadie marca desde su celular. Guarda el enlace.
-- [ ] **PIN de enrolamiento** (4-8 dígitos) — habilita el modo auto-enrolamiento en el kiosco (el empleado digita su DNI, acepta el consentimiento y captura su rostro).
+- [ ] **Seguridad del kiosco por sede** (en *Sedes*, no en Ajustes) — cada sede tiene su enlace, su token y sus **tablets vinculadas**:
+  - *Token*: abre el enlace autorizado UNA VEZ en la tablet; así nadie marca desde su celular con solo copiar la URL.
+  - *Vinculación de dispositivo (recomendado)*: genera un código de un solo uso y actívalo en la tablet. Desde ese momento **solo esa tablet** (que guarda una cookie) abre el kiosco de esa sede; una URL copiada en otro equipo se rechaza. Puedes vincular **varias tablets por sede** (una por área) y revocar cada una por separado.
+- [ ] **Enrolamiento facial guiado (sin PIN)** — ya no hay PIN. Al digitar el DNI, si la persona no tiene rostro, acepta el consentimiento y la cámara la guía (círculo verde, acércate/aléjate) y captura sola en unos segundos; enseguida marca su asistencia.
+- [ ] **Geolocalización (opcional)** — en *Ajustes → Kiosco* puedes registrar dónde se hizo cada marca. Con **"Exigir ubicación para marcar"** activado, la cámara no se abre sin ubicación y una marca sin coordenadas se rechaza (para empresas cuyos trabajadores marcan desde cualquier lugar con el enlace compartido).
 
 ## 3. Perfiles y usuarios
 
@@ -95,10 +98,11 @@ Repite `npm run vendor` después de cada `git pull` que cambie versiones.
 
 ## 6. Kiosco (la tablet)
 
-- [ ] Abrir el **enlace autorizado** (con token) una vez en la tablet.
-- [ ] Servir la app por **HTTPS** (la cámara no funciona por HTTP salvo en `localhost`).
+- [ ] Abrir el **enlace autorizado** (con token) una vez en la tablet, o mejor **vincular la tablet** con un código (Sedes → esa sede). Si la sede tiene varias áreas, vincula una tablet por área.
+- [ ] Servir la app por **HTTPS** (la cámara —y la geolocalización— no funcionan por HTTP salvo en `localhost`).
 - [ ] Activar el modo kiosco del dispositivo (fijado de app en Android / Acceso guiado en iPad).
-- [ ] Dar permiso de cámara al navegador y dejarlo recordado.
+- [ ] Dar permiso de cámara (y de ubicación, si se exige) al navegador y dejarlo recordado.
+- [ ] **Si se filtra el enlace/token:** mientras la sede tenga al menos una tablet vinculada, el enlace copiado en otro equipo **se rechaza** (falta la cookie del dispositivo). Por eso la vinculación es la protección recomendada frente a un token filtrado. Si solo usas token (sin vincular), un token filtrado sí permitiría abrir el kiosco: en ese caso, rota el token en Sedes.
 - [ ] Los marcados por DNI guardan foto de evidencia en `public/uploads/kiosk_evidence/` — revisa el espacio en disco de vez en cuando.
 
 ## 7. Permisos de archivos (Linux)

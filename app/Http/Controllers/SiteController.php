@@ -14,7 +14,7 @@ class SiteController extends Controller
 
     public function index(Request $request)
     {
-        $query = Site::withCount('employees');
+        $query = Site::withCount(['employees', 'kioskDevices'])->with('kioskDevices');
         [$sort, $dir] = $this->applySort($query, $request, [
             'name' => 'name', 'address' => 'address', 'timezone' => 'timezone',
             'employees' => 'employees_count', 'status' => 'is_active',
@@ -92,14 +92,17 @@ class SiteController extends Controller
             ->with('pair_site', $site->id);
     }
 
-    /** Unpair this site's device so a new tablet can be bound */
-    public function unpairDevice(Site $site)
+    /** Revoke ONE paired tablet (the others keep working) */
+    public function revokeDevice(Site $site, \App\Models\KioskDevice $device)
     {
-        $site->update(['kiosk_device_hash' => null, 'kiosk_pair_code' => null, 'kiosk_pair_expires_at' => null]);
+        abort_unless($device->site_id === $site->id, 404);
 
-        AuditLog::record('UPDATE', 'Sites', __('The kiosk device for site :name was unpaired', ['name' => $site->name]));
+        $name = $device->name;
+        $device->delete();
 
-        return back()->with('ok', __('Device unpaired for :name. Generate a new pairing code to bind another tablet.', ['name' => $site->name]));
+        AuditLog::record('UPDATE', 'Sites', __('A kiosk device (:device) was revoked from site :name', ['device' => $name, 'name' => $site->name]));
+
+        return back()->with('ok', __('Tablet ":device" revoked for :name. It can no longer open this kiosk.', ['device' => $name, 'name' => $site->name]));
     }
 
     private function validated(Request $request, ?Site $site = null): array

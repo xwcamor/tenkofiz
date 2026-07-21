@@ -30,6 +30,18 @@ class Site extends Model
         return $this->hasMany(User::class);
     }
 
+    /** Paired kiosk tablets bound to this site (multi-device) */
+    public function kioskDevices()
+    {
+        return $this->hasMany(KioskDevice::class)->orderBy('name');
+    }
+
+    /** True when at least one tablet is paired (device binding is then enforced) */
+    public function hasPairedDevices(): bool
+    {
+        return $this->kioskDevices()->exists();
+    }
+
     /** Generates (or rotates) this site's kiosk access token */
     public function regenerateKioskToken(): void
     {

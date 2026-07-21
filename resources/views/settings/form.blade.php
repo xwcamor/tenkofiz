@@ -110,6 +110,12 @@
                         <label class="custom-control-label" for="kioskGeolocation">{{ __('Record where each mark was made (GPS geolocation)') }}</label>
                     </div>
                     <small class="text-muted d-block mb-2">{{ __('ON: when marking, the kiosk asks the browser for permission and saves the coordinates with the punch, shown as a map link in Attendances. Useful for staff who mark from another site or work in the field. If the person denies permission the mark still goes through, just without a location. OFF (default): no location is requested or stored.') }}</small>
+                    {{-- Force geolocation: no location, no mark. Only meaningful when the toggle above is on. --}}
+                    <div class="custom-control custom-switch mb-2 ml-4" id="kioskGeoRequiredRow">
+                        <input type="checkbox" name="kiosk_geolocation_required" value="1" class="custom-control-input" id="kioskGeoRequired" @checked(old('kiosk_geolocation_required', $setting->kiosk_geolocation_required))>
+                        <label class="custom-control-label" for="kioskGeoRequired">{{ __('Require location to mark (no GPS, no mark)') }}</label>
+                    </div>
+                    <small class="text-muted d-block mb-2 ml-4">{{ __('ON: the camera will not even open until the browser shares a location, and a mark without coordinates is rejected. Use this for companies whose workers mark from anywhere with the shared link and must prove where they were. OFF (default): location is recorded when available but never blocks a mark.') }}</small>
                     {{-- Facial recognition (kiosk). Core calibration (match threshold,
                          verification seconds) lives in the super-admin console only:
                          a workspace admin never sees or edits it. --}}
@@ -153,3 +159,22 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+// "Require location" only applies when geolocation is on: grey it out otherwise.
+(function () {
+    var geo = document.getElementById('kioskGeolocation');
+    var req = document.getElementById('kioskGeoRequired');
+    var row = document.getElementById('kioskGeoRequiredRow');
+    if (!geo || !req || !row) return;
+    function sync() {
+        req.disabled = !geo.checked;
+        row.style.opacity = geo.checked ? '1' : '.5';
+        if (!geo.checked) req.checked = false;
+    }
+    geo.addEventListener('change', sync);
+    sync();
+})();
+</script>
+@endpush

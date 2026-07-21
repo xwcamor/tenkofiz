@@ -205,7 +205,10 @@ class KioskController extends Controller
      */
     public function pair(Request $request)
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:16']]);
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:16'],
+            'device_name' => ['nullable', 'string', 'max:60'],
+        ]);
         $code = strtoupper(trim($data['code']));
 
         // The one-time code identifies which site to bind — no need to pass the site
@@ -217,12 +220,16 @@ class KioskController extends Controller
             return back()->withErrors(['code' => __('Invalid or expired pairing code. Ask an administrator for a new one.')]);
         }
 
+        // Add THIS tablet as one more paired device for the site (multi-device):
+        // the code is single-use, but each site can bind as many tablets as needed.
         $secret = Str::random(48);
-        $site->update([
-            'kiosk_device_hash' => hash('sha256', $secret),
-            'kiosk_pair_code' => null,
-            'kiosk_pair_expires_at' => null,
+        $site->kioskDevices()->create([
+            'company_id' => $site->company_id,
+            'name' => trim((string) ($data['device_name'] ?? '')) ?: __('Tablet :n', ['n' => $site->kioskDevices()->count() + 1]),
+            'device_hash' => hash('sha256', $secret),
+            'last_seen_at' => now(),
         ]);
+        $site->update(['kiosk_pair_code' => null, 'kiosk_pair_expires_at' => null]);
 
         AuditLog::record('UPDATE', 'Sites', __('A kiosk device was paired to site :name', ['name' => $site->name]));
 
@@ -490,6 +497,17 @@ class KioskController extends Controller
         // keypad so the person is told BEFORE the camera opens — see lookup()).
         if ($blockMessage = $this->hardBlockMessage($employee, $now)) {
             return response()->json(['ok' => false, 'message' => $blockMessage], 422);
+        }
+
+        // Forced geolocation: no coordinates, no mark. The front-end already refuses
+        // to open the camera without a location, but this is the authoritative guard
+        // (a crafted request without the browser cannot slip a mark through).
+        if ($setting->kiosk_geolocation && $setting->kiosk_geolocation_required
+            && !(is_numeric($request->input('lat')) && is_numeric($request->input('lng')))) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('This kiosk requires your location to mark. Enable location and try again.'),
+            ], 422);
         }
 
         // Kiosk device audit trail

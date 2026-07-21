@@ -26,6 +26,7 @@
     <form method="POST" action="{{ route('kiosk.pair.submit') }}">
         @csrf
         <input type="text" name="code" value="{{ $code }}" maxlength="16" class="form-control form-control-lg mb-3" placeholder="{{ __('Pairing code') }}" autofocus autocomplete="off" required>
+        <input type="text" name="device_name" value="{{ old('device_name') }}" maxlength="60" class="form-control mb-3" style="font-size:1rem;letter-spacing:normal;text-transform:none" placeholder="{{ __('Tablet name (e.g. Reception, Warehouse) — optional') }}" autocomplete="off">
         <button class="btn btn-primary btn-lg w-100"><i class="fas fa-link"></i> {{ __('Pair device') }}</button>
     </form>
 </div>

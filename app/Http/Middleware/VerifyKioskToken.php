@@ -40,12 +40,21 @@ class VerifyKioskToken
             abort(403, __('This workspace is suspended. Please contact your service provider.'));
         }
 
-        // Layer 1: device binding takes precedence when a device is paired
-        if ($site->kiosk_device_hash) {
+        // Layer 1: device binding takes precedence when ANY device is paired. The
+        // cookie must match one of this site's paired tablets (multi-device).
+        if ($site->hasPairedDevices()) {
             $cookie = $request->cookie('kiosk_device');
+            $device = is_string($cookie) && $cookie !== ''
+                ? $site->kioskDevices()->where('device_hash', hash('sha256', $cookie))->first()
+                : null;
 
-            if (!is_string($cookie) || !hash_equals($site->kiosk_device_hash, hash('sha256', $cookie))) {
+            if (!$device) {
                 abort(403, __('This device is not paired with the kiosk. Ask an administrator for a pairing code.'));
+            }
+
+            // Refresh "last seen" at most once every few minutes (avoid a write per request)
+            if (!$device->last_seen_at || $device->last_seen_at->lt(now()->subMinutes(10))) {
+                $device->forceFill(['last_seen_at' => now()])->saveQuietly();
             }
 
             return $next($request); // paired device: authorized

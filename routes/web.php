@@ -114,7 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::post('sites/{site}/kiosk-token', [\App\Http\Controllers\SiteController::class, 'regenerateToken'])->name('sites.kioskToken');
         Route::delete('sites/{site}/kiosk-token', [\App\Http\Controllers\SiteController::class, 'clearToken'])->name('sites.kioskToken.clear');
         Route::post('sites/{site}/kiosk-pair-code', [\App\Http\Controllers\SiteController::class, 'generatePairCode'])->name('sites.kioskPair');
-        Route::delete('sites/{site}/kiosk-device', [\App\Http\Controllers\SiteController::class, 'unpairDevice'])->name('sites.kioskUnpair');
+        Route::delete('sites/{site}/kiosk-device/{device}', [\App\Http\Controllers\SiteController::class, 'revokeDevice'])->name('sites.kioskRevoke');
     });
 
     Route::middleware('module:employees')->group(function () {

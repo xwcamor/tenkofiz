@@ -61,11 +61,10 @@
                 {{ __('The employee declares that they have been informed and consent to the processing of their biometric data (a 128-value mathematical vector of the face, not the photograph) for the sole purpose of attendance control, in accordance with the personal data protection law.') }}
             </div>
             <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" id="enrollConsent" onchange="document.getElementById('enrollBtn').disabled = !this.checked">
-                <label class="form-check-label small text-light" for="enrollConsent">{{ __('I accept the biometric data consent') }}</label>
+                <input class="form-check-input" type="checkbox" id="enrollConsent" onchange="if(this.checked){this.disabled=true;startEnroll();}">
+                <label class="form-check-label small text-light" for="enrollConsent"><strong>{{ __('I accept the biometric data consent') }}</strong> — {{ __('registration starts automatically when you check this') }}</label>
             </div>
             <div id="enrollMessage"></div>
-            <button class="btn btn-success w-100" id="enrollBtn" disabled onclick="startEnroll()"><i class="fas fa-camera"></i> {{ __('Accept and start face registration') }}</button>
         </div>
     @endunless
 </div>
@@ -85,9 +84,12 @@
     window.KIOSK_NEXT_ACTION = @json($nextAction);
     window.KIOSK_EARLY_EXIT_WARN = @json($earlyExitWarn);
     window.KIOSK_GEO = @json((bool) app_setting()->kiosk_geolocation);
+    window.KIOSK_GEO_REQUIRED = @json((bool) (app_setting()->kiosk_geolocation && app_setting()->kiosk_geolocation_required));
     window.KIOSK_I18N = {
         loadingModels: @json(__('Loading recognition models...')),
         startingCamera: @json(__('Starting camera...')),
+        requestingLocation: @json(__('Getting your location...')),
+        locationRequired: @json(__('This kiosk requires your location to mark. Enable location in your browser and tap Try again.')),
         lookAtCamera: @json(__('Confirming it is you, :name...')),
         comeCloser: @json(__('Move closer and look at the camera, :name...')),
         placeFaceInOval: @json(__('Bring your face into the circle')),
@@ -115,7 +117,7 @@
         cameraFallback: @json(__('The camera is not available. You can still mark by document (no photo evidence).')),
         notConfirmed: @json(__('We could not confirm your face in :sec seconds. You can try again or mark by document (an evidence photo will be saved for review).')),
         noFaceSeen: @json(__('No face was detected in front of the camera — nothing was recorded. Come closer, improve the lighting and try again.')),
-        enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Complete the steps below.')),
+        enrollFirst: @json(__('To mark attendance you must first enroll your face (one time only). Accept the consent below and it starts automatically.')),
         faceDetected: @json(__('Face detected')),
         noFaceYet: @json(__('Looking for a face...')),
         evidenceIntro: @json(__('Retrying detection — stay in front of the camera...')),
