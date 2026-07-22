@@ -110,7 +110,7 @@ class ReportController extends Controller
         $siteId = $request->filled('site_id') ? $request->integer('site_id') : null;
 
         $employees = Employee::with([
-            'area', 'position', 'schedule.days',
+            'area', 'position', 'schedule.days', 'scheduleAssignments.schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date'),
         ])->where('is_active', true)
             ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
@@ -150,9 +150,9 @@ class ReportController extends Controller
             $totalOwed = 0;
 
             foreach ($employee->attendances as $attendance) {
-                $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
+                $shift = $clamp ? $attendance->clampShift($employee->scheduleOn($attendance->date)) : null;
                 $full = $attendance->check_in && $attendance->check_out;
-                $expDay = $full ? ($attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0)) : 0;
+                $expDay = $full ? ($attendance->expected_minutes ?? ($employee->scheduleOn($attendance->date)?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0)) : 0;
                 $complied = $full ? $attendance->compliedMinutes($expDay, $shift) : 0;
                 $owed = max(0, $expDay - $complied);
                 $totalComplied += $complied;
@@ -352,7 +352,7 @@ class ReportController extends Controller
         $clamp = (bool) app_setting()->clamp_worked_hours;
 
         $employees = Employee::with([
-            'area', 'position', 'site', 'schedule.days',
+            'area', 'position', 'site', 'schedule.days', 'scheduleAssignments.schedule.days',
             'attendances' => fn ($q) => $q->whereBetween('date', [$from->toDateString(), $to->toDateString()]),
             'vacations' => fn ($q) => $q->where('status', 'APPROVED'),
         ])->where('is_active', true)
@@ -372,13 +372,13 @@ class ReportController extends Controller
             $lateMinutes = 0;
             foreach ($attendances as $attendance) {
                 $weekday = $attendance->date->dayOfWeek;
-                $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
+                $shift = $clamp ? $attendance->clampShift($employee->scheduleOn($attendance->date)) : null;
 
                 // Only full days (check-in + check-out) carry a quota, so a short day
                 // (late in / early out) shows as a deficit while absences stay separate.
                 // Prefer the quota frozen at check-in; fall back to a live compute.
                 if ($attendance->check_in && $attendance->check_out) {
-                    $expDay = $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                    $expDay = $attendance->expected_minutes ?? ($employee->scheduleOn($attendance->date)?->expectedMinutesFor($weekday) ?? 0);
                     $complied = $attendance->compliedMinutes($expDay, $shift);
                     $expectedMinutes += $expDay;
                     $compliedMinutes += $complied;
@@ -387,7 +387,7 @@ class ReportController extends Controller
 
                 // Late minutes: how far past the scheduled start the check-in was
                 if ($attendance->status === 'LATE' && $attendance->check_in) {
-                    $shift = $employee->schedule?->worksOn($weekday);
+                    $shift = $employee->scheduleOn($attendance->date)?->worksOn($weekday);
                     if ($shift) {
                         $scheduled = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$shift->start_time);
                         $actual = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);
@@ -462,7 +462,7 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
 
-        $employee->load('schedule.days', 'site', 'area', 'position');
+        $employee->load('schedule.days', 'scheduleAssignments.schedule.days', 'site', 'area', 'position');
         $clamp = (bool) $setting->clamp_worked_hours;
 
         // Full period day by day: real rows + DERIVED faltas/vacaciones, so the sheet
@@ -476,10 +476,10 @@ class ReportController extends Controller
         $lateMinutes = 0;
         foreach ($attendances as $attendance) {
             $weekday = $attendance->date->dayOfWeek;
-            $shift = $clamp ? $attendance->clampShift($employee->schedule) : null;
+            $shift = $clamp ? $attendance->clampShift($employee->scheduleOn($attendance->date)) : null;
 
             if ($attendance->check_in && $attendance->check_out) {
-                $expDay = $attendance->expected_minutes ?? ($employee->schedule?->expectedMinutesFor($weekday) ?? 0);
+                $expDay = $attendance->expected_minutes ?? ($employee->scheduleOn($attendance->date)?->expectedMinutesFor($weekday) ?? 0);
                 $complied = $attendance->compliedMinutes($expDay, $shift);
                 $expectedMinutes += $expDay;
                 $compliedMinutes += $complied;
@@ -487,7 +487,7 @@ class ReportController extends Controller
             }
 
             if ($attendance->status === 'LATE' && $attendance->check_in) {
-                $shift = $employee->schedule?->worksOn($weekday);
+                $shift = $employee->scheduleOn($attendance->date)?->worksOn($weekday);
                 if ($shift) {
                     $scheduled = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$shift->start_time);
                     $actual = \Carbon\Carbon::parse($attendance->date->toDateString().' '.$attendance->check_in);

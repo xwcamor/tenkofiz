@@ -201,7 +201,8 @@ class EmployeeController extends Controller
                 __('Your plan allows up to :max employees. Contact your service provider to extend it.', ['max' => $company->max_employees]));
         }
 
-        Employee::create($this->validated($request));
+        $employee = Employee::create($this->validated($request));
+        $this->syncScheduleAssignments($employee, $request);
         return redirect()->route('employees.index')->with('ok', __('Employee registered. You can now enroll their face.'));
     }
 
@@ -219,7 +220,33 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $employee->update($this->validated($request, $employee));
+        $this->syncScheduleAssignments($employee, $request);
         return redirect()->route('employees.index')->with('ok', __('Employee updated.'));
+    }
+
+    /**
+     * Replaces the employee's schedule "vigencias" (dated schedule history) from the
+     * form's schedule_periods[] rows. Empty/invalid rows are ignored; schedules are
+     * limited to THIS company (Schedule carries CompanyScope), so no cross-tenant id
+     * can slip in.
+     */
+    private function syncScheduleAssignments(Employee $employee, Request $request): void
+    {
+        $validScheduleIds = Schedule::pluck('id')->all();
+
+        $rows = collect($request->input('schedule_periods', []))
+            ->filter(fn ($p) => !empty($p['schedule_id']) && !empty($p['from'])
+                && in_array((int) $p['schedule_id'], $validScheduleIds, true))
+            ->map(fn ($p) => [
+                'schedule_id' => (int) $p['schedule_id'],
+                'effective_from' => $p['from'],
+                'effective_to' => (!empty($p['to']) && $p['to'] >= $p['from']) ? $p['to'] : null,
+            ]);
+
+        $employee->scheduleAssignments()->delete();
+        foreach ($rows as $row) {
+            $employee->scheduleAssignments()->create($row);
+        }
     }
 
     /** Creates a linked user with the chosen profile (initial password: their document number) */

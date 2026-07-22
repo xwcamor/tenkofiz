@@ -101,6 +101,74 @@
                             @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
                     </div>
+
+                    {{-- Schedule "vigencias": the assigned schedule can change over time (e.g. Jan–Jul one, Aug–Dec another) --}}
+                    @php
+                        $periodRows = old('schedule_periods', $employee->scheduleAssignments->map(fn ($a) => [
+                            'schedule_id' => $a->schedule_id,
+                            'from' => $a->effective_from?->toDateString(),
+                            'to' => $a->effective_to?->toDateString(),
+                        ])->all());
+                    @endphp
+                    <div class="card card-outline card-secondary mt-1 mb-3">
+                        <div class="card-header py-2">
+                            <h3 class="card-title" style="font-size:.95rem"><i class="fas fa-history mr-1"></i> {{ __('Schedules by period (optional)') }}</h3>
+                        </div>
+                        <div class="card-body py-2">
+                            <p class="text-muted mb-2" style="font-size:.82rem">{{ __('For rotating shifts: assign a schedule for a date range (e.g. Jan–Jul one shift, Aug–Dec another). The system uses the one in force on each date for tardiness, absences and reports. Leave empty to always use the assigned schedule above.') }}</p>
+                            <div id="schedulePeriods">
+                                @foreach($periodRows as $i => $p)
+                                    <div class="form-row align-items-end mb-2 period-row">
+                                        <div class="col-md-5 form-group mb-1">
+                                            <label class="mb-1 small">{{ __('Schedule') }}</label>
+                                            <select name="schedule_periods[{{ $i }}][schedule_id]" class="form-control form-control-sm">
+                                                <option value="">—</option>
+                                                @foreach($schedules as $schedule)
+                                                    <option value="{{ $schedule->id }}" @selected(($p['schedule_id'] ?? null) == $schedule->id)>{{ $schedule->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3 form-group mb-1">
+                                            <label class="mb-1 small">{{ __('From') }}</label>
+                                            <input type="date" name="schedule_periods[{{ $i }}][from]" value="{{ $p['from'] ?? '' }}" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-md-3 form-group mb-1">
+                                            <label class="mb-1 small">{{ __('To') }} <span class="text-muted">({{ __('optional') }})</span></label>
+                                            <input type="date" name="schedule_periods[{{ $i }}][to]" value="{{ $p['to'] ?? '' }}" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-md-1 form-group mb-1">
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-block remove-period" title="{{ __('Remove') }}"><i class="fas fa-times"></i></button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="addPeriod"><i class="fas fa-plus mr-1"></i> {{ __('Add period') }}</button>
+                        </div>
+                    </div>
+                    <template id="periodRowTpl">
+                        <div class="form-row align-items-end mb-2 period-row">
+                            <div class="col-md-5 form-group mb-1">
+                                <label class="mb-1 small">{{ __('Schedule') }}</label>
+                                <select name="schedule_periods[__I__][schedule_id]" class="form-control form-control-sm">
+                                    <option value="">—</option>
+                                    @foreach($schedules as $schedule)
+                                        <option value="{{ $schedule->id }}">{{ $schedule->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3 form-group mb-1">
+                                <label class="mb-1 small">{{ __('From') }}</label>
+                                <input type="date" name="schedule_periods[__I__][from]" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-3 form-group mb-1">
+                                <label class="mb-1 small">{{ __('To') }} <span class="text-muted">({{ __('optional') }})</span></label>
+                                <input type="date" name="schedule_periods[__I__][to]" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-1 form-group mb-1">
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-block remove-period"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                    </template>
                     @if($employee->exists && $employee->user)
                         <p class="text-muted mb-2"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
                     @endif
@@ -153,6 +221,18 @@ $(function () {
         theme: 'bootstrap4',
         width: '100%',
         language: @json(app()->getLocale()),
+    });
+
+    // Schedule "vigencias": add / remove period rows
+    let periodIdx = document.querySelectorAll('#schedulePeriods .period-row').length;
+    const tpl = document.getElementById('periodRowTpl');
+    document.getElementById('addPeriod')?.addEventListener('click', function () {
+        const html = tpl.innerHTML.replace(/__I__/g, periodIdx++);
+        document.getElementById('schedulePeriods').insertAdjacentHTML('beforeend', html);
+    });
+    document.getElementById('schedulePeriods')?.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-period');
+        if (btn) btn.closest('.period-row').remove();
     });
 });
 </script>

@@ -73,6 +73,35 @@ class Employee extends Model
         return $this->belongsTo(Schedule::class);
     }
 
+    /** Dated schedule history ("vigencias"): schedule X from/to, schedule Y from/to… */
+    public function scheduleAssignments()
+    {
+        return $this->hasMany(EmployeeSchedule::class)->orderBy('effective_from');
+    }
+
+    /**
+     * The schedule in force on a given date. Looks through the dated assignments
+     * (vigencias) and picks the one whose range covers the date — most recent start
+     * wins on overlap. Falls back to the base schedule_id when no assignment applies,
+     * so employees without any history behave exactly as before.
+     */
+    public function scheduleOn($date): ?Schedule
+    {
+        $key = $date instanceof \Carbon\CarbonInterface ? $date->toDateString() : \Carbon\Carbon::parse($date)->toDateString();
+
+        $assignments = $this->relationLoaded('scheduleAssignments')
+            ? $this->scheduleAssignments
+            : $this->scheduleAssignments()->with('schedule.days')->get();
+
+        $match = $assignments
+            ->filter(fn ($a) => $a->effective_from->toDateString() <= $key
+                && ($a->effective_to === null || $a->effective_to->toDateString() >= $key))
+            ->sortByDesc(fn ($a) => $a->effective_from->toDateString())
+            ->first();
+
+        return $match?->schedule ?? $this->schedule;
+    }
+
     public function area()
     {
         return $this->belongsTo(Area::class);
@@ -179,7 +208,10 @@ class Employee extends Model
             $end = $end->min(\Carbon\Carbon::parse($rows->keys()->max())->startOfDay());
         }
 
-        $schedule = $this->schedule;
+        // Preload the schedule history once so scheduleOn() resolves in memory.
+        if (!$this->relationLoaded('scheduleAssignments')) {
+            $this->load('scheduleAssignments.schedule.days');
+        }
 
         // Preload holidays and approved vacations ONCE for the range (not per day), so
         // a multi-employee report doesn't fire thousands of queries.
@@ -206,8 +238,9 @@ class Employee extends Model
                 continue;
             }
 
-            // No record: only scheduled working days that aren't holidays can be a "falta"
-            if (!$schedule?->worksOn($d->dayOfWeek) || $holidays->has($key)) {
+            // No record: only scheduled working days that aren't holidays can be a "falta".
+            // The schedule effective on THIS date decides (schedules can change over time).
+            if (!$this->scheduleOn($d)?->worksOn($d->dayOfWeek) || $holidays->has($key)) {
                 continue;
             }
             if ($onVacation($key)) {

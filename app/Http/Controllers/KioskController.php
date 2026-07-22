@@ -136,7 +136,7 @@ class KioskController extends Controller
      */
     private function isEarlyCheckout(Employee $employee, \Carbon\Carbon $now, Attendance $attendance): bool
     {
-        $schedule = $employee->schedule;
+        $schedule = $employee->scheduleOn($now);
         if (!$schedule || !$attendance->check_in) {
             return false;
         }
@@ -172,7 +172,7 @@ class KioskController extends Controller
     /** Human message for the early-checkout confirmation */
     private function earlyCheckoutMessage(Employee $employee, \Carbon\Carbon $now, \Carbon\Carbon $checkIn): string
     {
-        $schedule = $employee->schedule;
+        $schedule = $employee->scheduleOn($now);
         $tail = ' '.__('Only your time worked up to now will count.');
 
         if ($schedule && !$schedule->isFlexible()) {
@@ -440,8 +440,9 @@ class KioskController extends Controller
             ->whereDate('date', $now->copy()->subDay()->toDateString())
             ->whereNotNull('check_in')->whereNull('check_out')->exists();
 
-        if (!$hasToday && !$openOvernight && $employee->schedule?->isFixed()) {
-            $shift = $employee->schedule->worksOn($now->dayOfWeek);
+        $nowSchedule = $employee->scheduleOn($now);
+        if (!$hasToday && !$openOvernight && $nowSchedule?->isFixed()) {
+            $shift = $nowSchedule->worksOn($now->dayOfWeek);
             if ($shift) {
                 return $this->earlyCheckInMessage(app_setting(), $employee, $shift, $now);
             }
@@ -520,7 +521,7 @@ class KioskController extends Controller
         // Overnight shifts: if yesterday's shift crosses midnight and is still open,
         // a mark before noon closes it as that shift's CHECK-OUT instead of opening today.
         $yesterday = $now->copy()->subDay();
-        $yesterdayShift = $employee->schedule?->worksOn($yesterday->dayOfWeek);
+        $yesterdayShift = $employee->scheduleOn($yesterday)?->worksOn($yesterday->dayOfWeek);
         if ($yesterdayShift && $yesterdayShift->crossesMidnight() && $now->format('H:i') < '12:00') {
             $openOvernight = Attendance::where('employee_id', $employee->id)
                 ->whereDate('date', $yesterday->toDateString())
@@ -546,8 +547,10 @@ class KioskController extends Controller
         $attendance = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $today]);
 
         if (!$attendance->exists) {
-            // First mark of the day = CHECK-IN; lateness depends on TODAY's weekday hours
-            $todayShift = $employee->schedule?->worksOn($now->dayOfWeek);
+            // First mark of the day = CHECK-IN; lateness depends on TODAY's weekday hours,
+            // using the schedule in force on this date (schedules can change over time)
+            $todaySchedule = $employee->scheduleOn($now);
+            $todayShift = $todaySchedule?->worksOn($now->dayOfWeek);
             $status = 'ON_TIME';
             // Tag a mark made on a holiday (only reachable when the company allows it)
             if ($holiday = Holiday::onDate($today)) {
@@ -561,7 +564,7 @@ class KioskController extends Controller
             }
             // Flexible schedules have no fixed start: no early-check-in window and no
             // tardiness — the person only has to complete their daily hour target.
-            if ($todayShift && $employee->schedule->isFixed()) {
+            if ($todayShift && $todaySchedule->isFixed()) {
                 $start = \Carbon\Carbon::parse($today.' '.$todayShift->start_time, company_timezone());
 
                 // Early check-in window: reject marks made too long before the shift
@@ -570,7 +573,7 @@ class KioskController extends Controller
                     return response()->json(['ok' => false, 'message' => $earlyMessage], 422);
                 }
 
-                if ($now->greaterThan($start->copy()->addMinutes($employee->schedule->tolerance_minutes))) {
+                if ($now->greaterThan($start->copy()->addMinutes($todaySchedule->tolerance_minutes))) {
                     $status = 'LATE';
                 }
             }
@@ -580,9 +583,9 @@ class KioskController extends Controller
                 // Freeze the expected minutes AND the shift bounds for the day so a
                 // later schedule change never rewrites this day's balance or worked
                 // hours — same idea as freezing the status above.
-                'expected_minutes' => $employee->schedule?->expectedMinutesFor($now->dayOfWeek),
-                'shift_start' => ($todayShift && $employee->schedule->isFixed()) ? $todayShift->start_time : null,
-                'shift_end' => ($todayShift && $employee->schedule->isFixed()) ? $todayShift->end_time : null,
+                'expected_minutes' => $todaySchedule?->expectedMinutesFor($now->dayOfWeek),
+                'shift_start' => ($todayShift && $todaySchedule->isFixed()) ? $todayShift->start_time : null,
+                'shift_end' => ($todayShift && $todaySchedule->isFixed()) ? $todayShift->end_time : null,
                 'method' => $method,
             ] + $extra + $device)->save();
             $this->recordMark($request, $employee, $attendance, 'CHECK_IN', $method, $extra['evidence_photo'] ?? null);
