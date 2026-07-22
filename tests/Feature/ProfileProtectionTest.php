@@ -36,10 +36,11 @@ class ProfileProtectionTest extends TestCase
         $this->assertDatabaseHas('profiles', ['id' => $supervisor->id]);
     }
 
-    public function test_a_system_profile_cannot_be_renamed_or_deactivated(): void
+    public function test_a_system_profile_cannot_be_edited_at_all(): void
     {
         $admin = $this->admin();
         $supervisor = Profile::where('name', 'Supervisor')->first();
+        $originalPermissions = $supervisor->permissions;
 
         $this->actingAs($admin)->put(route('profiles.update', $supervisor), [
             'name' => 'HACKED',
@@ -49,9 +50,9 @@ class ProfileProtectionTest extends TestCase
         ])->assertRedirect();
 
         $supervisor->refresh();
-        $this->assertSame('Supervisor', $supervisor->name); // name locked
-        $this->assertTrue($supervisor->is_active);          // stays active
-        $this->assertSame(['reports'], $supervisor->permissions); // permissions still editable
+        $this->assertSame('Supervisor', $supervisor->name);            // name locked
+        $this->assertTrue($supervisor->is_active);                     // stays active
+        $this->assertSame($originalPermissions, $supervisor->permissions); // NOTHING changes: fully read-only
     }
 
     public function test_the_administrator_role_always_keeps_every_module(): void

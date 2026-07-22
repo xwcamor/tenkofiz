@@ -47,10 +47,14 @@
                             $payload = json_encode(['action' => route('sites.update', $site), 'name' => $site->name, 'address' => $site->address, 'timezone' => $site->timezone, 'is_active' => $site->is_active]);
                         @endphp
                         <button class="btn btn-sm btn-outline-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openSiteModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
-                        <form method="POST" action="{{ route('sites.destroy', $site) }}" class="d-inline delete-form">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
-                        </form>
+                        @if($sites->count() <= 1)
+                            <button class="btn btn-sm btn-outline-secondary" disabled title="{{ __('At least one site must exist') }}"><i class="fas fa-lock"></i></button>
+                        @else
+                            <form method="POST" action="{{ route('sites.destroy', $site) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                            </form>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body">

@@ -30,6 +30,13 @@ class ProfileController extends Controller
 
     public function update(Request $request, Profile $profile)
     {
+        // Design rule: base system profiles (Administrator/Supervisor/Employee) are
+        // global read-only templates. They are NOT editable — customize by creating
+        // your own profile instead. This is the whole point of them being "global".
+        if ($profile->is_system) {
+            return back()->with('error', __('Base system profiles cannot be edited. Create a custom profile to define your own permissions.'));
+        }
+
         $data = $this->validated($request, $profile);
 
         // Safety net: don't let an admin lock themself out of profile management

@@ -46,6 +46,12 @@ class SiteController extends Controller
 
     public function destroy(Site $site)
     {
+        // Design rule: a workspace must always keep at least one site (employees and
+        // kiosks are always scoped to one). The last site is locked.
+        if (Site::count() <= 1) {
+            return back()->with('error', __('You must keep at least one site.'));
+        }
+
         // A site is required on every employee, so deleting one with staff would
         // orphan them (broken kiosk scoping, blank site in reports). Block it and
         // ask to move them first — same rule as schedules.

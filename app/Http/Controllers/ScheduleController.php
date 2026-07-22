@@ -101,6 +101,12 @@ class ScheduleController extends Controller
 
     public function destroy(Schedule $schedule)
     {
+        // Design rule: a workspace must always keep at least one schedule, so new
+        // employees can always be registered. The last one in the catalog is locked.
+        if (Schedule::shared()->count() <= 1) {
+            return back()->with('error', __('You must keep at least one schedule.'));
+        }
+
         // Blocked while in use — as someone's base schedule OR inside a dated period
         // (vigencia). Without the second check the DB foreign key would 500.
         if ($schedule->employees()->exists() || \App\Models\EmployeeSchedule::where('schedule_id', $schedule->id)->exists()) {

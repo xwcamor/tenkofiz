@@ -46,10 +46,11 @@
                                 'is_admin_role' => $profile->isAdministratorRole(),
                             ]);
                         @endphp
-                        <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openProfileModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
                         @if($profile->is_system)
+                            <button class="btn btn-sm btn-secondary" disabled title="{{ __('Base role: read-only, cannot be edited') }}"><i class="fas fa-lock"></i></button>
                             <button class="btn btn-sm btn-danger" disabled title="{{ __('Base role: cannot be deleted') }}"><i class="fas fa-lock"></i></button>
                         @else
+                            <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openProfileModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
                             <form method="POST" action="{{ route('profiles.destroy', $profile) }}" class="d-inline delete-form">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>

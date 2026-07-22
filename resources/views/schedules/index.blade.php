@@ -58,10 +58,14 @@
                             ]);
                         @endphp
                         <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openScheduleModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
-                        <form method="POST" action="{{ route('schedules.destroy', $schedule) }}" class="d-inline delete-form">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                        </form>
+                        @if($schedules->count() <= 1)
+                            <button class="btn btn-sm btn-secondary" disabled title="{{ __('At least one schedule must exist') }}"><i class="fas fa-lock"></i></button>
+                        @else
+                            <form method="POST" action="{{ route('schedules.destroy', $schedule) }}" class="d-inline delete-form">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                        @endif
                     </td>
                 </tr>
             @empty
