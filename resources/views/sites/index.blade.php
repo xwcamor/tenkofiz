@@ -59,16 +59,17 @@
                 </div>
                 <div class="card-body">
                     {{-- Group 1: site details --}}
-                    <div class="d-flex flex-wrap mb-2" style="gap:.35rem 1.5rem">
+                    <div class="d-flex flex-wrap mb-3" style="gap:.35rem 1.5rem">
                         <span class="text-sm"><i class="fas fa-location-dot text-muted mr-1"></i>{{ $site->address ?: __('No address') }}</span>
                         <span class="text-sm"><i class="fas fa-clock text-muted mr-1"></i>{{ $site->timezone ?: __('Company default (:tz)', ['tz' => company_timezone()]) }}</span>
                         <span class="text-sm"><i class="fas fa-users text-muted mr-1"></i>{{ $site->employees_count }} {{ $site->employees_count == 1 ? __('employee') : __('employees') }}</span>
                     </div>
 
                     {{-- Group 2: kiosk security (link + token + devices), boxed together --}}
-                    <div class="border rounded p-2 bg-light">
-                        <div class="d-flex align-items-center mb-2">
-                            <h6 class="font-weight-bold mb-0"><i class="fas fa-tablet-alt"></i> {{ __('Kiosk security') }}</h6>
+                    <div class="border rounded p-3" style="background: var(--footer-bg)">
+                        {{-- Section header: title + current status --}}
+                        <div class="d-flex align-items-center mb-3">
+                            <h6 class="font-weight-bold mb-0"><i class="fas fa-tablet-alt text-muted mr-1"></i> {{ __('Kiosk security') }}</h6>
                             <span class="ml-auto">
                                 @if($site->kiosk_devices_count > 0)
                                     <span class="badge badge-success" title="{{ __('Paired tablets can open this kiosk') }}"><i class="fas fa-fingerprint"></i> {{ $site->kiosk_devices_count }} {{ $site->kiosk_devices_count == 1 ? __('tablet') : __('tablets') }}</span>
@@ -81,37 +82,53 @@
                         </div>
 
                         {{-- Authorized link --}}
-                        <label class="text-sm mb-1 text-muted">{{ __('Authorized kiosk link (open it once on this site\'s tablet):') }}</label>
-                        <div class="input-group input-group-sm mb-2">
-                            <input type="text" class="form-control" value="{{ $site->kioskLink() }}" readonly onclick="this.select()" style="font-size:.72rem">
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" data-link="{{ $site->kioskLink() }}" data-msg="{{ __('Link copied') }}" onclick="navigator.clipboard.writeText(this.dataset.link); Swal.fire({toast:true,position:'top-end',icon:'success',title:this.dataset.msg,showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
+                        <div class="form-group mb-3">
+                            <label class="text-sm mb-1 text-muted d-block">{{ __('Authorized kiosk link (open it once on this site\'s tablet):') }}</label>
+                            <div class="input-group input-group-sm mb-0">
+                                <input type="text" class="form-control" value="{{ $site->kioskLink() }}" readonly onclick="this.select()" style="font-size:.72rem">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button" title="{{ __('Copy') }}" data-link="{{ $site->kioskLink() }}" data-msg="{{ __('Link copied') }}" onclick="navigator.clipboard.writeText(this.dataset.link); Swal.fire({toast:true,position:'top-end',icon:'success',title:this.dataset.msg,showConfirmButton:false,timer:1500})"><i class="fas fa-copy"></i></button>
+                                </div>
                             </div>
                         </div>
 
                         {{-- Token --}}
-                        @if($site->kiosk_token)
-                            <p class="text-sm mb-1"><i class="fas fa-lock text-success"></i> {{ __('Restricted: only devices that opened the authorized link can use it.') }}</p>
-                        @else
-                            <div class="alert alert-warning py-1 px-2 mb-2 text-sm"><i class="fas fa-exclamation-triangle"></i> {{ __('Open: anyone with the URL could open it. Generate a token to restrict it.') }}</div>
-                        @endif
-                        <div class="mb-2">
-                            <form method="POST" action="{{ route('sites.kioskToken', $site) }}" class="d-inline">
-                                @csrf
-                                <button class="btn btn-warning btn-sm"><i class="fas fa-sync-alt"></i> {{ $site->kiosk_token ? __('Rotate token') : __('Generate token') }}</button>
-                            </form>
-                            @if($site->kiosk_token)
-                                <form method="POST" action="{{ route('sites.kioskToken.clear', $site) }}" class="d-inline delete-form">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlock"></i> {{ __('Remove token') }}</button>
-                                </form>
+                        <div class="pt-3 mb-3 border-top">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="text-sm font-weight-bold"><i class="fas fa-key text-muted mr-1"></i> {{ __('Token') }}</span>
+                                @if($site->kiosk_token)
+                                    <span class="badge badge-success ml-2"><i class="fas fa-lock"></i> {{ __('Restricted by token') }}</span>
+                                    @include('partials.help', ['text' => __('Restricted: only devices that opened the authorized link can use it.')])
+                                @endif
+                            </div>
+                            @if(! $site->kiosk_token)
+                                <div class="alert alert-warning py-1 px-2 mb-2 text-sm"><i class="fas fa-exclamation-triangle"></i> {{ __('Open: anyone with the URL could open it. Generate a token to restrict it.') }}</div>
                             @endif
+                            <div class="d-flex flex-wrap align-items-center" style="gap:.5rem">
+                                <form method="POST" action="{{ route('sites.kioskToken', $site) }}" class="d-inline">
+                                    @csrf
+                                    <button class="btn btn-warning btn-sm"><i class="fas fa-sync-alt"></i> {{ $site->kiosk_token ? __('Rotate token') : __('Generate token') }}</button>
+                                </form>
+                                @if($site->kiosk_token)
+                                    <form method="POST" action="{{ route('sites.kioskToken.clear', $site) }}" class="d-inline delete-form">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-outline-danger btn-sm"><i class="fas fa-unlock"></i> {{ __('Remove token') }}</button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
 
                         {{-- Device binding (multi-device: a site can have several tablets, one per area) --}}
-                        <div class="mt-2 pt-2 border-top">
-                            <h6 class="font-weight-bold text-sm"><i class="fas fa-fingerprint"></i> {{ __('Device binding (recommended)') }}</h6>
-                            <div class="bg-light border rounded p-2 mb-2">
+                        <div class="pt-3 border-top">
+                            <h6 class="font-weight-bold text-sm mb-2">
+                                <i class="fas fa-fingerprint text-muted mr-1"></i> {{ __('Device binding (recommended)') }}
+                                @if($site->kioskDevices->isNotEmpty())
+                                    @include('partials.help', ['text' => __('Only the paired tablets below can open this site\'s kiosk; a copied URL on any other device is rejected.')])
+                                @else
+                                    @include('partials.help', ['text' => __('Bind this site to its tablets: generate a one-time code, open the pairing page on each tablet and enter it. You can pair several (one per area).')])
+                                @endif
+                            </h6>
+                            <div class="border rounded p-2 mb-3" style="background: var(--card-bg)">
                                 <span class="text-sm font-weight-bold d-block mb-1">{{ __('How to pair a tablet:') }}</span>
                                 <ol class="text-sm text-muted pl-3 mb-0">
                                     <li>{{ __('On this screen, press «Generate pairing code».') }}</li>
@@ -120,8 +137,7 @@
                                 </ol>
                             </div>
                             @if($site->kioskDevices->isNotEmpty())
-                                <p class="text-sm mb-2"><i class="fas fa-check-circle text-success"></i> {{ __('Only the paired tablets below can open this site\'s kiosk; a copied URL on any other device is rejected.') }}</p>
-                                <ul class="list-group list-group-flush mb-2">
+                                <ul class="list-group list-group-flush mb-3">
                                     @foreach($site->kioskDevices as $device)
                                         <li class="list-group-item bg-transparent px-0 py-1 d-flex justify-content-between align-items-center">
                                             <span>
@@ -137,20 +153,22 @@
                                         </li>
                                     @endforeach
                                 </ul>
-                                <p class="text-sm text-muted mb-2">{{ __('Add another tablet (e.g. for a different area of this site): generate a code and enter it on that tablet.') }}</p>
-                            @else
-                                <p class="text-sm text-muted mb-2">{{ __('Bind this site to its tablets: generate a one-time code, open the pairing page on each tablet and enter it. You can pair several (one per area).') }}</p>
                             @endif
                             @if(session('pair_code') && session('pair_site') == $site->id)
-                                <div class="alert alert-success py-2">
+                                <div class="alert alert-success py-2 mb-3">
                                     {{ __('Pairing code (valid 15 min):') }} <span class="h4 font-weight-bold">{{ session('pair_code') }}</span><br>
                                     <span class="text-sm">{{ __('On the tablet open:') }} <a href="{{ route('kiosk.pair') }}" target="_blank">{{ route('kiosk.pair') }}</a></span>
                                 </div>
                             @endif
-                            <form method="POST" action="{{ route('sites.kioskPair', $site) }}" class="d-inline">
-                                @csrf
-                                <button class="btn btn-primary btn-sm"><i class="fas fa-key"></i> {{ $site->kioskDevices->isNotEmpty() ? __('Generate code for another tablet') : __('Generate pairing code') }}</button>
-                            </form>
+                            <div class="d-flex flex-wrap align-items-center" style="gap:.5rem">
+                                <form method="POST" action="{{ route('sites.kioskPair', $site) }}" class="d-inline">
+                                    @csrf
+                                    <button class="btn btn-primary btn-sm"><i class="fas fa-key"></i> {{ $site->kioskDevices->isNotEmpty() ? __('Generate code for another tablet') : __('Generate pairing code') }}</button>
+                                </form>
+                                @if($site->kioskDevices->isNotEmpty())
+                                    @include('partials.help', ['text' => __('Add another tablet (e.g. for a different area of this site): generate a code and enter it on that tablet.')])
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>

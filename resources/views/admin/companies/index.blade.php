@@ -50,37 +50,41 @@
                             <span class="badge badge-success">{{ __('Active') }}</span>
                         @endif
                     </td>
-                    <td>
+                    <td class="text-nowrap">
                         @if($company->trashed())
                             <form method="POST" action="{{ route('admin.companies.restore', $company) }}" class="d-inline">
                                 @csrf
                                 <button class="btn btn-sm btn-success" title="{{ __('Restore') }}"><i class="fas fa-trash-restore"></i> {{ __('Restore') }}</button>
                             </form>
                         @else
-                            <form method="POST" action="{{ route('admin.companies.enter', $company) }}" class="d-inline">
-                                @csrf
-                                <button class="btn btn-sm btn-success" title="{{ __('Enter') }}"><i class="fas fa-sign-in-alt"></i></button>
-                            </form>
                             @php
                                 $payload = json_encode(['action' => route('admin.companies.update', $company), 'name' => $company->name, 'tax_id' => $company->tax_id, 'is_active' => $company->is_active]);
                                 $planPayload = json_encode(['action' => route('admin.companies.plan', $company), 'name' => $company->name, 'modules' => $company->modules, 'max_employees' => $company->max_employees, 'max_sites' => $company->max_sites]);
                                 $recognitionPayload = json_encode(['action' => route('admin.companies.recognition', $company), 'name' => $company->name, 'threshold' => $company->recognition['threshold'], 'seconds' => $company->recognition['seconds']]);
                             @endphp
-                            <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="btn btn-sm btn-primary" title="{{ __('Plan (modules and limits)') }}" data-payload="{{ $planPayload }}" onclick="openPlanModal(JSON.parse(this.dataset.payload))"><i class="fas fa-cubes"></i></button>
-                            <button class="btn btn-sm btn-secondary" title="{{ __('Recognition calibration') }}" data-payload="{{ $recognitionPayload }}" onclick="openRecognitionModal(JSON.parse(this.dataset.payload))"><i class="fas fa-sliders-h"></i></button>
-                            @if($company->is_active)
-                                <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" data-action="{{ route('admin.companies.suspend', $company) }}" data-name="{{ $company->name }}" onclick="openSuspendModal(this.dataset.action, this.dataset.name)"><i class="fas fa-pause"></i></button>
-                            @else
-                                <form method="POST" action="{{ route('admin.companies.reactivate', $company) }}" class="d-inline">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <form method="POST" action="{{ route('admin.companies.enter', $company) }}" class="d-inline">
                                     @csrf
-                                    <button class="btn btn-sm btn-success" title="{{ __('Reactivate') }}"><i class="fas fa-play"></i></button>
+                                    <button class="btn btn-sm btn-primary" title="{{ __('Enter') }}"><i class="fas fa-sign-in-alt"></i></button>
                                 </form>
-                            @endif
-                            <form method="POST" action="{{ route('admin.companies.destroy', $company) }}" class="d-inline delete-form">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
-                            </form>
+                                <button class="btn btn-sm btn-default" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openCompanyModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="btn btn-sm btn-default" title="{{ __('Plan (modules and limits)') }}" data-payload="{{ $planPayload }}" onclick="openPlanModal(JSON.parse(this.dataset.payload))"><i class="fas fa-cubes"></i></button>
+                                <button class="btn btn-sm btn-default" title="{{ __('Recognition calibration') }}" data-payload="{{ $recognitionPayload }}" onclick="openRecognitionModal(JSON.parse(this.dataset.payload))"><i class="fas fa-sliders-h"></i></button>
+                            </div>
+                            <div class="btn-group btn-group-sm ml-1" role="group">
+                                @if($company->is_active)
+                                    <button class="btn btn-sm btn-warning" title="{{ __('Suspend (e.g. non-payment)') }}" data-action="{{ route('admin.companies.suspend', $company) }}" data-name="{{ $company->name }}" onclick="openSuspendModal(this.dataset.action, this.dataset.name)"><i class="fas fa-pause"></i></button>
+                                @else
+                                    <form method="POST" action="{{ route('admin.companies.reactivate', $company) }}" class="d-inline">
+                                        @csrf
+                                        <button class="btn btn-sm btn-success" title="{{ __('Reactivate') }}"><i class="fas fa-play"></i></button>
+                                    </form>
+                                @endif
+                                <form method="POST" action="{{ route('admin.companies.destroy', $company) }}" class="d-inline delete-form">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
                         @endif
                     </td>
                 </tr>
@@ -134,12 +138,11 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>{{ __('Default language') }}</label>
+                        <label>{{ __('Default language') }} @include('partials.help', ['text' => __('Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.')])</label>
                         <select name="locale" class="form-control">
                             <option value="es" @selected(old('locale', 'es') === 'es')>Español</option>
                             <option value="en" @selected(old('locale') === 'en')>English</option>
                         </select>
-                        <small class="text-muted">{{ __('Applies to everyone in the workspace (and its kiosks) unless a user picks their own language with the toggle.') }}</small>
                     </div>
                     <hr>
                     <p class="text-muted small mb-2"><i class="fas fa-user-shield"></i> {{ __('First administrator of the workspace (they manage everything inside it).') }}</p>
@@ -183,7 +186,7 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">{{ __('Its users will be signed out immediately and its kiosks will stop marking. All data is kept: reactivating restores everything.') }}</p>
+                <div class="alert alert-warning">{{ __('Its users will be signed out immediately and its kiosks will stop marking. All data is kept: reactivating restores everything.') }}</div>
                 <div class="form-group mb-0">
                     <label>{{ __('Suspension reason') }} <span class="text-danger">*</span></label>
                     <input name="suspended_reason" id="suspendReason" class="form-control" maxlength="200" required placeholder="{{ __('E.g.: pending payment — invoice #123') }}">
@@ -207,29 +210,30 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="custom-control custom-switch mb-2">
-                    <input type="checkbox" name="all_modules" value="1" class="custom-control-input" id="planAllModules" onchange="togglePlanModules()">
-                    <label class="custom-control-label" for="planAllModules">{{ __('All modules (no restriction)') }}</label>
-                </div>
-                <div id="planModulesBox" class="border rounded p-2 mb-3" style="max-height:220px;overflow-y:auto">
-                    @foreach($modules as $key => $label)
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" name="modules[]" value="{{ $key }}" class="custom-control-input plan-module" id="planMod_{{ $key }}">
-                            <label class="custom-control-label" for="planMod_{{ $key }}">{{ __($label) }}</label>
-                        </div>
-                    @endforeach
+                <div class="form-group">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" name="all_modules" value="1" class="custom-control-input" id="planAllModules" onchange="togglePlanModules()">
+                        <label class="custom-control-label" for="planAllModules">{{ __('All modules (no restriction)') }} @include('partials.help', ['text' => __('The workspace admin distributes the contracted modules to their people through Profiles; they can never grant a module outside the plan.')])</label>
+                    </div>
+                    <div id="planModulesBox" class="border rounded p-2" style="max-height:220px;overflow-y:auto">
+                        @foreach($modules as $key => $label)
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" name="modules[]" value="{{ $key }}" class="custom-control-input plan-module" id="planMod_{{ $key }}">
+                                <label class="custom-control-label" for="planMod_{{ $key }}">{{ __($label) }}</label>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="row">
-                    <div class="col-6 form-group">
+                    <div class="col-6 form-group mb-0">
                         <label>{{ __('Employee limit') }} <small class="text-muted">({{ __('empty = unlimited') }})</small></label>
                         <input type="number" name="max_employees" id="planMaxEmployees" min="1" max="100000" class="form-control">
                     </div>
-                    <div class="col-6 form-group">
+                    <div class="col-6 form-group mb-0">
                         <label>{{ __('Site limit') }} <small class="text-muted">({{ __('empty = unlimited') }})</small></label>
                         <input type="number" name="max_sites" id="planMaxSites" min="1" max="1000" class="form-control">
                     </div>
                 </div>
-                <small class="text-muted">{{ __('The workspace admin distributes the contracted modules to their people through Profiles; they can never grant a module outside the plan.') }}</small>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">{{ __('Cancel') }}</button>
@@ -244,18 +248,19 @@
         <form method="POST" class="modal-content" id="recognitionForm">
             @csrf @method('PUT')
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-sliders-h"></i> {{ __('Recognition calibration') }}: <span id="recognitionCompanyName"></span></h5>
+                <h5 class="modal-title"><i class="fas fa-sliders-h"></i> {{ __('Recognition calibration') }}: <span id="recognitionCompanyName"></span> @include('partials.help', ['text' => __('Core calibration of this workspace\'s kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.')])</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">{{ __('Core calibration of this workspace\'s kiosks. Workspace admins never see these values: a wrong threshold lets anyone pass as anyone.') }}</p>
-                <div class="form-group">
-                    <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
-                    <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" id="recognitionThreshold" class="form-control" style="max-width:140px" required>
-                </div>
-                <div class="form-group mb-0">
-                    <label>{{ __('Verification time') }} <small class="text-muted">({{ __('seconds the camera tries; 10 recommended') }})</small></label>
-                    <input type="number" min="5" max="60" name="kiosk_verify_seconds" id="recognitionSeconds" class="form-control" style="max-width:140px" required>
+                <div class="row">
+                    <div class="col-md-6 form-group mb-0">
+                        <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
+                        <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" id="recognitionThreshold" class="form-control" required>
+                    </div>
+                    <div class="col-md-6 form-group mb-0">
+                        <label>{{ __('Verification time') }} <small class="text-muted">({{ __('seconds the camera tries; 10 recommended') }})</small></label>
+                        <input type="number" min="5" max="60" name="kiosk_verify_seconds" id="recognitionSeconds" class="form-control" required>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
