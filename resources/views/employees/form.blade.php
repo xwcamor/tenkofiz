@@ -2,13 +2,27 @@
 @section('title', $employee->exists ? __('Edit employee') : __('New employee'))
 @section('content')
 <div class="row">
-    <div class="col-lg-8">
+    <div class="col-12">
         <div class="card card-primary card-outline">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-user mr-1"></i> {{ __('Employee data') }}</h3></div>
             <form method="POST" action="{{ $employee->exists ? route('employees.update', $employee) : route('employees.store') }}">
                 @csrf
                 @if($employee->exists) @method('PUT') @endif
                 <div class="card-body">
+
+                    {{-- Data protection / biometric consent, as a slim banner up top --}}
+                    @if($employee->exists)
+                        <div class="alert {{ $employee->hasBiometricConsent() ? 'alert-success' : 'alert-warning' }} py-2 px-3 d-flex align-items-center mb-3">
+                            <i class="fas fa-user-shield mr-2"></i>
+                            <span class="text-sm">
+                                @if($employee->hasBiometricConsent())
+                                    {{ __('Biometric consent accepted on :date.', ['date' => to_user_tz($employee->biometric_consent_at)->format('d/m/Y H:i')]) }}
+                                @else
+                                    {{ __('No biometric consent recorded yet. It will be requested during face enrollment.') }}
+                                @endif
+                            </span>
+                        </div>
+                    @endif
 
                     {{-- ── Identity ── --}}
                     <h6 class="section-title"><i class="fas fa-id-card mr-1 text-primary"></i> {{ __('Identity') }}</h6>
@@ -223,20 +237,6 @@
             </form>
         </div>
     </div>
-    @if($employee->exists)
-    <div class="col-lg-4">
-        <div class="card card-outline card-secondary">
-            <div class="card-header"><h3 class="card-title"><i class="fas fa-user-shield"></i> {{ __('Data protection') }}</h3></div>
-            <div class="card-body text-sm">
-                @if($employee->hasBiometricConsent())
-                    <p class="mb-0"><i class="fas fa-check-circle text-success"></i> {{ __('Biometric consent accepted on :date.', ['date' => to_user_tz($employee->biometric_consent_at)->format('d/m/Y H:i')]) }}</p>
-                @else
-                    <p class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> {{ __('No biometric consent recorded yet. It will be requested during face enrollment.') }}</p>
-                @endif
-            </div>
-        </div>
-    </div>
-    @endif
 </div>
 @endsection
 
