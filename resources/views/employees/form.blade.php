@@ -2,7 +2,7 @@
 @section('title', $employee->exists ? __('Edit employee') : __('New employee'))
 @section('content')
 <div class="row">
-    <div class="col-lg-10 col-xl-9 mx-auto">
+    <div class="col-12">
         <div class="card card-primary card-outline">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-user mr-1"></i> {{ __('Employee data') }}</h3></div>
             <form method="POST" action="{{ $employee->exists ? route('employees.update', $employee) : route('employees.store') }}">
@@ -32,7 +32,7 @@
                     <div class="tab-pane fade show active" id="emp-general" role="tabpanel">
 
                     {{-- ── Identity ── --}}
-                    <h6 class="section-title"><i class="fas fa-id-card mr-1 text-primary"></i> {{ __('Identity') }}</h6>
+                    <h6 class="section-title"><i class="fas fa-id-card mr-1"></i> {{ __('Identity') }}</h6>
                     <div class="row">
                         <div class="col-md-4 form-group">
                             <label>{{ __('Document') }}</label>
@@ -61,7 +61,7 @@
                     </div>
 
                     {{-- ── Role & location ── --}}
-                    <h6 class="section-title mt-2"><i class="fas fa-briefcase mr-1 text-primary"></i> {{ __('Role & location') }}</h6>
+                    <h6 class="section-title mt-2"><i class="fas fa-briefcase mr-1"></i> {{ __('Role & location') }}</h6>
                     <div class="row">
                         <div class="col-md-4 form-group">
                             <label>{{ __('Area') }}</label>
@@ -104,7 +104,7 @@
                     </div>
 
                     {{-- ── Contract & status ── --}}
-                    <h6 class="section-title mt-2"><i class="fas fa-file-contract mr-1 text-primary"></i> {{ __('Contract & status') }}</h6>
+                    <h6 class="section-title mt-2"><i class="fas fa-file-contract mr-1"></i> {{ __('Contract & status') }}</h6>
                     <div class="row">
                         <div class="col-md-3 form-group">
                             <label>{{ __('Hire date') }}</label>
@@ -144,7 +144,7 @@
                     <div class="tab-pane fade" id="emp-schedule" role="tabpanel">
 
                     {{-- ── Schedule ── --}}
-                    <h6 class="section-title"><i class="fas fa-clock mr-1 text-primary"></i> {{ __('Assigned schedule') }}</h6>
+                    <h6 class="section-title"><i class="fas fa-clock mr-1"></i> {{ __('Assigned schedule') }}</h6>
                     <div class="form-group">
                         <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
                         <div class="input-group">
