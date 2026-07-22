@@ -44,7 +44,11 @@ class JustificationController extends Controller
 
         $sites = $isManager ? $this->visibleSites($request) : collect();
 
-        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted', 'sites', 'sort', 'dir'));
+        // Start of the current (open) payroll period: a justification for any day
+        // before this falls in an already-closed period → flagged as retroactive.
+        $currentPeriodStart = current_period()[0];
+
+        return view('justifications.index', compact('justifications', 'isManager', 'canReview', 'employees', 'oldEmployee', 'showDeleted', 'sites', 'sort', 'dir', 'currentPeriodStart'));
     }
 
     public function store(Request $request)

@@ -86,7 +86,12 @@
                 <tr>
                     <td>{{ $justification->employee->full_name }}</td>
                     @if($sites->count() > 1)<td>{{ $justification->employee->site?->name ?? '—' }}</td>@endif
-                    <td>{{ $justification->date->format('d/m/Y') }}</td>
+                    <td>
+                        {{ $justification->date->format('d/m/Y') }}
+                        @if(isset($currentPeriodStart) && $justification->date->lt($currentPeriodStart))
+                            <br><span class="badge badge-warning" title="{{ __('This day is in an already-closed payroll period. Approving it means a retroactive adjustment (reintegro) next period, not a change to what was already paid.') }}"><i class="fas fa-history"></i> {{ __('Retroactive · closed period') }}</span>
+                        @endif
+                    </td>
                     <td>{{ $justification->reason }}</td>
                     <td>
                         @if($justification->document)

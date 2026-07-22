@@ -34,6 +34,46 @@ class ScheduleController extends Controller
         return redirect()->route('schedules.index')->with('ok', __('Schedule created.'));
     }
 
+    /**
+     * Quick-create a fixed schedule from the employee form (the "+ New schedule"
+     * shortcut), applying the same start/end to every chosen weekday. Returns JSON
+     * {id, name} so the caller can add it to the select. It lands in the shared
+     * catalog like any other schedule, so it stays reusable and reportable.
+     */
+    public function quickStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->where('company_id', current_company_id())],
+            'weekdays' => ['required', 'array', 'min:1'],
+            'weekdays.*' => ['integer', 'between:0,6'],
+            'start' => ['required', 'date_format:H:i'],
+            'end' => ['required', 'date_format:H:i', 'different:start'],
+            'tolerance_minutes' => ['nullable', 'integer', 'min:0', 'max:60'],
+        ], [
+            'name.unique' => __('A schedule with that name already exists.'),
+        ]);
+
+        $schedule = DB::transaction(function () use ($data) {
+            $schedule = Schedule::create([
+                'name' => $data['name'],
+                'type' => Schedule::TYPE_FIXED,
+                'tolerance_minutes' => $data['tolerance_minutes'] ?? 10,
+                'is_active' => true,
+            ]);
+            $schedule->days()->createMany(
+                collect($data['weekdays'])->unique()->map(fn ($w) => [
+                    'weekday' => (int) $w, 'start_time' => $data['start'], 'end_time' => $data['end'],
+                ])->all()
+            );
+
+            return $schedule;
+        });
+
+        AuditLog::record('CREATE', 'Schedules', __('Quick schedule ":name" created from the employee form', ['name' => $schedule->name]));
+
+        return response()->json(['id' => $schedule->id, 'name' => $schedule->name]);
+    }
+
     public function update(Request $request, Schedule $schedule)
     {
         [$data, $days] = $this->validated($request, $schedule);

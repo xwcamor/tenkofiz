@@ -92,12 +92,19 @@
                         </div>
                         <div class="col-md-6 form-group">
                             <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
-                            <select name="schedule_id" class="form-control @error('schedule_id') is-invalid @enderror" required>
-                                <option value="">— {{ __('Select a schedule') }} —</option>
-                                @foreach($schedules as $schedule)
-                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select name="schedule_id" id="scheduleSelect" class="form-control @error('schedule_id') is-invalid @enderror" required>
+                                    <option value="">— {{ __('Select a schedule') }} —</option>
+                                    @foreach($schedules as $schedule)
+                                        <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
+                                    @endforeach
+                                </select>
+                                @if(auth()->user()->hasModule('schedules'))
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-primary" data-url="{{ route('schedules.quickStore') }}" onclick="createSchedule(this.dataset.url)" title="{{ __('Create a new schedule') }}"><i class="fas fa-plus"></i></button>
+                                    </div>
+                                @endif
+                            </div>
                             @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
                     </div>
@@ -353,6 +360,77 @@ async function addCatalogItem(url, selectId, label) {
     } else {
         const err = await res.json();
         Swal.fire(@json(__('Attention')), err.message || @json(__('Could not save (duplicate name?).')), 'warning');
+    }
+}
+
+// "+ New schedule" shortcut: create a fixed schedule (days + same start/end) without
+// leaving the employee form. It lands in the shared catalog, so it stays reusable.
+@php
+    $weekdayOptions = [
+        ['v' => 1, 'l' => __('Mon')], ['v' => 2, 'l' => __('Tue')], ['v' => 3, 'l' => __('Wed')],
+        ['v' => 4, 'l' => __('Thu')], ['v' => 5, 'l' => __('Fri')], ['v' => 6, 'l' => __('Sat')], ['v' => 0, 'l' => __('Sun')],
+    ];
+@endphp
+const WEEKDAYS = @json($weekdayOptions);
+async function createSchedule(url) {
+    const dayBtns = WEEKDAYS.map(d =>
+        `<label class="btn btn-sm btn-outline-secondary mb-1 ${d.v >= 1 && d.v <= 5 ? 'active' : ''}" style="margin-right:.2rem">
+            <input type="checkbox" value="${d.v}" ${d.v >= 1 && d.v <= 5 ? 'checked' : ''} style="display:none">${d.l}
+        </label>`).join('');
+
+    const { value: form } = await Swal.fire({
+        title: @json(__('New schedule')),
+        html: `
+            <input id="scName" class="swal2-input" placeholder="${@json(__('Schedule name'))}" style="width:85%">
+            <div style="margin:.5rem 0 .25rem;font-size:.8rem;color:#667085">${@json(__('Working days'))}</div>
+            <div id="scDays" style="display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem">${dayBtns}</div>
+            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem">
+                <div><div style="font-size:.75rem;color:#667085">${@json(__('Start'))}</div><input id="scStart" type="time" value="09:00" class="form-control form-control-sm"></div>
+                <div><div style="font-size:.75rem;color:#667085">${@json(__('End'))}</div><input id="scEnd" type="time" value="18:00" class="form-control form-control-sm"></div>
+                <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="10" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
+            </div>
+            <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${@json(__('Same hours on every chosen day. For different hours per day or overnight shifts, use the Schedules page.'))}</p>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: @json(__('Save')),
+        cancelButtonText: @json(__('Cancel')),
+        didOpen: () => {
+            document.querySelectorAll('#scDays label').forEach(lbl => {
+                lbl.addEventListener('click', () => setTimeout(() => lbl.classList.toggle('active', lbl.querySelector('input').checked), 0));
+            });
+        },
+        preConfirm: () => {
+            const name = document.getElementById('scName').value.trim();
+            const weekdays = [...document.querySelectorAll('#scDays input:checked')].map(i => parseInt(i.value, 10));
+            const start = document.getElementById('scStart').value, end = document.getElementById('scEnd').value;
+            if (!name) { Swal.showValidationMessage(@json(__('Enter a name'))); return false; }
+            if (!weekdays.length) { Swal.showValidationMessage(@json(__('Select at least one working day.'))); return false; }
+            if (!start || !end || start === end) { Swal.showValidationMessage(@json(__('Enter a valid start and end time.'))); return false; }
+            return { name, weekdays, start, end, tolerance_minutes: parseInt(document.getElementById('scTol').value || '10', 10) };
+        }
+    });
+    if (!form) return;
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify(form)
+    });
+
+    if (res.ok) {
+        const data = await res.json();
+        // Add to the base schedule select (selected) and to every period-row select
+        const base = document.getElementById('scheduleSelect');
+        base.add(new Option(data.name, data.id, true, true));
+        $(base).trigger('change');
+        document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
+            if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(data.name, data.id));
+        });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });
+    } else {
+        const err = await res.json().catch(() => ({}));
+        Swal.fire(@json(__('Attention')), err.message || (err.errors && Object.values(err.errors)[0][0]) || @json(__('Could not save (duplicate name?).')), 'warning');
     }
 }
 </script>

@@ -90,6 +90,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('module:schedules')->group(function () {
         Route::resource('schedules', ScheduleController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('schedules-quick', [ScheduleController::class, 'quickStore'])->name('schedules.quickStore');
     });
 
     Route::middleware('module:holidays')->group(function () {
