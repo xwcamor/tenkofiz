@@ -121,7 +121,7 @@
                 </div>
                 <div class="form-group" id="scheduleToleranceRow">
                     <label>{{ __('Tardiness tolerance (minutes)') }}</label>
-                    <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 10) }}" class="form-control" min="0" max="60" required>
+                    <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 5) }}" class="form-control" min="0" max="60" required>
                 </div>
                 <div class="form-group" id="scheduleTargetRow" style="display:none">
                     <label>{{ __('Daily hour target') }}</label>
@@ -170,7 +170,7 @@ function openScheduleModal(data = null) {
     document.getElementById('scheduleMethod').value = data ? 'PUT' : 'POST';
     document.getElementById('scheduleName').value = data ? data.name : '';
     document.getElementById('scheduleType').value = data ? (data.type || 'fixed') : 'fixed';
-    document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 10;
+    document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 5;
     document.getElementById('scheduleTarget').value = data ? (data.target_hours || '') : '';
     const asyncEl = document.getElementById('scheduleAsync');
     if (asyncEl) asyncEl.value = data ? (data.async_minutes_per_day || 0) : 0;

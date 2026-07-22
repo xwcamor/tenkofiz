@@ -113,7 +113,7 @@ class CompanyController extends Controller
             // Starter kit: a workspace must never be born unusable. A schedule is
             // REQUIRED to register employees, so every new workspace gets a base
             // one (Mon-Sat 08:00-17:00) that its admin can edit or replace.
-            $schedule = \App\Models\Schedule::create(['name' => __('General schedule'), 'tolerance_minutes' => 10]);
+            $schedule = \App\Models\Schedule::create(['name' => __('General schedule'), 'tolerance_minutes' => 5]);
             foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
                 $schedule->days()->create(['weekday' => $weekday, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
             }

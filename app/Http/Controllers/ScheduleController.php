@@ -68,7 +68,7 @@ class ScheduleController extends Controller
                 'name' => $data['name'],
                 'is_shared' => $shared,
                 'type' => Schedule::TYPE_FIXED,
-                'tolerance_minutes' => $data['tolerance_minutes'] ?? 10,
+                'tolerance_minutes' => $data['tolerance_minutes'] ?? 5,
                 'async_minutes_per_day' => (int) ($data['async_minutes_per_day'] ?? 0),
                 'is_active' => true,
             ]);

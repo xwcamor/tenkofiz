@@ -130,7 +130,7 @@ class DatabaseSeeder extends Seeder
     /** Base schedule so the workspace can register employees from day one */
     private function seedStarterSchedule(): void
     {
-        $schedule = Schedule::firstOrCreate(['name' => 'Horario General'], ['tolerance_minutes' => 10]);
+        $schedule = Schedule::firstOrCreate(['name' => 'Horario General'], ['tolerance_minutes' => 5]);
         foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
             $schedule->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '08:00:00', 'end_time' => '17:00:00']);
         }

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('name', 100)->unique();
             $table->time('start_time');
             $table->time('end_time');
-            $table->unsignedTinyInteger('tolerance_minutes')->default(10);
+            $table->unsignedTinyInteger('tolerance_minutes')->default(5);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

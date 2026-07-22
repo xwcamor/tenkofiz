@@ -22,7 +22,7 @@ return new class extends Migration
             $scheduleId = DB::table('schedules')->insertGetId([
                 'company_id' => $companyId,
                 'name' => 'Horario General',
-                'tolerance_minutes' => 10,
+                'tolerance_minutes' => 5,
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
