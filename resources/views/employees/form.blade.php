@@ -168,11 +168,13 @@
 
                     {{-- Schedule "vigencias": the assigned schedule can change over time (e.g. Jan–Jul one, Aug–Dec another) --}}
                     @php
-                        $periodRows = old('schedule_periods', $employee->scheduleAssignments->map(fn ($a) => [
+                        // Rows are always shown sorted by their start date ("Desde"),
+                        // whether they come from the DB or from old() after a failed save.
+                        $periodRows = collect(old('schedule_periods', $employee->scheduleAssignments->map(fn ($a) => [
                             'schedule_id' => $a->schedule_id,
                             'from' => $a->effective_from?->toDateString(),
                             'to' => $a->effective_to?->toDateString(),
-                        ])->all());
+                        ])->all()))->sortBy('from')->values()->all();
                     @endphp
                     <div class="card card-outline card-secondary mt-1 mb-0">
                         <div class="card-header py-2">
