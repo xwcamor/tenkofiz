@@ -247,14 +247,25 @@
 @push('styles')
 <style>
     .section-title {
-        font-size: .78rem;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        font-size: .74rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: .4px;
-        color: #6c757d;
-        border-bottom: 1px solid #e9ecef;
-        padding-bottom: .4rem;
-        margin-bottom: 1rem;
+        letter-spacing: .6px;
+        color: var(--ink-3, #667085);
+        border-bottom: 1px solid var(--hairline, #eef1f6);
+        padding-bottom: .45rem;
+        margin-bottom: 1.1rem;
+    }
+    /* Chosen-schedule detail chip below the assigned-schedule select */
+    #scheduleDetail:not(:empty) {
+        background: var(--brand-soft, #e8f1fc);
+        color: var(--brand-dark, #1c5cab);
+        border-radius: var(--radius-sm, 8px);
+        padding: .35rem .6rem;
+        display: inline-block;
     }
 </style>
 @endpush

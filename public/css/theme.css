@@ -344,3 +344,53 @@ html[data-theme="dark"] .select2-container--bootstrap4 .select2-results__option-
     background: var(--brand);
     color: #fff;
 }
+
+/* =============================================================
+   SweetAlert2 modals — match the app's brand (was library purple)
+   ============================================================= */
+.swal2-popup {
+    border-radius: var(--radius) !important;
+    background: var(--card-bg);
+    color: var(--ink);
+}
+.swal2-title { color: var(--ink) !important; font-weight: 700; }
+.swal2-html-container { color: var(--ink-2) !important; }
+.swal2-styled.swal2-confirm {
+    background-color: var(--brand) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: none !important;
+    font-weight: 600;
+}
+.swal2-styled.swal2-confirm:hover { background-color: var(--brand-dark) !important; }
+.swal2-styled.swal2-confirm:focus { box-shadow: 0 0 0 3px var(--brand-soft) !important; }
+.swal2-styled.swal2-cancel {
+    background-color: transparent !important;
+    color: var(--ink-2) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: var(--radius-sm) !important;
+    font-weight: 600;
+}
+.swal2-styled.swal2-cancel:hover { background-color: var(--hover-bg) !important; }
+.swal2-input, .swal2-textarea, .swal2-select {
+    border-radius: var(--radius-sm) !important;
+    border: 1px solid var(--input-border) !important;
+    background: var(--input-bg);
+    color: var(--ink);
+    box-shadow: none !important;
+}
+.swal2-input:focus, .swal2-textarea:focus, .swal2-select:focus {
+    border-color: var(--brand) !important;
+    box-shadow: 0 0 0 3px var(--brand-soft) !important;
+}
+.swal2-validation-message { border-radius: var(--radius-sm); background: var(--chip-red-bg); color: var(--status-critical-ink); }
+
+/* Weekday toggles inside the schedule modals: brand-aligned, clear on/off */
+.sc-day {
+    display: inline-block; cursor: pointer; user-select: none; margin: .12rem; padding: .3rem .66rem;
+    font-size: .82rem; line-height: 1; border: 1px solid var(--input-border); border-radius: var(--radius-sm);
+    background: var(--input-bg); color: var(--ink-2); transition: background-color .12s, border-color .12s, color .12s;
+}
+.sc-day input { display: none; }
+.sc-day:hover { border-color: var(--brand); background: var(--brand-soft); }
+.sc-day.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.sc-day.active:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
