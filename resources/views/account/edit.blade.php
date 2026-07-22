@@ -2,8 +2,8 @@
 @section('title', __('My account'))
 @section('content')
 <div class="row">
-    <div class="col-md-5">
-        <div class="card card-primary">
+    <div class="col-md-6">
+        <div class="card card-primary card-outline">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-key"></i> {{ __('Change password') }}</h3></div>
             <form method="POST" action="{{ route('account.password.update') }}">
                 @csrf @method('PUT')
@@ -32,8 +32,8 @@
             </form>
         </div>
     </div>
-    <div class="col-md-5">
-        <div class="card card-info">
+    <div class="col-md-6">
+        <div class="card card-primary card-outline">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-sliders-h"></i> {{ __('Preferences') }}</h3></div>
             <form method="POST" action="{{ route('account.preferences.update') }}">
                 @csrf @method('PUT')
@@ -46,7 +46,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>{{ __('Timezone') }}</label>
+                        <label>{{ __('Timezone') }} @include('partials.help', ['text' => __('The server stores everything in UTC; dates are shown in this timezone.')])</label>
                         <select name="timezone" class="form-control @error('timezone') is-invalid @enderror">
                             <option value="">{{ __('Company default') }} ({{ company_timezone() }})</option>
                             @foreach($timezones as $tz)
@@ -54,11 +54,10 @@
                             @endforeach
                         </select>
                         @error('timezone')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                        <small class="text-muted">{{ __('The server stores everything in UTC; dates are shown in this timezone.') }}</small>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <button class="btn btn-info"><i class="fas fa-save"></i> {{ __('Save preferences') }}</button>
+                    <button class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Save preferences') }}</button>
                 </div>
             </form>
         </div>

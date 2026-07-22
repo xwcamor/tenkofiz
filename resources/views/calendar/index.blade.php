@@ -2,7 +2,7 @@
 @section('title', __('Attendance calendar'))
 @section('content')
 @if($isManager)
-<div class="card card-outline card-primary mb-3">
+<div class="card card-primary card-outline mb-3">
     <div class="card-body py-2">
         <form class="form-inline">
             <label class="mr-2">{{ __('View calendar of:') }}</label>
@@ -21,10 +21,10 @@
     <div class="card-header">
         <h3 class="card-title"><i class="fas fa-calendar-alt"></i> {{ $employee?->full_name ?? __('Select an employee') }}</h3>
         <div class="card-tools small">
-            <span class="badge" style="background:#28a745;color:#fff">{{ __('ON_TIME') }}</span>
-            <span class="badge" style="background:#ffc107">{{ __('LATE') }}</span>
-            <span class="badge" style="background:#17a2b8;color:#fff">{{ __('EXCUSED') }}</span>
-            <span class="badge" style="background:#6f42c1;color:#fff">{{ __('Vacations') }}</span>
+            <span class="badge mr-1" style="background:#28a745;color:#fff">{{ __('ON_TIME') }}</span>
+            <span class="badge mr-1" style="background:#ffc107">{{ __('LATE') }}</span>
+            <span class="badge mr-1" style="background:#17a2b8;color:#fff">{{ __('EXCUSED') }}</span>
+            <span class="badge mr-1" style="background:#6f42c1;color:#fff">{{ __('Vacations') }}</span>
             <span class="badge" style="background:#f8d7da">{{ __('Holiday') }}</span>
         </div>
     </div>

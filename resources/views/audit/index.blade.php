@@ -1,9 +1,9 @@
 @extends('layouts.app')
 @section('title', __('System audit log'))
 @section('content')
-<div class="alert alert-info"><i class="fas fa-shield-alt"></i> {{ __('Log of sensitive actions: deletions, manual attendance edits and user creation. Times are shown in your timezone (:tz).', ['tz' => user_timezone()]) }}</div>
 <div class="card card-primary card-outline">
-    <div class="card-header">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center">
+        <h3 class="card-title mb-0"><i class="fas fa-shield-alt"></i> {{ __('System audit log') }} @include('partials.help', ['text' => __('Log of sensitive actions: deletions, manual attendance edits and user creation. Times are shown in your timezone (:tz).', ['tz' => user_timezone()])])</h3>
         <form class="form-inline">
             <select name="module" class="form-control form-control-sm mr-2">
                 <option value="">{{ __('All modules') }}</option>
