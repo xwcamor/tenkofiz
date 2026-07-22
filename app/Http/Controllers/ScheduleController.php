@@ -89,8 +89,10 @@ class ScheduleController extends Controller
 
     public function destroy(Schedule $schedule)
     {
-        if ($schedule->employees()->exists()) {
-            return back()->with('error', __('Cannot delete: there are employees assigned.'));
+        // Blocked while in use — as someone's base schedule OR inside a dated period
+        // (vigencia). Without the second check the DB foreign key would 500.
+        if ($schedule->employees()->exists() || \App\Models\EmployeeSchedule::where('schedule_id', $schedule->id)->exists()) {
+            return back()->with('error', __('Cannot delete: there are employees assigned (as their schedule or in a scheduled period).'));
         }
         AuditLog::record('DELETE', 'Schedules',
             __('Schedule :name was deleted', ['name' => $schedule->name]), $schedule->toArray());

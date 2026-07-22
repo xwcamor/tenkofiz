@@ -941,7 +941,6 @@
     ":max sites max": "máx. :max sedes",
     ":name signed in — :device — :where": ":name inició sesión — :device — :where",
     "A kiosk device pairing code was generated for site :name": "Se generó un código de vinculación de kiosco para la sede :name",
-    "A kiosk device was paired to site :name": "Se vinculó un dispositivo de kiosco a la sede :name",
     "A supervisor must enter the PIN configured in Settings. It unlocks this tablet's enrollment for 15 minutes.": "Un supervisor debe ingresar el PIN configurado en Ajustes. Desbloquea el enrolamiento de esta tablet por 15 minutos.",
     "All modules (no restriction)": "Todos los módulos (sin restricción)",
     "Ask your supervisor to enter the enrollment PIN (it unlocks this tablet for 15 minutes).": "Pide a tu supervisor que ingrese el PIN de enrolamiento (desbloquea esta tablet por 15 minutos).",
@@ -1095,5 +1094,6 @@
     "Break end": "Fin de break",
     "You just marked your break. Try again in a moment.": "Acabas de marcar tu break. Inténtalo en un momento.",
     "Choose whether you are leaving for a break or checking out.": "Elige si sales a break o marcas tu salida.",
-    "It is earlier than your scheduled end. Only your time worked up to now will count, and you will not be able to mark again today.": "Es antes de tu hora de fin. Solo se contará tu tiempo trabajado hasta ahora, y no podrás volver a marcar hoy."
+    "It is earlier than your scheduled end. Only your time worked up to now will count, and you will not be able to mark again today.": "Es antes de tu hora de fin. Solo se contará tu tiempo trabajado hasta ahora, y no podrás volver a marcar hoy.",
+    "Cannot delete: there are employees assigned (as their schedule or in a scheduled period).": "No se puede eliminar: hay empleados con este horario (asignado o en un periodo con vigencia)."
 }
