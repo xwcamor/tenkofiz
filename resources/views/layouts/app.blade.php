@@ -39,6 +39,7 @@
         #file-preview-pop img { max-width: 300px; max-height: 300px; display: block; border-radius: 6px; }
         #file-preview-pop embed { width: 330px; height: 400px; border: 0; display: block; }
     </style>
+    @stack('styles')
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 @php

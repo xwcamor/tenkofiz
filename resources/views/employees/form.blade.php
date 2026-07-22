@@ -2,13 +2,16 @@
 @section('title', $employee->exists ? __('Edit employee') : __('New employee'))
 @section('content')
 <div class="row">
-    <div class="col-md-8">
-        <div class="card card-primary">
-            <div class="card-header"><h3 class="card-title"><i class="fas fa-user"></i> {{ __('Employee data') }}</h3></div>
+    <div class="col-lg-8">
+        <div class="card card-primary card-outline">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-user mr-1"></i> {{ __('Employee data') }}</h3></div>
             <form method="POST" action="{{ $employee->exists ? route('employees.update', $employee) : route('employees.store') }}">
                 @csrf
                 @if($employee->exists) @method('PUT') @endif
                 <div class="card-body">
+
+                    {{-- ── Identity ── --}}
+                    <h6 class="section-title"><i class="fas fa-id-card mr-1 text-primary"></i> {{ __('Identity') }}</h6>
                     <div class="row">
                         <div class="col-md-4 form-group">
                             <label>{{ __('Document') }}</label>
@@ -34,6 +37,11 @@
                             <label>{{ __('Last names') }}</label>
                             <input name="last_name" id="lastNameInput" value="{{ old('last_name', $employee->last_name) }}" class="form-control" required>
                         </div>
+                    </div>
+
+                    {{-- ── Role & location ── --}}
+                    <h6 class="section-title mt-2"><i class="fas fa-briefcase mr-1 text-primary"></i> {{ __('Role & location') }}</h6>
+                    <div class="row">
                         <div class="col-md-4 form-group">
                             <label>{{ __('Area') }}</label>
                             <div class="input-group">
@@ -62,6 +70,21 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-4 form-group">
+                            <label>{{ __('Site') }} <span class="text-danger">*</span></label>
+                            <select name="site_id" class="form-control @error('site_id') is-invalid @enderror" required>
+                                <option value="">— {{ __('Select a site') }} —</option>
+                                @foreach($sites as $site)
+                                    <option value="{{ $site->id }}" @selected(old('site_id', $employee->site_id) == $site->id)>{{ $site->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        </div>
+                    </div>
+
+                    {{-- ── Contract & status ── --}}
+                    <h6 class="section-title mt-2"><i class="fas fa-file-contract mr-1 text-primary"></i> {{ __('Contract & status') }}</h6>
+                    <div class="row">
                         <div class="col-md-3 form-group">
                             <label>{{ __('Hire date') }}</label>
                             <input type="date" name="hire_date" value="{{ old('hire_date', $employee->hire_date?->toDateString()) }}" class="form-control">
@@ -75,38 +98,45 @@
                             </select>
                             @error('contract_type')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
-                        <div class="col-md-2 form-group">
+                        <div class="col-md-3 form-group">
                             <label>{{ __('Vacation days/year') }}</label>
                             <input type="number" name="vacation_days_per_year" value="{{ old('vacation_days_per_year', $employee->vacation_days_per_year ?? 30) }}" class="form-control @error('vacation_days_per_year') is-invalid @enderror" min="0" max="60" required>
                             @error('vacation_days_per_year')<span class="invalid-feedback">{{ $message }}</span>@enderror
                         </div>
-                        <div class="col-md-4 form-group">
-                            <label>{{ __('Site') }} <span class="text-danger">*</span></label>
-                            <select name="site_id" class="form-control @error('site_id') is-invalid @enderror" required>
-                                <option value="">— {{ __('Select a site') }} —</option>
-                                @foreach($sites as $site)
-                                    <option value="{{ $site->id }}" @selected(old('site_id', $employee->site_id) == $site->id)>{{ $site->name }}</option>
+                        @if($employee->exists)
+                        <div class="col-md-3 form-group">
+                            <label>{{ __('Termination date') }} <small class="text-muted">({{ __('optional') }})</small></label>
+                            <input type="date" name="termination_date" value="{{ old('termination_date', $employee->termination_date?->toDateString()) }}" class="form-control @error('termination_date') is-invalid @enderror">
+                            @error('termination_date')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                        </div>
+                        @endif
+                    </div>
+                    @if($employee->exists)
+                        <div class="custom-control custom-switch mb-1">
+                            <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active))>
+                            <label class="custom-control-label" for="employeeActive">{{ __('Active') }} <small class="text-muted">({{ __('turn off to mark as terminated') }})</small></label>
+                        </div>
+                        <small class="text-muted d-block mb-1"><i class="fas fa-info-circle"></i> {{ __('The termination date stops counting absences after that day.') }}</small>
+                    @endif
+
+                    {{-- ── Schedule ── --}}
+                    <h6 class="section-title mt-3"><i class="fas fa-clock mr-1 text-primary"></i> {{ __('Schedule') }}</h6>
+                    <div class="form-group">
+                        <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select name="schedule_id" id="scheduleSelect" class="form-control @error('schedule_id') is-invalid @enderror" required>
+                                <option value="">— {{ __('Select a schedule') }} —</option>
+                                @foreach($schedules as $schedule)
+                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
                                 @endforeach
                             </select>
-                            @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                            @if(auth()->user()->hasModule('schedules'))
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-outline-primary" data-url="{{ route('schedules.quickStore') }}" onclick="createSchedule(this.dataset.url)" title="{{ __('Create a new schedule') }}"><i class="fas fa-plus"></i></button>
+                                </div>
+                            @endif
                         </div>
-                        <div class="col-md-6 form-group">
-                            <label>{{ __('Assigned schedule') }} <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <select name="schedule_id" id="scheduleSelect" class="form-control @error('schedule_id') is-invalid @enderror" required>
-                                    <option value="">— {{ __('Select a schedule') }} —</option>
-                                    @foreach($schedules as $schedule)
-                                        <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
-                                    @endforeach
-                                </select>
-                                @if(auth()->user()->hasModule('schedules'))
-                                    <div class="input-group-append">
-                                        <button type="button" class="btn btn-outline-primary" data-url="{{ route('schedules.quickStore') }}" onclick="createSchedule(this.dataset.url)" title="{{ __('Create a new schedule') }}"><i class="fas fa-plus"></i></button>
-                                    </div>
-                                @endif
-                            </div>
-                            @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                        </div>
+                        @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     </div>
 
                     {{-- Schedule "vigencias": the assigned schedule can change over time (e.g. Jan–Jul one, Aug–Dec another) --}}
@@ -117,7 +147,7 @@
                             'to' => $a->effective_to?->toDateString(),
                         ])->all());
                     @endphp
-                    <div class="card card-outline card-secondary mt-1 mb-3">
+                    <div class="card card-outline card-secondary mt-1 mb-0">
                         <div class="card-header py-2">
                             <h3 class="card-title" style="font-size:.95rem"><i class="fas fa-history mr-1"></i> {{ __('Schedules by period (optional)') }}</h3>
                         </div>
@@ -181,24 +211,9 @@
                             </div>
                         </div>
                     </template>
+
                     @if($employee->exists && $employee->user)
-                        <p class="text-muted mb-2"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
-                    @endif
-                    @if($employee->exists)
-                        <div class="row align-items-center">
-                            <div class="col-md-4">
-                                <div class="custom-control custom-switch">
-                                    <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="employeeActive" @checked(old('is_active', $employee->is_active))>
-                                    <label class="custom-control-label" for="employeeActive">{{ __('Active') }} <small class="text-muted">({{ __('turn off to mark as terminated') }})</small></label>
-                                </div>
-                            </div>
-                            <div class="col-md-4 form-group mb-0">
-                                <label class="mb-1">{{ __('Termination date') }} <small class="text-muted">({{ __('optional') }})</small></label>
-                                <input type="date" name="termination_date" value="{{ old('termination_date', $employee->termination_date?->toDateString()) }}" class="form-control form-control-sm @error('termination_date') is-invalid @enderror">
-                                <small class="text-muted">{{ __('Stops counting absences after this day.') }}</small>
-                                @error('termination_date')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                            </div>
-                        </div>
+                        <p class="text-muted mt-3 mb-0"><i class="fas fa-link"></i> {{ __('System access') }}: <strong>{{ $employee->user->email }}</strong> — {{ __('managed from the employee list (create / link / unlink user).') }}</p>
                     @endif
                 </div>
                 <div class="card-footer">
@@ -209,7 +224,7 @@
         </div>
     </div>
     @if($employee->exists)
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <div class="card card-outline card-secondary">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-user-shield"></i> {{ __('Data protection') }}</h3></div>
             <div class="card-body text-sm">
@@ -224,6 +239,21 @@
     @endif
 </div>
 @endsection
+
+@push('styles')
+<style>
+    .section-title {
+        font-size: .78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: #6c757d;
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: .4rem;
+        margin-bottom: 1rem;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -404,7 +434,7 @@ async function createSchedule(url, opts = {}) {
             <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem;flex-wrap:wrap">
                 <div><div style="font-size:.75rem;color:#667085">${@json(__('Start'))}</div><input id="scStart" type="time" value="09:00" class="form-control form-control-sm"></div>
                 <div><div style="font-size:.75rem;color:#667085">${@json(__('End'))}</div><input id="scEnd" type="time" value="18:00" class="form-control form-control-sm"></div>
-                <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="10" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
+                <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="5" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
                 ${asyncField}
             </div>
             <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${personal ? @json(__('Only for this person — it will not appear in the shared catalog.')) : @json(__('Same hours on every chosen day. For different hours per day or overnight shifts, use the Schedules page.'))}</p>
@@ -427,7 +457,7 @@ async function createSchedule(url, opts = {}) {
             if (!start || !end || start === end) { Swal.showValidationMessage(@json(__('Enter a valid start and end time.'))); return false; }
             return {
                 name, weekdays, start, end,
-                tolerance_minutes: parseInt(document.getElementById('scTol').value || '10', 10),
+                tolerance_minutes: parseInt(document.getElementById('scTol').value || '5', 10),
                 async_minutes_per_day: ASYNC_ENABLED ? parseInt(document.getElementById('scAsync').value || '0', 10) : 0,
                 is_shared: personal ? 0 : 1,
             };
