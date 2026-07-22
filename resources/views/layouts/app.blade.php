@@ -393,6 +393,14 @@
 
         // Inline help "?" popovers (partials/help.blade.php) across every module
         $('[data-toggle="popover"]').popover({ container: 'body', boundary: 'viewport' });
+
+        // Suppress the browser's native autocomplete/history dropdown on app forms
+        // (fields can still opt in by declaring their own autocomplete attribute).
+        document.querySelectorAll('form input:not([autocomplete]), form textarea:not([autocomplete])').forEach(function (el) {
+            var t = (el.getAttribute('type') || 'text').toLowerCase();
+            if (['checkbox', 'radio', 'file', 'hidden', 'range', 'color', 'submit', 'button'].indexOf(t) !== -1) return;
+            el.setAttribute('autocomplete', 'off');
+        });
     });
 
     // Report table: with export buttons (Excel / Print / Copy)

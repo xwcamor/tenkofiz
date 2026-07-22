@@ -417,3 +417,43 @@ html[data-theme="dark"] .select2-container--bootstrap4 .select2-results__option-
 
 /* Form rhythm: labels and spacing consistent across every module */
 .form-group > label, .form-group > .label { font-weight: 600; color: var(--ink-2); margin-bottom: .3rem; font-size: .86rem; }
+
+/* ---------- Select2 dropdown: an unmistakably elevated floating panel ----------
+   Fixes the "the option list blends with the text near it" problem: a solid
+   background, a real border, a strong shadow and clear row states make the open
+   list read as a layer floating ABOVE the page, in modals and outside them. */
+.select2-container--bootstrap4 .select2-dropdown {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 30px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .08);
+    overflow: hidden;
+    margin-top: 2px;
+}
+.select2-container--open .select2-dropdown { z-index: 10650; }
+.select2-container--bootstrap4 .select2-results__options { padding: .25rem; }
+.select2-container--bootstrap4 .select2-results__option {
+    padding: .45rem .6rem;
+    border-radius: 6px;
+    color: var(--ink-2);
+}
+.select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+    background: var(--brand);
+    color: #fff;
+}
+.select2-container--bootstrap4 .select2-results__option[aria-selected="true"] {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+    font-weight: 600;
+}
+.select2-container--bootstrap4 .select2-search--dropdown { padding: .4rem; border-bottom: 1px solid var(--hairline); }
+.select2-container--bootstrap4 .select2-search--dropdown .select2-search__field {
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    padding: .35rem .5rem;
+}
+.select2-container--bootstrap4 .select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-soft);
+    outline: none;
+}

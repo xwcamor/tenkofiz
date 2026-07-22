@@ -494,7 +494,7 @@ async function createSchedule(url, opts = {}) {
     const { value: form } = await Swal.fire({
         title: personal ? @json(__('Personalized schedule')) : @json(__('New schedule')),
         html: `
-            <input id="scName" class="swal2-input" placeholder="${@json(__('Schedule name'))}" style="width:85%">
+            <input id="scName" class="swal2-input" autocomplete="off" placeholder="${@json(__('Schedule name'))}" style="width:85%">
             <div style="margin:.5rem 0 .25rem;font-size:.8rem;color:#667085">${@json(__('Working days'))}</div>
             <div id="scDays" style="display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem">${dayBtns}</div>
             <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem;flex-wrap:wrap">
