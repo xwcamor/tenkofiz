@@ -108,6 +108,7 @@
         recorded: @json(__('recorded')),
         checkIn: @json(__('CHECK-IN')),
         checkOut: @json(__('CHECK-OUT')),
+        freeMark: @json(__('MARK')),
         breakOut: @json(__('BREAK START')),
         breakIn: @json(__('BREAK END')),
         chooseTitle: @json(__('What do you want to mark?')),

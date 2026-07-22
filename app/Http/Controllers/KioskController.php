@@ -103,6 +103,11 @@ class KioskController extends Controller
      */
     private function nextMarkAction(Employee $employee): string
     {
+        // Free mode: every mark is just a capture; the UI always offers to mark.
+        if ($employee->scheduleOn(company_now())?->isFree()) {
+            return 'FREE';
+        }
+
         $setting = app_setting();
         $today = company_now()->toDateString();
         $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', $today)->first();
@@ -489,6 +494,41 @@ class KioskController extends Controller
         }
     }
 
+    /**
+     * Free-mode mark: no schedule judgment. Each punch is logged as its own
+     * AttendanceMark (kind FREE) with its evidence; the day's Attendance row is a
+     * light container whose span (first→last punch) is informational only. Any
+     * number of marks per day is allowed. A human reviews the record.
+     */
+    private function recordFreeMark(Request $request, Employee $employee, \Carbon\Carbon $now, string $currentTime, string $today, string $method, array $extra, array $device)
+    {
+        $attendance = Attendance::firstOrNew(['employee_id' => $employee->id, 'date' => $today]);
+
+        if (!$attendance->exists) {
+            $attendance->fill([
+                'check_in' => $currentTime,
+                'status' => 'ON_TIME', // free mode never judges punctuality; neutral status
+                'method' => $method,
+                'expected_minutes' => 0,
+            ] + array_filter($extra) + $device);
+        } else {
+            // Keep the last punch of the day as the closing bound (span = presence).
+            $attendance->fill(['check_out' => $currentTime] + $device);
+        }
+        $attendance->save();
+
+        $this->recordMark($request, $employee, $attendance, 'FREE', $method, $extra['evidence_photo'] ?? null);
+
+        return response()->json([
+            'ok' => true,
+            'type' => 'FREE',
+            'status' => 'FREE',
+            'status_label' => __('Mark registered'),
+            'employee' => $employee->full_name,
+            'time' => $now->format('h:i a'),
+        ]);
+    }
+
     /** Shared business rules for facial and DNI marking */
     private function performMark(Request $request, Employee $employee, string $method, array $extra = [])
     {
@@ -517,6 +557,13 @@ class KioskController extends Controller
 
         // Kiosk device audit trail
         $device = ['ip' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 255)];
+
+        // ---- Free mode: no schedule rules. Every mark is just a logged capture
+        // (with its anti-fraud evidence, already verified above). No check-in/out
+        // state machine, no tardiness, no break, any number of marks per day. ----
+        if ($employee->scheduleOn($now)?->isFree()) {
+            return $this->recordFreeMark($request, $employee, $now, $currentTime, $today, $method, $extra, $device);
+        }
 
         // Overnight shifts: if yesterday's shift crosses midnight and is still open,
         // a mark before noon closes it as that shift's CHECK-OUT instead of opening today.

@@ -12,6 +12,7 @@ class Schedule extends Model
 
     public const TYPE_FIXED = 'fixed';       // start time + tolerance judge punctuality
     public const TYPE_FLEXIBLE = 'flexible'; // no fixed start; complete a daily hour target
+    public const TYPE_FREE = 'free';         // no schedule rules: every punch is just logged (health/field/irregular)
 
     protected $fillable = ['company_id', 'name', 'is_shared', 'type', 'start_time', 'end_time', 'tolerance_minutes', 'target_minutes', 'async_minutes_per_day', 'is_active'];
 
@@ -23,6 +24,16 @@ class Schedule extends Model
         return $this->type === self::TYPE_FLEXIBLE;
     }
 
+    /**
+     * Free = no schedule enforcement at all. Every mark is just a logged capture
+     * (with its anti-fraud evidence); the system does not judge tardiness, absence
+     * or hours, and allows any number of marks per day. A human reviews the record.
+     */
+    public function isFree(): bool
+    {
+        return $this->type === self::TYPE_FREE;
+    }
+
     /** Only the reusable catalog templates (hides per-person personalized schedules) */
     public function scopeShared($q)
     {
@@ -32,7 +43,7 @@ class Schedule extends Model
     /** Fixed = classic start/end with tolerance (the default) */
     public function isFixed(): bool
     {
-        return !$this->isFlexible();
+        return $this->type === self::TYPE_FIXED;
     }
 
     public function employees()
@@ -59,6 +70,10 @@ class Schedule extends Model
      */
     public function expectedMinutesFor(int $weekday): int
     {
+        // Free mode never sets an expectation — nothing is judged as a deficit.
+        if ($this->isFree()) {
+            return 0;
+        }
         if ($this->isFlexible()) {
             return (int) ($this->target_minutes ?? 0);
         }
@@ -80,6 +95,11 @@ class Schedule extends Model
     /** Short summary such as "Mon–Sat 08:00–17:00" or "Custom" when days differ */
     public function daysSummary(): string
     {
+        // Free mode has no schedule — just free punches, reviewed by a person.
+        if ($this->isFree()) {
+            return __('Free marking (no schedule)');
+        }
+
         if ($this->days->isEmpty()) {
             return __('No working days');
         }

@@ -240,7 +240,9 @@ class Employee extends Model
 
             // No record: only scheduled working days that aren't holidays can be a "falta".
             // The schedule effective on THIS date decides (schedules can change over time).
-            if (!$this->scheduleOn($d)?->worksOn($d->dayOfWeek) || $holidays->has($key)) {
+            // Free mode never produces absences — its days are not judged at all.
+            $daySchedule = $this->scheduleOn($d);
+            if ($daySchedule?->isFree() || !$daySchedule?->worksOn($d->dayOfWeek) || $holidays->has($key)) {
                 continue;
             }
             if ($onVacation($key)) {

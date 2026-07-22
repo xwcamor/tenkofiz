@@ -724,13 +724,15 @@ function finishWithResult(data, note) {
     clearOverlay();
     if (data.ok) {
         const isBreak = data.type === 'BREAK_OUT' || data.type === 'BREAK_IN';
-        const color = isBreak ? 'info' : (data.status === 'LATE' ? 'warning' : 'success');
+        const isFree = data.type === 'FREE';
+        const color = (isBreak || isFree) ? 'info' : (data.status === 'LATE' ? 'warning' : 'success');
         const typeLabel = data.type === 'CHECK_IN' ? I18N.checkIn
             : data.type === 'CHECK_OUT' ? I18N.checkOut
             : data.type === 'BREAK_OUT' ? I18N.breakOut
-            : data.type === 'BREAK_IN' ? I18N.breakIn : data.type;
-        // Break marks have no punctuality status to show
-        const tail = isBreak ? '' : ` — ${data.status_label}`;
+            : data.type === 'BREAK_IN' ? I18N.breakIn
+            : isFree ? I18N.freeMark : data.type;
+        // Break and free marks have no punctuality status to show
+        const tail = (isBreak || isFree) ? '' : ` — ${data.status_label}`;
         show(color, `<i class="fas fa-check-circle"></i> <strong>${typeLabel}</strong> ${I18N.recorded}: ${data.employee}<br>${data.time}${tail}` + (note ? `<br><small>${note}</small>` : ''));
     } else {
         show('warning', '<i class="fas fa-info-circle"></i> ' + (data.message || I18N.couldNotRecord));

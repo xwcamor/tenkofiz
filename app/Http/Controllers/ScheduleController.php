@@ -126,19 +126,37 @@ class ScheduleController extends Controller
     /** Returns [schedule attributes, day rows]. Days come as days[weekday][on|start|end]. */
     private function validated(Request $request, ?Schedule $schedule = null): array
     {
+        $isFree = $request->input('type') === Schedule::TYPE_FREE;
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())->where('is_shared', true)],
-            'type' => ['required', Rule::in([Schedule::TYPE_FIXED, Schedule::TYPE_FLEXIBLE])],
-            'tolerance_minutes' => ['required', 'integer', 'min:0', 'max:60'],
+            'type' => ['required', Rule::in([Schedule::TYPE_FIXED, Schedule::TYPE_FLEXIBLE, Schedule::TYPE_FREE])],
+            'tolerance_minutes' => [$isFree ? 'nullable' : 'required', 'integer', 'min:0', 'max:60'],
             'target_hours' => ['nullable', 'numeric', 'min:0.5', 'max:24'],
             'async_minutes_per_day' => ['nullable', 'integer', 'min:0', 'max:600'],
-            'days' => ['required', 'array'],
+            // Free mode has no working days or times to configure.
+            'days' => [$isFree ? 'nullable' : 'required', 'array'],
             'days.*.on' => ['nullable', 'boolean'],
             'days.*.start' => ['nullable', 'date_format:H:i'],
             'days.*.end' => ['nullable', 'date_format:H:i'],
         ], [
             'days.required' => __('Select at least one working day.'),
         ]);
+
+        // Free mode: no days, no tolerance, no target — just a named marking mode.
+        if ($isFree) {
+            return [
+                [
+                    'name' => $data['name'],
+                    'type' => Schedule::TYPE_FREE,
+                    'tolerance_minutes' => 0,
+                    'target_minutes' => null,
+                    'async_minutes_per_day' => 0,
+                    'is_active' => $schedule ? $request->boolean('is_active') : true,
+                ],
+                [], // no day rows
+            ];
+        }
 
         $flexible = $data['type'] === Schedule::TYPE_FLEXIBLE;
 

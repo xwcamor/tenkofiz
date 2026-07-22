@@ -24,13 +24,15 @@
                         @unless($schedule->is_active)<span class="badge badge-secondary ml-1">{{ __('Inactive') }}</span>@endunless
                     </td>
                     <td class="text-muted">{{ $schedule->daysSummary() }}
-                        @if($schedule->isFlexible())
+                        @if($schedule->isFree())
+                            <span class="badge badge-primary ml-1"><i class="fas fa-fingerprint"></i> {{ __('Free') }}</span>
+                        @elseif($schedule->isFlexible())
                             <span class="badge badge-warning ml-1"><i class="fas fa-hourglass-half"></i> {{ __('By hours') }}</span>
                         @elseif($schedule->days->contains(fn ($d) => $d->crossesMidnight()))
                             <span class="badge badge-info ml-1" title="{{ __('A shift that ends past midnight') }}"><i class="fas fa-moon"></i> {{ __('overnight') }}</span>
                         @endif
                     </td>
-                    <td>{{ $schedule->isFlexible() ? '—' : $schedule->tolerance_minutes.' min' }}</td>
+                    <td>{{ $schedule->isFlexible() || $schedule->isFree() ? '—' : $schedule->tolerance_minutes.' min' }}</td>
                     @if(app_setting()->async_hours_enabled)
                         <td>
                             @if($schedule->async_minutes_per_day > 0)
@@ -94,13 +96,17 @@
                     @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Schedule type') }}@include('partials.help', ['text' => __('Flexible: no fixed start, no tardiness — the person just has to complete their daily hours (teachers, consultants, part-time).')])</label>
+                    <label>{{ __('Schedule type') }}@include('partials.help', ['text' => __('Fixed judges tardiness against a start time. Flexible only asks to complete daily hours. Free logs every mark with its evidence and judges nothing — a person reviews it (health, field, irregular).')])</label>
                     <select name="type" id="scheduleType" class="form-control" onchange="applyScheduleType(this.value)">
                         <option value="fixed" @selected(old('type', 'fixed') === 'fixed')>{{ __('Fixed — start time with tolerance (tardiness applies)') }}</option>
                         <option value="flexible" @selected(old('type') === 'flexible')>{{ __('Flexible — complete an hour target (no tardiness)') }}</option>
+                        <option value="free" @selected(old('type') === 'free')>{{ __('Free — just log the marks, no schedule rules (a person reviews)') }}</option>
                     </select>
+                    <div id="scheduleFreeNote" class="small mt-2" style="display:none; background:var(--brand-soft); color:var(--brand-dark); border-radius:8px; padding:.5rem .7rem">
+                        <i class="fas fa-info-circle"></i> {{ __('Free mode: the person marks any number of times; each mark keeps its face/GPS/photo evidence. The system does not judge tardiness, absences or hours — the report shows the raw marks for a person to review.') }}
+                    </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="scheduleDaysRow">
                     <div class="d-flex align-items-center flex-wrap mb-2" style="gap:.4rem">
                         <label class="mb-0">{{ __('Working days') }} <span id="scheduleHoursLabel">{{ __('and hours') }}</span></label>
                         <span id="scheduleOvernightNote">@include('partials.help', ['text' => __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).')])</span>
@@ -128,7 +134,7 @@
                         @endforeach
                     </div>
                 </div>
-                <div class="form-row">
+                <div class="form-row" id="scheduleRulesRow">
                     <div class="form-group col-sm-6" id="scheduleToleranceRow">
                         <label>{{ __('Tardiness tolerance (minutes)') }}</label>
                         <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 5) }}" class="form-control" min="0" max="60" required style="max-width:160px">
@@ -165,6 +171,14 @@ const SCHEDULE_STORE_URL = @json(route('schedules.store'));
 
 function applyScheduleType(type) {
     const flexible = type === 'flexible';
+    const free = type === 'free';
+    // Free mode has no days, no times, no tolerance, no target, no async — just a name.
+    document.getElementById('scheduleDaysRow').style.display = free ? 'none' : '';
+    document.getElementById('scheduleRulesRow').style.display = free ? 'none' : '';
+    const asyncRow = document.getElementById('scheduleAsyncRow');
+    if (asyncRow) asyncRow.style.display = free ? 'none' : '';
+    document.getElementById('scheduleFreeNote').style.display = free ? '' : 'none';
+    // Within a non-free schedule, flexible hides the tolerance/times as before.
     document.getElementById('scheduleToleranceRow').style.display = flexible ? 'none' : '';
     document.getElementById('scheduleTargetRow').style.display = flexible ? '' : 'none';
     document.getElementById('scheduleOvernightNote').style.display = flexible ? 'none' : '';
