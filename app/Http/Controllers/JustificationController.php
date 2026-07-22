@@ -143,6 +143,13 @@ class JustificationController extends Controller
                 ['employee_id' => $justification->employee_id, 'date' => $justification->date->toDateString()],
                 ['status' => 'EXCUSED', 'method' => 'MANUAL', 'note' => __('Justification accepted: :reason', ['reason' => $justification->reason])]
             );
+        } else {
+            // Reopened or rejected: undo the EXCUSED day this acceptance had created so
+            // the attendance goes back to being an absence (the report reflects reality).
+            Attendance::where('employee_id', $justification->employee_id)
+                ->whereDate('date', $justification->date->toDateString())
+                ->where('status', 'EXCUSED')
+                ->update(['status' => 'ABSENT', 'note' => __('Justification reverted')]);
         }
 
         AuditLog::record('UPDATE', 'Justifications',

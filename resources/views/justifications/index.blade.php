@@ -118,6 +118,12 @@
                                 <input type="hidden" name="status" value="REJECTED">
                                 <button class="btn btn-sm btn-danger" title="{{ __('Reject') }}"><i class="fas fa-times"></i></button>
                             </form>
+                        @else
+                            <form method="POST" action="{{ route('justifications.status', $justification) }}" class="d-inline">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="status" value="PENDING">
+                                <button class="btn btn-sm btn-outline-secondary" title="{{ __('Reopen (undo the decision, back to pending)') }}"><i class="fas fa-undo"></i></button>
+                            </form>
                         @endif
                         <form method="POST" action="{{ route('justifications.destroy', $justification) }}" class="d-inline delete-form">
                             @csrf @method('DELETE')

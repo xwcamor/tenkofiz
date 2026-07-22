@@ -1096,5 +1096,15 @@
     "Choose whether you are leaving for a break or checking out.": "Elige si sales a break o marcas tu salida.",
     "It is earlier than your scheduled end. Only your time worked up to now will count, and you will not be able to mark again today.": "Es antes de tu hora de fin. Solo se contará tu tiempo trabajado hasta ahora, y no podrás volver a marcar hoy.",
     "Cannot delete: there are employees assigned (as their schedule or in a scheduled period).": "No se puede eliminar: hay empleados con este horario (asignado o en un periodo con vigencia).",
-    "Cannot delete: there are employees in this site. Move them to another site first.": "No se puede eliminar: hay empleados en esta sede. Muévelos a otra sede primero."
+    "Cannot delete: there are employees in this site. Move them to another site first.": "No se puede eliminar: hay empleados en esta sede. Muévelos a otra sede primero.",
+    "Select all on this page": "Seleccionar todos en esta página",
+    "Assign schedule": "Asignar horario",
+    "Apply": "Aplicar",
+    "Clear selection": "Limpiar selección",
+    "{0}No employees were updated.|{1}:count employee moved to the selected schedule.|[2,*]:count employees moved to the selected schedule.": "{0}No se actualizó ningún empleado.|{1}:count empleado movido al horario seleccionado.|[2,*]:count empleados movidos al horario seleccionado.",
+    "Reopen (undo the decision, back to pending)": "Reabrir (deshacer la decisión, vuelve a pendiente)",
+    "Justification reverted": "Justificación revertida",
+    "No employees yet": "Aún no tienes empleados",
+    "Add your team to start tracking attendance — one by one or by importing an Excel.": "Agrega a tu equipo para empezar a controlar la asistencia — uno por uno o importando un Excel.",
+    "Clear filters": "Limpiar filtros"
 }

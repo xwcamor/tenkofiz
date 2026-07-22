@@ -123,6 +123,7 @@ Route::middleware('auth')->group(function () {
         Route::get('employees-export', [EmployeeController::class, 'export'])->name('employees.export');
         Route::get('employees-import/template', [\App\Http\Controllers\EmployeeImportController::class, 'template'])->name('employees.import.template');
         Route::post('employees-import', [\App\Http\Controllers\EmployeeImportController::class, 'store'])->name('employees.import');
+        Route::post('employees-bulk-schedule', [EmployeeController::class, 'bulkSchedule'])->name('employees.bulkSchedule');
         Route::resource('employees', EmployeeController::class)->except(['show']);
         Route::post('employees/{employee}/restore', [EmployeeController::class, 'restore'])->name('employees.restore')->withTrashed();
         Route::get('employees/{employee}/enroll', [EmployeeController::class, 'enroll'])->name('employees.enroll');

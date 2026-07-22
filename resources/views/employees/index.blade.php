@@ -166,12 +166,31 @@ async function linkUser(id, name) {
         @if($showDeleted)
             <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
         @endif
+        @if(!$showDeleted && auth()->user()->hasModule('schedules'))
+            {{-- Bulk actions: assign a schedule to several selected employees at once --}}
+            <form method="POST" action="{{ route('employees.bulkSchedule') }}" id="bulkBar" class="d-none align-items-center bg-light border rounded px-3 py-2 mb-2" style="gap:.6rem;flex-wrap:wrap">
+                @csrf
+                <div id="bulkIds"></div>
+                <span class="font-weight-bold"><i class="fas fa-check-square text-primary"></i> <span id="bulkCount">0</span> {{ __('selected') }}</span>
+                <span class="text-muted">·</span>
+                <label class="mb-0 small">{{ __('Assign schedule') }}:</label>
+                <select name="schedule_id" class="form-control form-control-sm" style="width:auto" required>
+                    <option value="">— {{ __('Select a schedule') }} —</option>
+                    @foreach($schedules ?? [] as $schedule)
+                        <option value="{{ $schedule->id }}">{{ $schedule->name }}</option>
+                    @endforeach
+                </select>
+                <button class="btn btn-sm btn-primary">{{ __('Apply') }}</button>
+                <button type="button" class="btn btn-sm btn-link text-muted" id="bulkClear">{{ __('Clear selection') }}</button>
+            </form>
+        @endif
         <table class="table table-bordered table-hover">
             <thead>
                 @if($showDeleted)
                     <tr><th>{{ __('Document') }}</th><th>{{ __('Last and first names') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:130px">{{ __('Actions') }}</th></tr>
                 @else
                     <tr>
+                        <th style="width:34px" class="text-center"><input type="checkbox" id="empCheckAll" title="{{ __('Select all on this page') }}"></th>
                         @include('partials.th-sort', ['key' => 'document', 'label' => __('Document')])
                         @include('partials.th-sort', ['key' => 'name', 'label' => __('Last and first names')])
                         @include('partials.th-sort', ['key' => 'site', 'label' => __('Site')])
@@ -201,6 +220,7 @@ async function linkUser(id, name) {
                     </tr>
                 @else
                     <tr>
+                        <td class="text-center"><input type="checkbox" class="emp-check" value="{{ $employee->getRouteKey() }}"></td>
                         <td><span class="text-muted small">{{ $employee->document_type }}</span> {{ $employee->document_number }}</td>
                         <td>{{ $employee->full_name }}
                             @if($employee->contract_type === 'part_time')
@@ -258,7 +278,22 @@ async function linkUser(id, name) {
                     </tr>
                 @endif
             @empty
-                <tr><td colspan="{{ $showDeleted ? 5 : 9 }}" class="text-center text-muted py-4">{{ $showDeleted ? __('No deleted records.') : __('No employees match the current filters.') }}</td></tr>
+                <tr><td colspan="{{ $showDeleted ? 5 : 10 }}" class="text-center py-5">
+                    @if($showDeleted)
+                        <span class="text-muted">{{ __('No deleted records.') }}</span>
+                    @elseif(request()->hasAny(['q', 'area_id', 'site_id', 'schedule_id', 'status', 'face']))
+                        <div class="text-muted">
+                            <i class="fas fa-search fa-2x mb-2 d-block" style="opacity:.4"></i>
+                            {{ __('No employees match the current filters.') }}
+                            <div class="mt-2"><a href="{{ route('employees.index') }}" class="btn btn-sm btn-outline-secondary">{{ __('Clear filters') }}</a></div>
+                        </div>
+                    @else
+                        <i class="fas fa-users fa-3x mb-3 d-block text-muted" style="opacity:.35"></i>
+                        <h5 class="mb-1">{{ __('No employees yet') }}</h5>
+                        <p class="text-muted">{{ __('Add your team to start tracking attendance — one by one or by importing an Excel.') }}</p>
+                        <a href="{{ route('employees.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> {{ __('New employee') }}</a>
+                    @endif
+                </td></tr>
             @endforelse
             </tbody>
         </table>
@@ -331,5 +366,41 @@ async function linkUser(id, name) {
 @if(session('import_errors') || $errors->has('file'))
     $('#importModal').modal('show');
 @endif
+
+// Bulk selection → schedule assignment
+(function () {
+    const bar = document.getElementById('bulkBar');
+    if (!bar) return;
+    const all = document.getElementById('empCheckAll');
+    const count = document.getElementById('bulkCount');
+    const ids = document.getElementById('bulkIds');
+
+    function refresh() {
+        const checked = [...document.querySelectorAll('.emp-check:checked')];
+        count.textContent = checked.length;
+        ids.innerHTML = checked.map(c => `<input type="hidden" name="employee_ids[]" value="${c.value}">`).join('');
+        bar.classList.toggle('d-none', checked.length === 0);
+        bar.classList.toggle('d-flex', checked.length > 0);
+        if (all) {
+            const boxes = document.querySelectorAll('.emp-check');
+            all.checked = boxes.length > 0 && checked.length === boxes.length;
+            all.indeterminate = checked.length > 0 && checked.length < boxes.length;
+        }
+    }
+    document.querySelectorAll('.emp-check').forEach(c => c.addEventListener('change', refresh));
+    all?.addEventListener('change', () => {
+        document.querySelectorAll('.emp-check').forEach(c => { c.checked = all.checked; });
+        refresh();
+    });
+    document.getElementById('bulkClear')?.addEventListener('click', () => {
+        document.querySelectorAll('.emp-check, #empCheckAll').forEach(c => { c.checked = false; });
+        refresh();
+    });
+    bar.addEventListener('submit', e => {
+        if (!document.querySelector('.emp-check:checked')) { e.preventDefault(); return; }
+        const sel = bar.querySelector('select[name="schedule_id"]');
+        if (!sel.value) { e.preventDefault(); sel.focus(); }
+    });
+})();
 </script>
 @endpush

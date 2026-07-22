@@ -78,6 +78,12 @@
                                 <input type="hidden" name="status" value="REJECTED">
                                 <button class="btn btn-sm btn-danger" title="{{ __('Reject') }}"><i class="fas fa-times"></i></button>
                             </form>
+                        @elseif($canApprove)
+                            <form method="POST" action="{{ route('vacations.status', $vacation) }}" class="d-inline">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="status" value="PENDING">
+                                <button class="btn btn-sm btn-outline-secondary" title="{{ __('Reopen (undo the decision, back to pending)') }}"><i class="fas fa-undo"></i></button>
+                            </form>
                         @endif
                     </td>
                 </tr>

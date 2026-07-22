@@ -64,6 +64,7 @@ class EmployeeController extends Controller
             'dir' => $dir,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
+            'schedules' => Schedule::where('is_active', true)->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -204,6 +205,28 @@ class EmployeeController extends Controller
         $employee = Employee::create($this->validated($request));
         $this->syncScheduleAssignments($employee, $request);
         return redirect()->route('employees.index')->with('ok', __('Employee registered. You can now enroll their face.'));
+    }
+
+    /**
+     * Bulk-assign a base schedule to several employees at once (the list's bulk bar).
+     * Ids arrive as Hashids; the update runs through the tenant scopes, so only
+     * employees of the current company/site are ever touched.
+     */
+    public function bulkSchedule(Request $request)
+    {
+        $data = $request->validate([
+            'employee_ids' => ['required', 'array', 'min:1'],
+            'schedule_id' => ['required', Rule::exists('schedules', 'id')->where('is_active', true)->where('company_id', current_company_id())],
+        ]);
+
+        $ids = collect($data['employee_ids'])
+            ->map(fn ($h) => \App\Support\Hashid::decode($h))
+            ->filter()
+            ->all();
+
+        $count = Employee::whereIn('id', $ids)->update(['schedule_id' => $data['schedule_id']]);
+
+        return back()->with('ok', trans_choice('{0}No employees were updated.|{1}:count employee moved to the selected schedule.|[2,*]:count employees moved to the selected schedule.', $count, ['count' => $count]));
     }
 
     public function edit(Employee $employee)
