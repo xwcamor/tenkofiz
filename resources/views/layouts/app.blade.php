@@ -46,6 +46,16 @@
         .input-group > .select2-container:not(:last-child) .select2-selection {
             border-top-right-radius: 0; border-bottom-right-radius: 0;
         }
+        /* Weekday toggles in the quick-schedule modal: clear selected vs not; hover only
+           tints the border (never fills), so an inactive day never looks active and a
+           just-deselected day updates immediately without waiting for the mouse to leave. */
+        .sc-day { display:inline-block; cursor:pointer; user-select:none; margin:.12rem; padding:.28rem .62rem;
+            font-size:.82rem; line-height:1; border:1px solid #ced4da; border-radius:.3rem; background:#fff;
+            color:#495057; transition:background-color .12s, border-color .12s, color .12s; }
+        .sc-day input { display:none; }
+        .sc-day:hover { border-color:#007bff; }
+        .sc-day.active { background:#007bff; border-color:#007bff; color:#fff; }
+        .sc-day.active:hover { background:#0069d9; border-color:#0062cc; }
     </style>
     @stack('styles')
 </head>

@@ -141,7 +141,8 @@
                             <select name="schedule_id" id="scheduleSelect" class="form-control @error('schedule_id') is-invalid @enderror" required>
                                 <option value="">— {{ __('Select a schedule') }} —</option>
                                 @foreach($schedules as $schedule)
-                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
+                                    <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)
+                                        data-summary="{{ $schedule->daysSummary() }}" data-async="{{ (int) $schedule->async_minutes_per_day }}">{{ $schedule->name }}</option>
                                 @endforeach
                             </select>
                             @if(auth()->user()->hasModule('schedules'))
@@ -151,6 +152,8 @@
                             @endif
                         </div>
                         @error('schedule_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                        {{-- Details of the chosen schedule (days · hours, and credited hours only if any) --}}
+                        <div id="scheduleDetail" class="small text-muted mt-1"></div>
                     </div>
 
                     {{-- Schedule "vigencias": the assigned schedule can change over time (e.g. Jan–Jul one, Aug–Dec another) --}}
@@ -259,12 +262,31 @@
 @push('scripts')
 <script>
 // Searchable catalog selects: type to filter areas, positions, sites and schedules
+const SC_ASYNC_ENABLED = @json((bool) app_setting()->async_hours_enabled);
+
 $(function () {
-    $('#areaSelect, #positionSelect, select[name="site_id"], select[name="schedule_id"]').select2({
+    $('#areaSelect, #positionSelect, select[name="site_id"]').select2({
         theme: 'bootstrap4',
         width: '100%',
         language: @json(app()->getLocale()),
     });
+
+    // Assigned schedule: the closed control shows only the NAME (clean); the dropdown
+    // list still shows "name — days · hours" so you can pick with full context; and the
+    // details appear in a panel below once chosen.
+    $('#scheduleSelect').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        language: @json(app()->getLocale()),
+        templateResult: function (opt) {
+            if (!opt.id) return opt.text;
+            const summary = $(opt.element).data('summary');
+            const $row = $('<span></span>').text(opt.text);
+            if (summary) $row.append($('<small class="text-muted"></small>').text(' — ' + summary));
+            return $row;
+        },
+    }).on('change', updateScheduleDetail);
+    updateScheduleDetail();
 
     // Schedule "vigencias": add / remove period rows
     let periodIdx = document.querySelectorAll('#schedulePeriods .period-row').length;
@@ -291,6 +313,24 @@ function syncPeriodRequired(select) {
     const row = select.closest('.period-row');
     const from = row?.querySelector('input[name$="[from]"]');
     if (from) from.required = !!select.value;
+}
+
+// Show the chosen assigned schedule's details below the select (days · hours, and
+// credited/async hours ONLY when they exist and the feature is on).
+function updateScheduleDetail() {
+    const el = document.getElementById('scheduleDetail');
+    if (!el) return;
+    const opt = document.getElementById('scheduleSelect').selectedOptions[0];
+    if (!opt || !opt.value) { el.innerHTML = ''; return; }
+    const summary = opt.dataset.summary || '';
+    const asyncMin = parseInt(opt.dataset.async || '0', 10);
+    let html = summary ? ('<i class="fas fa-calendar-alt mr-1"></i>' + summary) : '';
+    if (SC_ASYNC_ENABLED && asyncMin > 0) {
+        const h = Math.round(asyncMin / 60 * 10) / 10;
+        html += ' &nbsp;·&nbsp; <span class="text-primary"><i class="fas fa-wifi mr-1"></i>'
+             + @json(__('Credited (async):')) + ' ' + h + ' h/' + @json(__('day')) + '</span>';
+    }
+    el.innerHTML = html;
 }
 </script>
 <script>
@@ -433,8 +473,8 @@ const SCHEDULE_QUICK_URL = @json(route('schedules.quickStore'));
 async function createSchedule(url, opts = {}) {
     const personal = !!opts.personal;
     const dayBtns = WEEKDAYS.map(d =>
-        `<label class="btn btn-sm btn-outline-secondary mb-1 ${d.v >= 1 && d.v <= 5 ? 'active' : ''}" style="margin-right:.2rem">
-            <input type="checkbox" value="${d.v}" ${d.v >= 1 && d.v <= 5 ? 'checked' : ''} style="display:none">${d.l}
+        `<label class="sc-day ${d.v >= 1 && d.v <= 5 ? 'active' : ''}">
+            <input type="checkbox" value="${d.v}" ${d.v >= 1 && d.v <= 5 ? 'checked' : ''}>${d.l}
         </label>`).join('');
     const asyncField = ASYNC_ENABLED
         ? `<div><div style="font-size:.75rem;color:#667085">${@json(__('Async min/day'))}</div><input id="scAsync" type="number" value="0" min="0" max="600" class="form-control form-control-sm" style="width:90px"></div>`
@@ -504,10 +544,14 @@ async function createSchedule(url, opts = {}) {
         opts.targetSelect.value = data.id;
         syncPeriodRequired(opts.targetSelect); // picking a schedule makes "From" required
     } else {
-        // Shared: add to the base select (selected) and to every period-row select
+        // Shared: add to the base select (name only + details in data-*), selected;
+        // and to every period-row select (which show "name — summary" inline).
         const base = document.getElementById('scheduleSelect');
-        base.add(new Option(label, data.id, true, true));
-        $(base).trigger('change');
+        const baseOpt = new Option(data.name, data.id, true, true);
+        baseOpt.dataset.summary = data.summary || '';
+        baseOpt.dataset.async = data.async_minutes_per_day || 0;
+        base.add(baseOpt);
+        $(base).trigger('change'); // refreshes Select2 and the detail panel
         document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
             if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(label, data.id));
         });

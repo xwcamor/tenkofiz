@@ -83,7 +83,12 @@ class ScheduleController extends Controller
 
         AuditLog::record('CREATE', 'Schedules', __('Quick schedule ":name" created from the employee form', ['name' => $schedule->name]));
 
-        return response()->json(['id' => $schedule->id, 'name' => $schedule->name, 'summary' => $schedule->load('days')->daysSummary()]);
+        return response()->json([
+            'id' => $schedule->id,
+            'name' => $schedule->name,
+            'summary' => $schedule->load('days')->daysSummary(),
+            'async_minutes_per_day' => (int) $schedule->async_minutes_per_day,
+        ]);
     }
 
     public function update(Request $request, Schedule $schedule)
