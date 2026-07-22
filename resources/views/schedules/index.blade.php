@@ -11,6 +11,9 @@
                 @include('partials.th-sort', ['key' => 'name', 'label' => __('Name')])
                 <th>{{ __('Working days') }}</th>
                 @include('partials.th-sort', ['key' => 'tolerance', 'label' => __('Tolerance')])
+                @if(app_setting()->async_hours_enabled)
+                    <th title="{{ __('Remote hours credited as done, per working day') }}">{{ __('Credited (async)') }}</th>
+                @endif
                 @include('partials.th-sort', ['key' => 'employees', 'label' => __('Employees')])
                 <th style="width:110px">{{ __('Actions') }}</th>
             </tr></thead>
@@ -28,6 +31,15 @@
                         @endif
                     </td>
                     <td>{{ $schedule->isFlexible() ? '—' : $schedule->tolerance_minutes.' min' }}</td>
+                    @if(app_setting()->async_hours_enabled)
+                        <td>
+                            @if($schedule->async_minutes_per_day > 0)
+                                <span class="badge badge-primary" title="{{ __('Credited as done every working day') }}"><i class="fas fa-wifi"></i> {{ round($schedule->async_minutes_per_day / 60, 1) }} h</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                    @endif
                     <td><span class="badge badge-info">{{ $schedule->employees_count }}</span></td>
                     <td>
                         @php
@@ -53,7 +65,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="text-center text-muted py-4">{{ __('No schedules yet.') }}</td></tr>
+                <tr><td colspan="{{ app_setting()->async_hours_enabled ? 6 : 5 }}" class="text-center text-muted py-4">{{ __('No schedules yet.') }}</td></tr>
             @endforelse
             </tbody>
         </table>
