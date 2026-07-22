@@ -111,6 +111,14 @@
                         {{-- Device binding (multi-device: a site can have several tablets, one per area) --}}
                         <div class="mt-2 pt-2 border-top">
                             <h6 class="font-weight-bold text-sm"><i class="fas fa-fingerprint"></i> {{ __('Device binding (recommended)') }}</h6>
+                            <div class="bg-light border rounded p-2 mb-2">
+                                <span class="text-sm font-weight-bold d-block mb-1">{{ __('How to pair a tablet:') }}</span>
+                                <ol class="text-sm text-muted pl-3 mb-0">
+                                    <li>{{ __('On this screen, press «Generate pairing code».') }}</li>
+                                    <li>{{ __('On the site\'s tablet, open the pairing page (the link shown below when you generate the code).') }}</li>
+                                    <li>{{ __('Type the code there before it expires (15 min). That tablet stays bound to this site.') }}</li>
+                                </ol>
+                            </div>
                             @if($site->kioskDevices->isNotEmpty())
                                 <p class="text-sm mb-2"><i class="fas fa-check-circle text-success"></i> {{ __('Only the paired tablets below can open this site\'s kiosk; a copied URL on any other device is rejected.') }}</p>
                                 <ul class="list-group list-group-flush mb-2">
