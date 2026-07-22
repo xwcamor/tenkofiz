@@ -49,17 +49,20 @@ class DemoAcademic extends Command
 
             $site = Site::firstOrCreate(['name' => 'Campus Central'], ['timezone' => 'America/Lima', 'is_active' => true]);
 
-            // Two schedules: presencial Mon/Tue/Wed 09:00-13:00 (4h) + 60 async min/day
-            // → 5h/day × 3 = 15h/week, exactly like the "Total Horas 15:00" sheet.
+            // Base = a SHARED fallback schedule (catalog). The two course schedules are
+            // PERSONALIZED (per-person, out of the catalog): presencial Mon/Tue/Wed
+            // 09:00-13:00 (4h) + 60 async min/day → 5h/day × 3 = 15h/week (Total 15:00).
+            $base = $this->makeSchedule('General Instituto (Lu-Vi)', shared: true, weekdays: [1, 2, 3, 4, 5], async: 0);
             $ia202 = $this->makeSchedule('IA 202 (2026-10)');
             $sw205 = $this->makeSchedule('SOFTWARE 205 (2025-20)');
 
             $emp = Employee::firstOrCreate(['document_number' => '001548436'], [
                 'first_name' => 'CARLOS', 'last_name' => 'MORALES',
-                'site_id' => $site->id, 'schedule_id' => $ia202->id,
+                'site_id' => $site->id, 'schedule_id' => $base->id,
                 'contract_type' => 'part_time', 'hire_date' => '2025-08-11',
                 'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]),
             ]);
+            $emp->update(['schedule_id' => $base->id]);
 
             // Vigencias exactly as the two sheets
             $emp->scheduleAssignments()->delete();
@@ -78,13 +81,15 @@ class DemoAcademic extends Command
         return self::SUCCESS;
     }
 
-    private function makeSchedule(string $name): Schedule
+    private function makeSchedule(string $name, bool $shared = false, array $weekdays = [1, 2, 3], int $async = 60): Schedule
     {
         $s = Schedule::firstOrCreate(['name' => $name], [
-            'type' => Schedule::TYPE_FIXED, 'tolerance_minutes' => 10, 'async_minutes_per_day' => 60,
+            'is_shared' => $shared, // course schedules are personalized (out of the catalog)
+            'type' => Schedule::TYPE_FIXED, 'tolerance_minutes' => 10, 'async_minutes_per_day' => $async,
         ]);
+        $s->update(['is_shared' => $shared, 'async_minutes_per_day' => $async]);
         if ($s->days()->count() === 0) {
-            foreach ([1, 2, 3] as $wd) { // Mon, Tue, Wed
+            foreach ($weekdays as $wd) {
                 $s->days()->create(['weekday' => $wd, 'start_time' => '09:00', 'end_time' => '13:00']);
             }
         }

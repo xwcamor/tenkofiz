@@ -13,14 +13,20 @@ class Schedule extends Model
     public const TYPE_FIXED = 'fixed';       // start time + tolerance judge punctuality
     public const TYPE_FLEXIBLE = 'flexible'; // no fixed start; complete a daily hour target
 
-    protected $fillable = ['company_id', 'name', 'type', 'start_time', 'end_time', 'tolerance_minutes', 'target_minutes', 'async_minutes_per_day', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'is_shared', 'type', 'start_time', 'end_time', 'tolerance_minutes', 'target_minutes', 'async_minutes_per_day', 'is_active'];
 
-    protected $casts = ['is_active' => 'boolean', 'target_minutes' => 'integer', 'async_minutes_per_day' => 'integer'];
+    protected $casts = ['is_active' => 'boolean', 'is_shared' => 'boolean', 'target_minutes' => 'integer', 'async_minutes_per_day' => 'integer'];
 
     /** Flexible = count hours against a daily target, no tardiness */
     public function isFlexible(): bool
     {
         return $this->type === self::TYPE_FLEXIBLE;
+    }
+
+    /** Only the reusable catalog templates (hides per-person personalized schedules) */
+    public function scopeShared($q)
+    {
+        return $q->where('is_shared', true);
     }
 
     /** Fixed = classic start/end with tolerance (the default) */

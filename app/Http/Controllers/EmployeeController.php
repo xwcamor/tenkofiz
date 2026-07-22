@@ -64,7 +64,7 @@ class EmployeeController extends Controller
             'dir' => $dir,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
-            'schedules' => Schedule::where('is_active', true)->orderBy('name')->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -187,7 +187,8 @@ class EmployeeController extends Controller
     {
         return view('employees.form', [
             'employee' => new Employee(),
-            'schedules' => Schedule::where('is_active', true)->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->get(),
+            'personalSchedules' => collect(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
@@ -231,9 +232,15 @@ class EmployeeController extends Controller
 
     public function edit(Employee $employee)
     {
+        $employee->load('scheduleAssignments.schedule');
+
         return view('employees.form', [
             'employee' => $employee,
-            'schedules' => Schedule::where('is_active', true)->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->get(),
+            // Personal (non-catalog) schedules this employee already uses in a period,
+            // so their vigencia rows can render them even though they're hidden elsewhere.
+            'personalSchedules' => $employee->scheduleAssignments
+                ->map->schedule->filter(fn ($s) => $s && !$s->is_shared)->unique('id')->values(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
@@ -270,6 +277,13 @@ class EmployeeController extends Controller
         foreach ($rows as $row) {
             $employee->scheduleAssignments()->create($row);
         }
+
+        // Tidy up personalized (non-catalog) schedules that no longer belong to anyone
+        // — e.g. a personalized period was removed. Shared catalog schedules are kept.
+        Schedule::where('is_shared', false)
+            ->whereDoesntHave('employees')
+            ->whereNotIn('id', \App\Models\EmployeeSchedule::query()->select('schedule_id'))
+            ->delete();
     }
 
     /** Creates a linked user with the chosen profile (initial password: their document number) */

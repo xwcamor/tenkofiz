@@ -14,7 +14,9 @@ class ScheduleController extends Controller
 
     public function index(Request $request)
     {
-        $query = Schedule::withCount('employees')->with('days');
+        // Only the shared catalog templates. Personalized (per-employee) schedules
+        // live on their employee and never clutter this page.
+        $query = Schedule::shared()->withCount('employees')->with('days');
         [$sort, $dir] = $this->applySort($query, $request, [
             'name' => 'name', 'tolerance' => 'tolerance_minutes', 'employees' => 'employees_count',
         ], 'name');
@@ -42,22 +44,32 @@ class ScheduleController extends Controller
      */
     public function quickStore(Request $request)
     {
+        $shared = $request->boolean('is_shared', true);
+        // Personalized (per-employee) schedules may repeat a name; only the shared
+        // catalog enforces uniqueness.
+        $nameRule = ['required', 'string', 'max:100'];
+        if ($shared) {
+            $nameRule[] = Rule::unique('schedules')->where('company_id', current_company_id())->where('is_shared', true);
+        }
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->where('company_id', current_company_id())],
+            'name' => $nameRule,
             'weekdays' => ['required', 'array', 'min:1'],
             'weekdays.*' => ['integer', 'between:0,6'],
             'start' => ['required', 'date_format:H:i'],
             'end' => ['required', 'date_format:H:i', 'different:start'],
             'tolerance_minutes' => ['nullable', 'integer', 'min:0', 'max:60'],
+            'async_minutes_per_day' => ['nullable', 'integer', 'min:0', 'max:600'],
         ], [
             'name.unique' => __('A schedule with that name already exists.'),
         ]);
 
-        $schedule = DB::transaction(function () use ($data) {
+        $schedule = DB::transaction(function () use ($data, $shared) {
             $schedule = Schedule::create([
                 'name' => $data['name'],
+                'is_shared' => $shared,
                 'type' => Schedule::TYPE_FIXED,
                 'tolerance_minutes' => $data['tolerance_minutes'] ?? 10,
+                'async_minutes_per_day' => (int) ($data['async_minutes_per_day'] ?? 0),
                 'is_active' => true,
             ]);
             $schedule->days()->createMany(
@@ -104,7 +116,7 @@ class ScheduleController extends Controller
     private function validated(Request $request, ?Schedule $schedule = null): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())],
+            'name' => ['required', 'string', 'max:100', Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())->where('is_shared', true)],
             'type' => ['required', Rule::in([Schedule::TYPE_FIXED, Schedule::TYPE_FLEXIBLE])],
             'tolerance_minutes' => ['required', 'integer', 'min:0', 'max:60'],
             'target_hours' => ['nullable', 'numeric', 'min:0.5', 'max:24'],

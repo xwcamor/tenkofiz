@@ -1112,5 +1112,12 @@
     "OFF (default): nothing changes. ON: each schedule can carry \"async minutes per day\" — hours done remotely that cannot be marked at the kiosk. They are counted as completed (never a deficit) and shown in reports.": "APAGADO (por defecto): no cambia nada. ENCENDIDO: cada horario puede llevar \"minutos asíncronos por día\" — horas hechas remoto que no se pueden marcar en el kiosko. Se cuentan como cumplidas (nunca como deuda) y se muestran en los reportes.",
     "Async / credited minutes per day": "Minutos asíncronos / acreditados por día",
     "Remote hours that cannot be marked. Counted as done (never a deficit) on each working day. 0 = none.": "Horas remotas que no se pueden marcar. Se cuentan como hechas (nunca deuda) en cada día laborable. 0 = ninguna.",
-    "Worked/expected hours include :h of asynchronous/credited hours (done remotely, not marked at the kiosk).": "Las horas trabajadas/esperadas incluyen :h de horas asíncronas/acreditadas (hechas remoto, no marcadas en el kiosko)."
+    "Worked/expected hours include :h of asynchronous/credited hours (done remotely, not marked at the kiosk).": "Las horas trabajadas/esperadas incluyen :h de horas asíncronas/acreditadas (hechas remoto, no marcadas en el kiosko).",
+    "From the catalog": "Del catálogo",
+    "Personalized": "Personalizado",
+    "Personalized schedule": "Horario personalizado",
+    "Create a personalized schedule for this period": "Crear un horario personalizado para este periodo",
+    "Pick a shared schedule from the catalog, or click the pencil to define a personalized one (its own days/hours) just for this person — it stays out of the catalog.": "Elige un horario compartido del catálogo, o toca el lápiz para definir uno personalizado (con sus propios días/horas) solo para esta persona — no aparece en el catálogo.",
+    "Only for this person — it will not appear in the shared catalog.": "Solo para esta persona — no aparecerá en el catálogo compartido.",
+    "Async min/day": "Min async/día"
 }

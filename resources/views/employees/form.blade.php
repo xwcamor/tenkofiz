@@ -123,17 +123,20 @@
                         </div>
                         <div class="card-body py-2">
                             <p class="text-muted mb-2" style="font-size:.82rem">{{ __('For rotating shifts: assign a schedule for a date range (e.g. Jan–Jul one shift, Aug–Dec another). The system uses the one in force on each date for tardiness, absences and reports. Leave empty to always use the assigned schedule above.') }}</p>
+                            <p class="text-muted mb-2" style="font-size:.78rem"><i class="fas fa-info-circle"></i> {{ __('Pick a shared schedule from the catalog, or click the pencil to define a personalized one (its own days/hours) just for this person — it stays out of the catalog.') }}</p>
                             <div id="schedulePeriods">
                                 @foreach($periodRows as $i => $p)
                                     <div class="form-row align-items-end mb-2 period-row">
                                         <div class="col-md-5 form-group mb-1">
                                             <label class="mb-1 small">{{ __('Schedule') }}</label>
-                                            <select name="schedule_periods[{{ $i }}][schedule_id]" class="form-control form-control-sm">
-                                                <option value="">—</option>
-                                                @foreach($schedules as $schedule)
-                                                    <option value="{{ $schedule->id }}" @selected(($p['schedule_id'] ?? null) == $schedule->id)>{{ $schedule->name }}</option>
-                                                @endforeach
-                                            </select>
+                                            <div class="input-group input-group-sm">
+                                                <select name="schedule_periods[{{ $i }}][schedule_id]" class="form-control form-control-sm period-schedule">
+                                                    @include('partials.schedule-options', ['selected' => $p['schedule_id'] ?? null])
+                                                </select>
+                                                <div class="input-group-append">
+                                                    <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="col-md-3 form-group mb-1">
                                             <label class="mb-1 small">{{ __('From') }}</label>
@@ -156,12 +159,14 @@
                         <div class="form-row align-items-end mb-2 period-row">
                             <div class="col-md-5 form-group mb-1">
                                 <label class="mb-1 small">{{ __('Schedule') }}</label>
-                                <select name="schedule_periods[__I__][schedule_id]" class="form-control form-control-sm">
-                                    <option value="">—</option>
-                                    @foreach($schedules as $schedule)
-                                        <option value="{{ $schedule->id }}">{{ $schedule->name }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="input-group input-group-sm">
+                                    <select name="schedule_periods[__I__][schedule_id]" class="form-control form-control-sm period-schedule">
+                                        @include('partials.schedule-options', ['selected' => null])
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-3 form-group mb-1">
                                 <label class="mb-1 small">{{ __('From') }}</label>
@@ -372,24 +377,37 @@ async function addCatalogItem(url, selectId, label) {
     ];
 @endphp
 const WEEKDAYS = @json($weekdayOptions);
-async function createSchedule(url) {
+const ASYNC_ENABLED = @json((bool) app_setting()->async_hours_enabled);
+const SCHEDULE_QUICK_URL = @json(route('schedules.quickStore'));
+
+/**
+ * Schedule editor modal. opts.personal = true creates a PERSONALIZED schedule
+ * (is_shared:false) tied to this person and injects it only into opts.targetSelect;
+ * otherwise a SHARED catalog schedule that lands in every schedule select.
+ */
+async function createSchedule(url, opts = {}) {
+    const personal = !!opts.personal;
     const dayBtns = WEEKDAYS.map(d =>
         `<label class="btn btn-sm btn-outline-secondary mb-1 ${d.v >= 1 && d.v <= 5 ? 'active' : ''}" style="margin-right:.2rem">
             <input type="checkbox" value="${d.v}" ${d.v >= 1 && d.v <= 5 ? 'checked' : ''} style="display:none">${d.l}
         </label>`).join('');
+    const asyncField = ASYNC_ENABLED
+        ? `<div><div style="font-size:.75rem;color:#667085">${@json(__('Async min/day'))}</div><input id="scAsync" type="number" value="0" min="0" max="600" class="form-control form-control-sm" style="width:90px"></div>`
+        : '';
 
     const { value: form } = await Swal.fire({
-        title: @json(__('New schedule')),
+        title: personal ? @json(__('Personalized schedule')) : @json(__('New schedule')),
         html: `
             <input id="scName" class="swal2-input" placeholder="${@json(__('Schedule name'))}" style="width:85%">
             <div style="margin:.5rem 0 .25rem;font-size:.8rem;color:#667085">${@json(__('Working days'))}</div>
             <div id="scDays" style="display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem">${dayBtns}</div>
-            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem">
+            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem;flex-wrap:wrap">
                 <div><div style="font-size:.75rem;color:#667085">${@json(__('Start'))}</div><input id="scStart" type="time" value="09:00" class="form-control form-control-sm"></div>
                 <div><div style="font-size:.75rem;color:#667085">${@json(__('End'))}</div><input id="scEnd" type="time" value="18:00" class="form-control form-control-sm"></div>
                 <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="10" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
+                ${asyncField}
             </div>
-            <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${@json(__('Same hours on every chosen day. For different hours per day or overnight shifts, use the Schedules page.'))}</p>
+            <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${personal ? @json(__('Only for this person — it will not appear in the shared catalog.')) : @json(__('Same hours on every chosen day. For different hours per day or overnight shifts, use the Schedules page.'))}</p>
         `,
         focusConfirm: false,
         showCancelButton: true,
@@ -407,7 +425,12 @@ async function createSchedule(url) {
             if (!name) { Swal.showValidationMessage(@json(__('Enter a name'))); return false; }
             if (!weekdays.length) { Swal.showValidationMessage(@json(__('Select at least one working day.'))); return false; }
             if (!start || !end || start === end) { Swal.showValidationMessage(@json(__('Enter a valid start and end time.'))); return false; }
-            return { name, weekdays, start, end, tolerance_minutes: parseInt(document.getElementById('scTol').value || '10', 10) };
+            return {
+                name, weekdays, start, end,
+                tolerance_minutes: parseInt(document.getElementById('scTol').value || '10', 10),
+                async_minutes_per_day: ASYNC_ENABLED ? parseInt(document.getElementById('scAsync').value || '0', 10) : 0,
+                is_shared: personal ? 0 : 1,
+            };
         }
     });
     if (!form) return;
@@ -418,20 +441,38 @@ async function createSchedule(url) {
         body: JSON.stringify(form)
     });
 
-    if (res.ok) {
-        const data = await res.json();
-        // Add to the base schedule select (selected) and to every period-row select
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        Swal.fire(@json(__('Attention')), err.message || (err.errors && Object.values(err.errors)[0][0]) || @json(__('Could not save (duplicate name?).')), 'warning');
+        return;
+    }
+    const data = await res.json();
+
+    if (personal && opts.targetSelect) {
+        // Inject into THIS row only, under a "Personalized" optgroup, and select it
+        let grp = opts.targetSelect.querySelector('optgroup.js-personal-group');
+        if (!grp) { grp = document.createElement('optgroup'); grp.className = 'js-personal-group'; grp.label = @json(__('Personalized')); opts.targetSelect.appendChild(grp); }
+        const opt = new Option(data.name, data.id, true, true);
+        grp.appendChild(opt);
+        opts.targetSelect.value = data.id;
+    } else {
+        // Shared: add to the base select (selected) and to every period-row select
         const base = document.getElementById('scheduleSelect');
         base.add(new Option(data.name, data.id, true, true));
         $(base).trigger('change');
         document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
             if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(data.name, data.id));
         });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });
-    } else {
-        const err = await res.json().catch(() => ({}));
-        Swal.fire(@json(__('Attention')), err.message || (err.errors && Object.values(err.errors)[0][0]) || @json(__('Could not save (duplicate name?).')), 'warning');
     }
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });
 }
+
+// "Personalize" pencil on each period row → create a personalized schedule for that row
+document.getElementById('schedulePeriods')?.addEventListener('click', function (e) {
+    const btn = e.target.closest('.personalize-period');
+    if (!btn) return;
+    const select = btn.closest('.period-row').querySelector('select.period-schedule');
+    createSchedule(SCHEDULE_QUICK_URL, { personal: true, targetSelect: select });
+});
 </script>
 @endpush
