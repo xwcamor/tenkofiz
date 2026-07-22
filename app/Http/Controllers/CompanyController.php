@@ -118,6 +118,13 @@ class CompanyController extends Controller
                 $schedule->days()->create(['weekday' => $weekday, 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
             }
 
+            // Every employee needs a site, so a workspace must be born with one.
+            \App\Models\Site::create([
+                'name' => __('General'),
+                'timezone' => $data['timezone'] ?? config('app.display_timezone', 'America/Lima'),
+                'is_active' => true,
+            ]);
+
             User::create([
                 'name' => $data['admin_name'],
                 'email' => $data['admin_email'],
