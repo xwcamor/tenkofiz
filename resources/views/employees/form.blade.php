@@ -447,21 +447,23 @@ async function createSchedule(url, opts = {}) {
         return;
     }
     const data = await res.json();
+    // Show "name — days · hours" in the option, like the seeded options do
+    const label = data.summary ? (data.name + ' — ' + data.summary) : data.name;
 
     if (personal && opts.targetSelect) {
         // Inject into THIS row only, under a "Personalized" optgroup, and select it
         let grp = opts.targetSelect.querySelector('optgroup.js-personal-group');
         if (!grp) { grp = document.createElement('optgroup'); grp.className = 'js-personal-group'; grp.label = @json(__('Personalized')); opts.targetSelect.appendChild(grp); }
-        const opt = new Option(data.name, data.id, true, true);
+        const opt = new Option(label, data.id, true, true);
         grp.appendChild(opt);
         opts.targetSelect.value = data.id;
     } else {
         // Shared: add to the base select (selected) and to every period-row select
         const base = document.getElementById('scheduleSelect');
-        base.add(new Option(data.name, data.id, true, true));
+        base.add(new Option(label, data.id, true, true));
         $(base).trigger('change');
         document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
-            if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(data.name, data.id));
+            if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(label, data.id));
         });
     }
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });

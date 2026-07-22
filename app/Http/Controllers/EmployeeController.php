@@ -64,7 +64,7 @@ class EmployeeController extends Controller
             'dir' => $dir,
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
-            'schedules' => Schedule::where('is_active', true)->shared()->orderBy('name')->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->with('days')->orderBy('name')->get(),
             'profiles' => Profile::where('is_active', true)->orderBy('name')->get(),
             'availableUsers' => User::inCompany()->whereDoesntHave('employee')->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -187,7 +187,7 @@ class EmployeeController extends Controller
     {
         return view('employees.form', [
             'employee' => new Employee(),
-            'schedules' => Schedule::where('is_active', true)->shared()->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->with('days')->get(),
             'personalSchedules' => collect(),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
@@ -236,11 +236,12 @@ class EmployeeController extends Controller
 
         return view('employees.form', [
             'employee' => $employee,
-            'schedules' => Schedule::where('is_active', true)->shared()->get(),
+            'schedules' => Schedule::where('is_active', true)->shared()->with('days')->get(),
             // Personal (non-catalog) schedules this employee already uses in a period,
             // so their vigencia rows can render them even though they're hidden elsewhere.
             'personalSchedules' => $employee->scheduleAssignments
-                ->map->schedule->filter(fn ($s) => $s && !$s->is_shared)->unique('id')->values(),
+                ->map->schedule->filter(fn ($s) => $s && !$s->is_shared)->unique('id')->values()
+                ->each->loadMissing('days'),
             'areas' => Area::where('is_active', true)->orderBy('name')->get(),
             'positions' => Position::where('is_active', true)->orderBy('name')->get(),
             'sites' => $this->visibleSites(request()),
