@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', __('Attendance'))
 @section('header-button')
-    <div class="d-flex">
+    <div class="d-flex align-items-center flex-wrap">
         @if(auth()->user()->hasModule('settings'))
             @if($showDeleted)
                 <a href="{{ route('attendances.index', request()->except('deleted')) }}" class="btn btn-outline-secondary btn-sm mr-2"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
@@ -47,32 +47,49 @@
 
 <div class="card card-primary card-outline">
     <div class="card-header">
-        <form class="form-inline">
-            <label class="mr-2">{{ __('From') }}</label>
-            <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm mr-3">
-            <label class="mr-2">{{ __('To') }}</label>
-            <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
-            <select name="employee_id" class="employee-select mr-3" data-url="{{ route('employees.search') }}"
-                    data-placeholder="{{ __('All employees') }}" data-width="240px"
-                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
-            <select name="status" class="form-control form-control-sm mr-3">
-                <option value="">{{ __('All statuses') }}</option>
-                @foreach(\App\Models\Attendance::STATUSES as $status)
-                    <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
-                @endforeach
-            </select>
-            @if($sites->count() > 1)
-                <select name="site_id" class="form-control form-control-sm mr-3">
-                    <option value="">{{ __('All sites') }}</option>
-                    @foreach($sites as $site)
-                        <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
-                    @endforeach
-                </select>
-            @endif
-            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+        <form class="mb-0">
+            <div class="form-row align-items-end">
+                <div class="form-group col-6 col-md-3 col-lg-2 mb-2">
+                    <label class="mb-1 small text-muted">{{ __('From') }}</label>
+                    <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm">
+                </div>
+                <div class="form-group col-6 col-md-3 col-lg-2 mb-2">
+                    <label class="mb-1 small text-muted">{{ __('To') }}</label>
+                    <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm">
+                </div>
+                <div class="form-group col-12 col-md-6 col-lg-3 mb-2">
+                    <label class="mb-1 small text-muted">{{ __('Employee') }}</label>
+                    <select name="employee_id" class="employee-select" data-url="{{ route('employees.search') }}"
+                            data-placeholder="{{ __('All employees') }}" data-width="100%"
+                            @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
+                </div>
+                <div class="form-group col-6 col-md-4 col-lg-2 mb-2">
+                    <label class="mb-1 small text-muted">{{ __('Status') }}</label>
+                    <select name="status" class="form-control form-control-sm">
+                        <option value="">{{ __('All statuses') }}</option>
+                        @foreach(\App\Models\Attendance::STATUSES as $status)
+                            <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @if($sites->count() > 1)
+                    <div class="form-group col-6 col-md-4 col-lg-2 mb-2">
+                        <label class="mb-1 small text-muted">{{ __('Site') }}</label>
+                        <select name="site_id" class="form-control form-control-sm">
+                            <option value="">{{ __('All sites') }}</option>
+                            @foreach($sites as $site)
+                                <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div class="form-group col-auto mb-2">
+                    <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+                </div>
+            </div>
             @if(app_setting()->cutoff_day)
                 @php [$periodStart, $periodEnd] = current_period(); @endphp
-                <span class="badge badge-info ml-3" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">
+                <span class="badge badge-info" title="{{ __('Configured in Settings (cut-off day :day)', ['day' => app_setting()->cutoff_day]) }}">
                     <i class="fas fa-cut"></i> {{ __('Current period') }}: {{ $periodStart->format('d/m') }} – {{ $periodEnd->format('d/m') }}
                 </span>
             @endif
@@ -82,7 +99,7 @@
         @if($showDeleted)
             <div class="alert alert-warning py-2"><i class="fas fa-trash-restore"></i> {{ __('You are viewing deleted records. Restoring brings them back with all their history.') }}</div>
         @endif
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover align-middle">
             @if($showDeleted)
                 <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Employee') }}</th><th>{{ __('Status') }}</th><th>{{ __('Deleted on') }}</th><th>{{ __('Reason for deletion') }}</th><th style="width:120px">{{ __('Actions') }}</th></tr></thead>
             @else
@@ -238,7 +255,7 @@
             @endforelse
             </tbody>
         </table>
-        <div class="d-flex justify-content-center">{{ $attendances->links() }}</div>
+        <div class="d-flex justify-content-center mt-3">{{ $attendances->links() }}</div>
     </div>
 </div>
 

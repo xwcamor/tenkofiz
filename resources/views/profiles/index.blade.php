@@ -50,10 +50,10 @@
                             <button class="btn btn-sm btn-secondary" disabled title="{{ __('Base role: read-only, cannot be edited') }}"><i class="fas fa-lock"></i></button>
                             <button class="btn btn-sm btn-danger" disabled title="{{ __('Base role: cannot be deleted') }}"><i class="fas fa-lock"></i></button>
                         @else
-                            <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openProfileModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="btn btn-sm btn-info" title="{{ __('Edit') }}" data-payload="{{ $payload }}" onclick="openProfileModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
                             <form method="POST" action="{{ route('profiles.destroy', $profile) }}" class="d-inline delete-form">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
                             </form>
                         @endif
                     </td>
@@ -68,7 +68,7 @@
 
 {{-- Create / edit modal --}}
 <div class="modal fade" id="profileModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <form method="POST" action="{{ old('_form_action', route('profiles.store')) }}" class="modal-content" id="profileForm">
             @csrf
             <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="profileMethod">
@@ -88,18 +88,21 @@
                     <textarea name="description" id="profileDescription" class="form-control" rows="2">{{ old('description') }}</textarea>
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Modules this profile can see') }}</label>
-                    <div class="border rounded p-2">
-                        @foreach(\App\Models\Profile::MODULES as $key => $label)
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="permissions[]" value="{{ $key }}" class="custom-control-input profile-permission" id="perm_{{ $key }}"
-                                       @checked(in_array($key, old('permissions', []), true))>
-                                <label class="custom-control-label" for="perm_{{ $key }}">{{ __($label) }}</label>
-                            </div>
-                        @endforeach
+                    <label>{{ __('Modules this profile can see') }} @include('partials.help', ['text' => __('Without checked modules, the user only sees their own information (self-service).')])</label>
+                    <div class="border rounded p-3">
+                        <div class="row">
+                            @foreach(\App\Models\Profile::MODULES as $key => $label)
+                                <div class="col-sm-6">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" name="permissions[]" value="{{ $key }}" class="custom-control-input profile-permission" id="perm_{{ $key }}"
+                                               @checked(in_array($key, old('permissions', []), true))>
+                                        <label class="custom-control-label" for="perm_{{ $key }}">{{ __($label) }}</label>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                    <small class="text-muted">{{ __('Without checked modules, the user only sees their own information (self-service).') }}</small>
-                    @error('permissions.*')<span class="text-danger d-block">{{ $message }}</span>@enderror
+                    @error('permissions.*')<span class="text-danger d-block mt-1">{{ $message }}</span>@enderror
                 </div>
                 <div class="custom-control custom-switch" id="profileActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="profileActive" @checked(old('is_active', true))>
