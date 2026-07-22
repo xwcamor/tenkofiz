@@ -95,6 +95,9 @@
         <td style="font-weight:bold;color:{{ $summary['complied'] ? '#28a745' : '#dc3545' }}">{{ $summary['complied'] ? __('Yes') : __('No') }}</td>
     </tr>
 </table>
+@if($summary['async_enabled'] ?? false)
+    <p style="font-size:11px;color:#555;margin:4px 0 0"><i class="fas fa-laptop-house"></i> {{ __('Worked/expected hours include :h of asynchronous/credited hours (done remotely, not marked at the kiosk).', ['h' => $summary['async_hours']]) }}</p>
+@endif
 
 <div class="section">III. {{ __('Attendance Detail') }}</div>
 <table>

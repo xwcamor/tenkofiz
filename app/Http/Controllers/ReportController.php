@@ -350,6 +350,7 @@ class ReportController extends Controller
     private function buildRows($from, $to, ?int $siteId = null)
     {
         $clamp = (bool) app_setting()->clamp_worked_hours;
+        $asyncEnabled = (bool) app_setting()->async_hours_enabled;
 
         $employees = Employee::with([
             'area', 'position', 'site', 'schedule.days', 'scheduleAssignments.schedule.days',
@@ -359,7 +360,7 @@ class ReportController extends Controller
             ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
             ->orderBy('last_name')->get();
 
-        return $employees->map(function ($employee) use ($clamp, $from, $to) {
+        return $employees->map(function ($employee) use ($clamp, $asyncEnabled, $from, $to) {
             $attendances = $employee->attendances;
             // Same derived day-by-day view the printable sheet uses, so the "Absences"
             // column matches the sheet even when the nightly job never generated them.
@@ -380,8 +381,10 @@ class ReportController extends Controller
                 if ($attendance->check_in && $attendance->check_out) {
                     $expDay = $attendance->expected_minutes ?? ($employee->scheduleOn($attendance->date)?->expectedMinutesFor($weekday) ?? 0);
                     $complied = $attendance->compliedMinutes($expDay, $shift);
-                    $expectedMinutes += $expDay;
-                    $compliedMinutes += $complied;
+                    // Async/credited hours (education, opt-in): counted as done, never a deficit.
+                    $async = $asyncEnabled ? ($employee->scheduleOn($attendance->date)?->async_minutes_per_day ?? 0) : 0;
+                    $expectedMinutes += $expDay + $async;
+                    $compliedMinutes += $complied + $async;
                     $deficitMinutes += max(0, $expDay - $complied); // staying late never offsets a short day
                 }
 
@@ -470,10 +473,12 @@ class ReportController extends Controller
         // hire/termination window, holidays, days off and approved vacations).
         $breakdown = $employee->periodBreakdown($from, $to, $attendances);
 
+        $asyncEnabled = (bool) $setting->async_hours_enabled;
         $compliedMinutes = 0;
         $expectedMinutes = 0;
         $deficitMinutes = 0;
         $lateMinutes = 0;
+        $asyncMinutes = 0;
         foreach ($attendances as $attendance) {
             $weekday = $attendance->date->dayOfWeek;
             $shift = $clamp ? $attendance->clampShift($employee->scheduleOn($attendance->date)) : null;
@@ -481,9 +486,13 @@ class ReportController extends Controller
             if ($attendance->check_in && $attendance->check_out) {
                 $expDay = $attendance->expected_minutes ?? ($employee->scheduleOn($attendance->date)?->expectedMinutesFor($weekday) ?? 0);
                 $complied = $attendance->compliedMinutes($expDay, $shift);
-                $expectedMinutes += $expDay;
-                $compliedMinutes += $complied;
-                $deficitMinutes += max(0, $expDay - $complied);
+                // Async/credited hours (education): counted as done, never a deficit —
+                // they cannot be marked at the kiosk. Only added when the flag is on.
+                $async = $asyncEnabled ? ($employee->scheduleOn($attendance->date)?->async_minutes_per_day ?? 0) : 0;
+                $expectedMinutes += $expDay + $async;
+                $compliedMinutes += $complied + $async;
+                $asyncMinutes += $async;
+                $deficitMinutes += max(0, $expDay - $complied); // presencial only
             }
 
             if ($attendance->status === 'LATE' && $attendance->check_in) {
@@ -508,6 +517,8 @@ class ReportController extends Controller
             'debt' => sprintf('%d:%02d', intdiv($deficitMinutes, 60), $deficitMinutes % 60),
             'debt_minutes' => $deficitMinutes,
             'complied' => $deficitMinutes === 0,
+            'async_enabled' => $asyncEnabled && $asyncMinutes > 0,
+            'async_hours' => sprintf('%d:%02d', intdiv($asyncMinutes, 60), $asyncMinutes % 60),
         ];
 
         $vacations = $employee->vacations()

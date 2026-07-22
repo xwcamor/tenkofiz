@@ -35,6 +35,7 @@ class SettingController extends Controller
         $data['cutoff_day'] = $data['cutoff_day'] ?? null;
         $data['early_check_in_minutes'] = $data['early_check_in_minutes'] ?? 15;
         $data['kiosk_breaks_enabled'] = $request->boolean('kiosk_breaks_enabled');
+        $data['async_hours_enabled'] = $request->boolean('async_hours_enabled');
         $data['break_required'] = $request->boolean('break_required');
         $data['break_limit_minutes'] = $data['break_limit_minutes'] ?? 60;
         $data['clamp_worked_hours'] = $request->boolean('clamp_worked_hours');

@@ -37,6 +37,7 @@
                                 'type' => $schedule->type,
                                 'tolerance_minutes' => $schedule->tolerance_minutes,
                                 'target_hours' => $schedule->target_minutes ? round($schedule->target_minutes / 60, 2) : '',
+                                'async_minutes_per_day' => $schedule->async_minutes_per_day,
                                 'is_active' => $schedule->is_active,
                                 'days' => $schedule->days->mapWithKeys(fn ($d) => [$d->weekday => [
                                     'start' => substr($d->start_time, 0, 5),
@@ -112,6 +113,13 @@
                     @error('target_hours')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
                     <small class="text-muted">{{ __('Hours the person must complete each working day. Reports show worked hours against this target.') }}</small>
                 </div>
+                @if(app_setting()->async_hours_enabled)
+                <div class="form-group" id="scheduleAsyncRow">
+                    <label>{{ __('Async / credited minutes per day') }}</label>
+                    <input type="number" name="async_minutes_per_day" id="scheduleAsync" value="{{ old('async_minutes_per_day', 0) }}" class="form-control" min="0" max="600" style="max-width:160px">
+                    <small class="text-muted">{{ __('Remote hours that cannot be marked. Counted as done (never a deficit) on each working day. 0 = none.') }}</small>
+                </div>
+                @endif
                 <div class="custom-control custom-switch" id="scheduleActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="scheduleActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="scheduleActive">{{ __('Active') }}</label>
@@ -148,6 +156,8 @@ function openScheduleModal(data = null) {
     document.getElementById('scheduleType').value = data ? (data.type || 'fixed') : 'fixed';
     document.getElementById('scheduleTolerance').value = data ? data.tolerance_minutes : 10;
     document.getElementById('scheduleTarget').value = data ? (data.target_hours || '') : '';
+    const asyncEl = document.getElementById('scheduleAsync');
+    if (asyncEl) asyncEl.value = data ? (data.async_minutes_per_day || 0) : 0;
     document.getElementById('scheduleActive').checked = data ? !!data.is_active : true;
     document.getElementById('scheduleActiveRow').style.display = data ? '' : 'none';
     applyScheduleType(document.getElementById('scheduleType').value);

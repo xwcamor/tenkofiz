@@ -1107,5 +1107,10 @@
     "No employees yet": "Aún no tienes empleados",
     "Add your team to start tracking attendance — one by one or by importing an Excel.": "Agrega a tu equipo para empezar a controlar la asistencia — uno por uno o importando un Excel.",
     "Clear filters": "Limpiar filtros",
-    "General": "General"
+    "General": "General",
+    "Enable asynchronous / credited hours (educational institutions)": "Habilitar horas asíncronas / acreditadas (instituciones educativas)",
+    "OFF (default): nothing changes. ON: each schedule can carry \"async minutes per day\" — hours done remotely that cannot be marked at the kiosk. They are counted as completed (never a deficit) and shown in reports.": "APAGADO (por defecto): no cambia nada. ENCENDIDO: cada horario puede llevar \"minutos asíncronos por día\" — horas hechas remoto que no se pueden marcar en el kiosko. Se cuentan como cumplidas (nunca como deuda) y se muestran en los reportes.",
+    "Async / credited minutes per day": "Minutos asíncronos / acreditados por día",
+    "Remote hours that cannot be marked. Counted as done (never a deficit) on each working day. 0 = none.": "Horas remotas que no se pueden marcar. Se cuentan como hechas (nunca deuda) en cada día laborable. 0 = ninguna.",
+    "Worked/expected hours include :h of asynchronous/credited hours (done remotely, not marked at the kiosk).": "Las horas trabajadas/esperadas incluyen :h de horas asíncronas/acreditadas (hechas remoto, no marcadas en el kiosko)."
 }
