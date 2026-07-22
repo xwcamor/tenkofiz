@@ -78,13 +78,13 @@
 
 {{-- Create / edit modal --}}
 <div class="modal fade" id="scheduleModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <form method="POST" action="{{ old('_form_action', route('schedules.store')) }}" class="modal-content" id="scheduleForm">
             @csrf
             <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="scheduleMethod">
             <input type="hidden" name="_form_action" value="{{ old('_form_action', route('schedules.store')) }}" id="scheduleFormAction">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-clock"></i> {{ __('Schedule') }}</h5>
+                <h5 class="modal-title"><i class="fas fa-clock text-primary mr-1"></i> {{ __('Schedule') }}</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
@@ -94,49 +94,58 @@
                     @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Schedule type') }}</label>
+                    <label>{{ __('Schedule type') }}@include('partials.help', ['text' => __('Flexible: no fixed start, no tardiness — the person just has to complete their daily hours (teachers, consultants, part-time).')])</label>
                     <select name="type" id="scheduleType" class="form-control" onchange="applyScheduleType(this.value)">
                         <option value="fixed" @selected(old('type', 'fixed') === 'fixed')>{{ __('Fixed — start time with tolerance (tardiness applies)') }}</option>
                         <option value="flexible" @selected(old('type') === 'flexible')>{{ __('Flexible — complete an hour target (no tardiness)') }}</option>
                     </select>
-                    <small class="text-muted">{{ __('Flexible: no fixed start, no tardiness — the person just has to complete their daily hours (teachers, consultants, part-time).') }}</small>
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Working days') }} <span id="scheduleHoursLabel">{{ __('and hours') }}</span></label>
-                    <small class="text-muted d-block mb-2" id="scheduleOvernightNote">{{ __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).') }}</small>
+                    <div class="d-flex align-items-center flex-wrap mb-2" style="gap:.4rem">
+                        <label class="mb-0">{{ __('Working days') }} <span id="scheduleHoursLabel">{{ __('and hours') }}</span></label>
+                        <span id="scheduleOvernightNote">@include('partials.help', ['text' => __('An end time earlier than the start means the shift crosses midnight (e.g. 22:00 – 06:00).')])</span>
+                    </div>
                     @error('days')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
                     @php $weekdays = [1 => __('Monday'), 2 => __('Tuesday'), 3 => __('Wednesday'), 4 => __('Thursday'), 5 => __('Friday'), 6 => __('Saturday'), 0 => __('Sunday')]; @endphp
-                    @foreach($weekdays as $weekday => $label)
-                        <div class="d-flex align-items-center mb-1" style="gap:.5rem">
-                            <div class="custom-control custom-checkbox" style="width:120px">
-                                <input type="checkbox" name="days[{{ $weekday }}][on]" value="1" class="custom-control-input day-toggle" id="day{{ $weekday }}" data-weekday="{{ $weekday }}"
-                                       @checked(old("days.$weekday.on"))>
-                                <label class="custom-control-label" for="day{{ $weekday }}">{{ $label }}</label>
-                            </div>
-                            <input type="time" name="days[{{ $weekday }}][start]" id="dayStart{{ $weekday }}" value="{{ old("days.$weekday.start") }}" class="form-control form-control-sm fixed-time" style="width:110px">
-                            <span class="text-muted fixed-time">–</span>
-                            <input type="time" name="days[{{ $weekday }}][end]" id="dayEnd{{ $weekday }}" value="{{ old("days.$weekday.end") }}" class="form-control form-control-sm fixed-time" style="width:110px">
+                    <div style="border:1px solid var(--hairline); border-radius:8px; overflow:hidden">
+                        <div class="d-flex align-items-center px-3 py-2 fixed-time" style="gap:.5rem; background:var(--brand-soft); border-bottom:1px solid var(--hairline)">
+                            <span class="small font-weight-bold text-muted" style="width:130px">{{ __('Day') }}</span>
+                            <span class="small font-weight-bold text-muted" style="width:110px">{{ __('Start') }}</span>
+                            <span style="width:14px"></span>
+                            <span class="small font-weight-bold text-muted" style="width:110px">{{ __('End') }}</span>
                         </div>
-                    @endforeach
+                        @foreach($weekdays as $weekday => $label)
+                            <div class="d-flex align-items-center px-3 py-2" style="gap:.5rem; border-bottom:1px solid var(--hairline)">
+                                <div class="custom-control custom-checkbox mb-0" style="width:130px">
+                                    <input type="checkbox" name="days[{{ $weekday }}][on]" value="1" class="custom-control-input day-toggle" id="day{{ $weekday }}" data-weekday="{{ $weekday }}"
+                                           @checked(old("days.$weekday.on"))>
+                                    <label class="custom-control-label" for="day{{ $weekday }}">{{ $label }}</label>
+                                </div>
+                                <input type="time" name="days[{{ $weekday }}][start]" id="dayStart{{ $weekday }}" value="{{ old("days.$weekday.start") }}" class="form-control form-control-sm fixed-time" style="width:110px">
+                                <span class="text-muted fixed-time" style="width:14px; text-align:center">–</span>
+                                <input type="time" name="days[{{ $weekday }}][end]" id="dayEnd{{ $weekday }}" value="{{ old("days.$weekday.end") }}" class="form-control form-control-sm fixed-time" style="width:110px">
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
-                <div class="form-group" id="scheduleToleranceRow">
-                    <label>{{ __('Tardiness tolerance (minutes)') }}</label>
-                    <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 5) }}" class="form-control" min="0" max="60" required>
-                </div>
-                <div class="form-group" id="scheduleTargetRow" style="display:none">
-                    <label>{{ __('Daily hour target') }}</label>
-                    <input type="number" step="0.5" name="target_hours" id="scheduleTarget" value="{{ old('target_hours') }}" class="form-control @error('target_hours') is-invalid @enderror" min="0.5" max="24" style="max-width:160px">
-                    @error('target_hours')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
-                    <small class="text-muted">{{ __('Hours the person must complete each working day. Reports show worked hours against this target.') }}</small>
+                <div class="form-row">
+                    <div class="form-group col-sm-6" id="scheduleToleranceRow">
+                        <label>{{ __('Tardiness tolerance (minutes)') }}</label>
+                        <input type="number" name="tolerance_minutes" id="scheduleTolerance" value="{{ old('tolerance_minutes', 5) }}" class="form-control" min="0" max="60" required style="max-width:160px">
+                    </div>
+                    <div class="form-group col-sm-6" id="scheduleTargetRow" style="display:none">
+                        <label>{{ __('Daily hour target') }}@include('partials.help', ['text' => __('Hours the person must complete each working day. Reports show worked hours against this target.')])</label>
+                        <input type="number" step="0.5" name="target_hours" id="scheduleTarget" value="{{ old('target_hours') }}" class="form-control @error('target_hours') is-invalid @enderror" min="0.5" max="24" style="max-width:160px">
+                        @error('target_hours')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
+                    </div>
                 </div>
                 @if(app_setting()->async_hours_enabled)
                 <div class="form-group" id="scheduleAsyncRow">
-                    <label>{{ __('Async / credited minutes per day') }}</label>
+                    <label>{{ __('Async / credited minutes per day') }}@include('partials.help', ['text' => __('Remote hours that cannot be marked. Counted as done (never a deficit) on each working day. 0 = none.')])</label>
                     <input type="number" name="async_minutes_per_day" id="scheduleAsync" value="{{ old('async_minutes_per_day', 0) }}" class="form-control" min="0" max="600" style="max-width:160px">
-                    <small class="text-muted">{{ __('Remote hours that cannot be marked. Counted as done (never a deficit) on each working day. 0 = none.') }}</small>
                 </div>
                 @endif
-                <div class="custom-control custom-switch" id="scheduleActiveRow">
+                <div class="custom-control custom-switch mt-2" id="scheduleActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="scheduleActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="scheduleActive">{{ __('Active') }}</label>
                 </div>

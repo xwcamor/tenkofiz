@@ -1,12 +1,12 @@
 @extends('layouts.app')
 @section('title', __('Justifications'))
 @section('header-button')
-    <div>
+    <div class="d-flex flex-wrap align-items-center" style="gap:.5rem">
         @if(auth()->user()->hasModule('settings'))
             @if($showDeleted)
-                <a href="{{ route('justifications.index') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
+                <a href="{{ route('justifications.index') }}" class="btn btn-default"><i class="fas fa-arrow-left"></i> {{ __('Back to list') }}</a>
             @else
-                <a href="{{ route('justifications.index', ['deleted' => 1]) }}" class="btn btn-outline-secondary" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
+                <a href="{{ route('justifications.index', ['deleted' => 1]) }}" class="btn btn-default" title="{{ __('Deleted records (only administrators see this view)') }}"><i class="fas fa-trash-restore"></i> {{ __('View deleted') }}</a>
             @endif
         @endif
         @if($isManager || $employees->isNotEmpty())
@@ -23,7 +23,8 @@
     };
 @endphp
 <div class="card card-primary card-outline">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:.5rem">
+        <h3 class="card-title mb-0"><i class="fas fa-file-medical mr-1"></i> {{ __('Justifications') }}</h3>
         <form class="form-inline">
             <select name="status" class="form-control form-control-sm mr-2">
                 <option value="">{{ __('All statuses') }}</option>
@@ -41,7 +42,7 @@
             @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
             @if(request()->hasAny(['status', 'site_id']))
-                <a href="{{ route('justifications.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+                <a href="{{ route('justifications.index') }}" class="btn btn-sm btn-default ml-1">{{ __('Clear') }}</a>
             @endif
         </form>
     </div>
@@ -105,6 +106,7 @@
                         @if($justification->reviewer)<div class="text-muted small">{{ __('by') }} {{ $justification->reviewer->name }}</div>@endif
                     </td>
                     <td>
+                        <div class="d-flex align-items-center flex-wrap" style="gap:.25rem">
                         <a href="{{ route('justifications.print', $justification) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
                         @if($canReview)
                         @if($justification->status === 'PENDING')
@@ -130,6 +132,7 @@
                             <button class="btn btn-sm btn-outline-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
                         </form>
                         @endif
+                        </div>
                     </td>
                 </tr>
             @empty
@@ -138,7 +141,7 @@
             </tbody>
         </table>
         <div class="d-flex justify-content-center">{{ $justifications->links() }}</div>
-        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {!! __('When a justification is <strong>accepted</strong>, that day is recorded as <span class="badge badge-info">EXCUSED</span> in the employee\'s attendance.') !!}</p>
+        <p class="text-muted small mt-3 mb-0"><i class="fas fa-info-circle mr-1"></i> {!! __('When a justification is <strong>accepted</strong>, that day is recorded as <span class="badge badge-info">EXCUSED</span> in the employee\'s attendance.') !!}</p>
     </div>
 </div>
 
@@ -153,7 +156,7 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>{{ __('Employee') }}</label>
+                    <label>{{ __('Employee') }} <span class="text-danger">*</span></label>
                     @if($isManager)
                         <select name="employee_id" class="employee-select @error('employee_id') is-invalid @enderror"
                                 data-url="{{ route('employees.search') }}" data-placeholder="{{ __('Search by name or document…') }}"
