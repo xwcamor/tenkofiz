@@ -83,7 +83,7 @@
 
 @if(!$siteId && $siteBreakdown->count() > 1)
     {{-- Per-site snapshot: headcount and who is present today, branch by branch --}}
-    <div class="card mb-3">
+    <div class="card card-primary card-outline mb-3">
         <div class="card-header"><h3 class="card-title"><i class="fas fa-building"></i> {{ __('By site — today') }}</h3></div>
         <div class="card-body">
             <div class="row">
@@ -108,13 +108,13 @@
 
 <div class="row">
     <div class="col-lg-8 mb-3">
-        <div class="card h-100 mb-0">
+        <div class="card card-primary card-outline h-100 mb-0">
             <div class="card-header"><h3 class="card-title">{{ __('Attendance — last 7 days') }}</h3></div>
             <div class="card-body"><canvas id="weekChart" height="150"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 mb-3">
-        <div class="card h-100 mb-0">
+        <div class="card card-primary card-outline h-100 mb-0">
             <div class="card-header"><h3 class="card-title">{{ __('Today by status') }}</h3></div>
             <div class="card-body d-flex align-items-center justify-content-center">
                 @if($attendancesToday > 0)
@@ -129,7 +129,7 @@
 
 <div class="row">
     <div class="col-lg-7 mb-3">
-        <div class="card h-100 mb-0">
+        <div class="card card-primary card-outline h-100 mb-0">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h3 class="card-title">{{ __('Latest marks today') }}</h3>
                 <a href="{{ route('attendances.index') }}" class="btn btn-sm btn-default">{{ __('View all') }}</a>
@@ -154,7 +154,7 @@
         </div>
     </div>
     <div class="col-lg-5 mb-3">
-        <div class="card h-100 mb-0">
+        <div class="card card-primary card-outline h-100 mb-0">
             <div class="card-header"><h3 class="card-title">{{ __('Awaiting your decision') }}</h3></div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
@@ -223,7 +223,7 @@
 
     <div class="row">
         <div class="col-lg-12 mb-3">
-            <div class="card mb-0">
+            <div class="card card-primary card-outline mb-0">
                 <div class="card-header"><h3 class="card-title">{{ __('My worked days — last 6 months') }}</h3></div>
                 <div class="card-body"><canvas id="myTrendChart" height="90"></canvas></div>
             </div>
@@ -232,7 +232,7 @@
 
     <div class="row">
         <div class="col-md-7 mb-3">
-            <div class="card h-100 mb-0">
+            <div class="card card-primary card-outline h-100 mb-0">
                 <div class="card-header"><h3 class="card-title">{{ __('My latest attendance') }}</h3></div>
                 <div class="card-body table-responsive p-0">
                     <table class="table table-hover mb-0">
@@ -254,7 +254,7 @@
             </div>
         </div>
         <div class="col-md-5 mb-3">
-            <div class="card h-100 mb-0">
+            <div class="card card-primary card-outline h-100 mb-0">
                 <div class="card-header"><h3 class="card-title">{{ __('My recent vacations') }}</h3></div>
                 <div class="card-body table-responsive p-0">
                     <table class="table table-hover mb-0">
