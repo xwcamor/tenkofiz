@@ -3,12 +3,14 @@
 namespace Database\Seeders;
 
 use App\Models\Area;
+use App\Models\Company;
 use App\Models\Holiday;
 use App\Models\Position;
 use App\Models\Profile;
 use App\Models\Schedule;
 use App\Models\Scopes\CompanyScope;
 use App\Models\Setting;
+use App\Models\Site;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +19,10 @@ use Illuminate\Support\Facades\Hash;
  * Idempotent seeder: safe to run again on an already-populated database
  * (e.g. `php artisan migrate --seed` after an update). Existing rows are
  * left untouched; only missing base records are created.
+ *
+ * A fresh install ships with a SINGLE workspace: SENATI. Carlos's academic
+ * institute lives in its OWN command (`php artisan demo:academic`) so it never
+ * clutters the default install — run it only when you want that demo.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -30,64 +36,27 @@ class DatabaseSeeder extends Seeder
             'company_id' => null,
         ]);
 
-        // ---- Default workspace (inherits the existing/demo data) ----
-        // The companies migration created a default company; reuse it.
-        $demo = \App\Models\Company::orderBy('id')->first()
-            ?? \App\Models\Company::create(['name' => 'Empresa Demo']);
+        // ---- The one and only default workspace: SENATI ----
+        // The companies migration created a default company; reuse the first one
+        // (whatever it was called) and normalize it to SENATI. Never duplicates.
+        $senati = Company::where('tax_id', '20131376503')
+            ->orWhereIn('name', ['Empresa 1', 'Empresa Demo', 'SENATI'])
+            ->orderBy('id')
+            ->first()
+            ?? Company::orderBy('id')->first()
+            ?? Company::create(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
+        $senati->update(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
 
-        CompanyScope::actingAs($demo->id, function () use ($demo) {
+        CompanyScope::actingAs($senati->id, function () use ($senati) {
             [$admin, $supervisor, $employeeProfile] = $this->seedBaseProfiles();
+
+            // Test users — all inside SENATI so every login works out of the box
             User::firstOrCreate(['email' => 'admin@test.com'], ['name' => 'Administrador', 'password' => Hash::make('123456'), 'profile_id' => $admin->id]);
+            User::firstOrCreate(['email' => 'senati@test.com'], ['name' => 'Admin SENATI', 'password' => Hash::make('123456'), 'profile_id' => $admin->id]);
             User::firstOrCreate(['email' => 'aprobador@test.com'], ['name' => 'Aprobador', 'password' => Hash::make('123456'), 'profile_id' => $supervisor->id]);
             User::firstOrCreate(['email' => 'empleado@test.com'], ['name' => 'Empleado', 'password' => Hash::make('123456'), 'profile_id' => $employeeProfile->id]);
 
-            // Working days Monday-Saturday; Sunday off
-            $morning = Schedule::firstOrCreate(['name' => 'Morning Shift'], ['tolerance_minutes' => 10]);
-            $evening = Schedule::firstOrCreate(['name' => 'Evening Shift'], ['tolerance_minutes' => 10]);
-            foreach ([1, 2, 3, 4, 5, 6] as $weekday) {
-                $morning->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '08:00:00', 'end_time' => '17:00:00']);
-                $evening->days()->firstOrCreate(['weekday' => $weekday], ['start_time' => '14:00:00', 'end_time' => '22:00:00']);
-            }
-
-            \App\Models\Site::firstOrCreate(['name' => 'Sede Principal'], ['address' => 'Av. Principal 123, Lima']);
-
-            foreach (['Administration', 'Information Technology', 'Human Resources', 'Accounting', 'Operations'] as $area) {
-                Area::firstOrCreate(['name' => $area]);
-            }
-            foreach (['Instructor', 'Administrative Assistant', 'Analyst', 'Coordinator', 'Support Technician'] as $position) {
-                Position::firstOrCreate(['name' => $position]);
-            }
-
-            $this->seedHolidays($demo->id);
-
-            Setting::firstOrCreate(['company_id' => $demo->id], [
-                'company_name' => 'MI EMPRESA S.A.C.',
-                'tax_id' => '20000000001',
-                'address' => 'Av. Principal 123, Lima',
-                'phone' => '(01) 000-0000',
-                'timezone' => 'America/Lima',
-                'country' => 'PE',
-            ]);
-        });
-
-        // ---- SENATI workspace with its zonales ----
-        // Tolerate the old seed name "Empresa 1": find by tax id or either name and
-        // normalize to SENATI (idempotent, never duplicates).
-        $senati = \App\Models\Company::where('tax_id', '20131376503')
-            ->orWhereIn('name', ['Empresa 1', 'SENATI'])
-            ->orderBy('id')
-            ->first() ?? \App\Models\Company::create(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
-        $senati->update(['name' => 'SENATI', 'tax_id' => '20131376503']);
-
-        CompanyScope::actingAs($senati->id, function () use ($senati) {
-            [$admin] = $this->seedBaseProfiles();
-            Setting::firstOrCreate(['company_id' => $senati->id], [
-                'company_name' => 'SENATI',
-                'tax_id' => '20131376503',
-                'address' => 'Av. Alfredo Mendiola 3520, Independencia, Lima',
-                'timezone' => 'America/Lima',
-                'country' => 'PE',
-            ]);
+            $this->seedStarterSchedule();
 
             // Main SENATI zonales (adjust exact addresses in the Sites screen).
             $sedes = [
@@ -103,41 +72,33 @@ class DatabaseSeeder extends Seeder
                 ['Zonal Ica', 'Ica'],
             ];
             foreach ($sedes as [$name, $address]) {
-                \App\Models\Site::firstOrCreate(['name' => $name], ['address' => $address]);
+                Site::firstOrCreate(['name' => $name], ['address' => $address]);
             }
 
-            $this->seedStarterSchedule();
+            foreach (['Administración', 'Tecnología de la Información', 'Recursos Humanos', 'Contabilidad', 'Operaciones'] as $area) {
+                Area::firstOrCreate(['name' => $area]);
+            }
+            foreach (['Instructor', 'Asistente Administrativo', 'Analista', 'Coordinador', 'Técnico de Soporte'] as $position) {
+                Position::firstOrCreate(['name' => $position]);
+            }
+
             $this->seedHolidays($senati->id);
 
-            // Test admin for this workspace
-            User::firstOrCreate(['email' => 'senati@test.com'], [
-                'name' => 'Admin SENATI', 'password' => Hash::make('123456'), 'profile_id' => $admin->id,
-            ]);
-        });
-
-        // ---- TAS workspace with its sedes ----
-        $tas = \App\Models\Company::firstOrCreate(['name' => 'TAS'], ['is_active' => true]);
-
-        CompanyScope::actingAs($tas->id, function () use ($tas) {
-            [$admin] = $this->seedBaseProfiles();
-            Setting::firstOrCreate(['company_id' => $tas->id], [
-                'company_name' => 'TAS',
+            Setting::firstOrCreate(['company_id' => $senati->id], [
+                'company_name' => 'SENATI',
+                'tax_id' => '20131376503',
+                'address' => 'Av. Alfredo Mendiola 3520, Independencia, Lima',
                 'timezone' => 'America/Lima',
                 'country' => 'PE',
             ]);
-
-            foreach ([['Lima', 'Cercado de Lima, Lima'], ['San Isidro', 'San Isidro, Lima']] as [$name, $address]) {
-                \App\Models\Site::firstOrCreate(['name' => $name], ['address' => $address]);
-            }
-
-            $this->seedStarterSchedule();
-            $this->seedHolidays($tas->id);
-
-            // Test admin for this workspace
-            User::firstOrCreate(['email' => 'tas@test.com'], [
-                'name' => 'Admin TAS', 'password' => Hash::make('123456'), 'profile_id' => $admin->id,
-            ]);
         });
+
+        // ---- Demo workforce (4 employees + attendance) for a real install ----
+        // Skipped under tests: the suite seeds this class on every test and must
+        // stay fast and predictable (no bulk employees/attendance injected).
+        if (!app()->environment('testing')) {
+            \Illuminate\Support\Facades\Artisan::call('demo:workforce', [], $this->command?->getOutput());
+        }
     }
 
     /**

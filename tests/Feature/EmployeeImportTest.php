@@ -47,7 +47,7 @@ class EmployeeImportTest extends TestCase
         // Import a couple of employees, then export the roster back out
         $site = Site::first();
         $this->actingAs($admin)->post('/employees-import', ['file' => $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', $site->name, 'Quality', 'Tester', '2026-01-15'],
+            ['11112222', 'JOHN', 'DOE', 'Horario General', $site->name, 'Quality', 'Tester', '2026-01-15'],
         ])]);
 
         $response = $this->actingAs($admin)->get('/employees-export');
@@ -62,8 +62,8 @@ class EmployeeImportTest extends TestCase
         $site = Site::first(); // seeded "Sede Principal"
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', $site->name, 'Quality', 'Tester', '2026-01-15'],
-            ['33334444', 'JANE', 'ROE', 'Morning Shift', '', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Horario General', $site->name, 'Quality', 'Tester', '2026-01-15'],
+            ['33334444', 'JANE', 'ROE', 'Horario General', '', '', '', ''],
         ]);
 
         $this->actingAs($admin)
@@ -84,7 +84,7 @@ class EmployeeImportTest extends TestCase
         $admin = $this->admin();
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', 'Ghost Site', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Horario General', 'Ghost Site', '', '', ''],
         ]);
 
         $this->actingAs($admin)->post('/employees-import', ['file' => $file])
@@ -98,7 +98,7 @@ class EmployeeImportTest extends TestCase
         $admin = $this->admin();
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Horario General', '', '', '', ''],
             ['BAD-DOC', 'JANE', 'ROE', 'Nonexistent Shift', '', '', '', ''],
         ]);
 
@@ -117,8 +117,8 @@ class EmployeeImportTest extends TestCase
         $admin = $this->admin();
 
         $file = $this->csv([
-            ['11112222', 'JOHN', 'DOE', 'Morning Shift', '', '', '', ''],
-            ['11112222', 'JANE', 'ROE', 'Morning Shift', '', '', '', ''],
+            ['11112222', 'JOHN', 'DOE', 'Horario General', '', '', '', ''],
+            ['11112222', 'JANE', 'ROE', 'Horario General', '', '', '', ''],
         ]);
 
         $this->actingAs($admin)
