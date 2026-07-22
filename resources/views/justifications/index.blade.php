@@ -171,7 +171,7 @@
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
                 <div class="form-group">
-                    <label>{{ __('Date to justify') }}</label>
+                    <label>{{ __('Date to justify') }} <span class="text-danger">*</span>@include('partials.help', ['text' => __('This day is in an already-closed payroll period. Approving it means a retroactive adjustment (reintegro) next period, not a change to what was already paid.')])</label>
                     <input type="date" name="date" value="{{ old('date') }}" class="form-control @error('date') is-invalid @enderror" required max="{{ company_now()->toDateString() }}">
                     @error('date')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
