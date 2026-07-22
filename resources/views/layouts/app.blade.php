@@ -390,6 +390,9 @@
                 language: DATATABLE_LANG
             });
         });
+
+        // Inline help "?" popovers (partials/help.blade.php) across every module
+        $('[data-toggle="popover"]').popover({ container: 'body', boundary: 'viewport' });
     });
 
     // Report table: with export buttons (Excel / Print / Copy)

@@ -394,3 +394,26 @@ html[data-theme="dark"] .select2-container--bootstrap4 .select2-results__option-
 .sc-day:hover { border-color: var(--brand); background: var(--brand-soft); }
 .sc-day.active { background: var(--brand); border-color: var(--brand); color: #fff; }
 .sc-day.active:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+
+/* =============================================================
+   Inline help: a "?" chip next to a label opens a popover with the
+   explanation (keeps forms uncluttered). Brand-aligned, theme-aware.
+   ============================================================= */
+.help-dot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; margin-left: .25rem; vertical-align: middle;
+    border-radius: 50%; background: var(--brand-soft); color: var(--brand);
+    font-size: 9px; line-height: 1; cursor: pointer; text-decoration: none;
+    transition: background-color .12s, color .12s;
+}
+.help-dot:hover, .help-dot:focus { background: var(--brand); color: #fff; text-decoration: none; outline: none; }
+.popover {
+    border: 1px solid var(--card-border); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card); background: var(--card-bg); max-width: 320px;
+}
+.popover-header { background: var(--brand-soft); color: var(--brand-dark); border-bottom: 1px solid var(--hairline); font-weight: 700; font-size: .82rem; }
+.popover-body { color: var(--ink-2); font-size: .82rem; line-height: 1.45; }
+.popover .arrow::after { border-top-color: var(--card-bg); border-bottom-color: var(--card-bg); }
+
+/* Form rhythm: labels and spacing consistent across every module */
+.form-group > label, .form-group > .label { font-weight: 600; color: var(--ink-2); margin-bottom: .3rem; font-size: .86rem; }

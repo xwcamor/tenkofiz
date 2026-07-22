@@ -98,10 +98,9 @@
                                 </small>
                             </div>
                             <div class="form-group">
-                                <label>{{ __('Early check-in window') }} <small class="text-muted">({{ __('minutes; 0 = no limit') }})</small></label>
+                                <label>{{ __('Early check-in window') }} <small class="text-muted">({{ __('minutes; 0 = no limit') }})</small>@include('partials.help', ['text' => __('How many minutes before their scheduled start an employee may check in (default 15). E.g. 15: someone on an 08:00 shift can mark from 07:45; earlier marks are rejected, so nobody clocks in hours early. 0 = mark at any time (no restriction).')])</label>
                                 <input type="number" name="early_check_in_minutes" min="0" max="720" value="{{ old('early_check_in_minutes', $setting->early_check_in_minutes ?? 15) }}" class="form-control @error('early_check_in_minutes') is-invalid @enderror" style="max-width:160px">
                                 @error('early_check_in_minutes')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                                <small class="text-muted">{{ __('How many minutes before their scheduled start an employee may check in (default 15). E.g. 15: someone on an 08:00 shift can mark from 07:45; earlier marks are rejected, so nobody clocks in hours early. 0 = mark at any time (no restriction).') }}</small>
                             </div>
                             <hr>
                             {{-- Count worked hours within the schedule only --}}
