@@ -6,30 +6,47 @@
 @endphp
 
 <div class="card card-primary card-outline">
-    <div class="card-header">
-        <form class="form-inline">
-            <label class="mr-2">{{ __('From') }}</label>
-            <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm mr-3">
-            <label class="mr-2">{{ __('To') }}</label>
-            <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
-            @if($sites->count() > 1)
-                <select name="site_id" class="form-control form-control-sm mr-3">
-                    <option value="">{{ __('All sites') }}</option>
-                    @foreach($sites as $site)
-                        <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
-                    @endforeach
-                </select>
-            @endif
-            <select name="employee_id" class="employee-select mr-3" data-url="{{ route('employees.search') }}"
-                    data-placeholder="{{ __('All employees') }}" data-width="220px"
-                    @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
-            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
-            <a href="{{ route('reports.breaksExport', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId, 'employee_id' => $selectedEmployee?->id])) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Excel') }}</a>
-            <a href="{{ route('reports.index', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-secondary ml-2"><i class="fas fa-arrow-left"></i> {{ __('Hours report') }}</a>
-        </form>
+    <div class="card-header d-flex align-items-center flex-wrap">
+        <h3 class="card-title mb-0">
+            {{ __('Break analysis') }}
+            @include('partials.help', ['text' => __('This is an analysis view only: break time is subtracted from worked hours, but going over the limit never penalizes anyone — it is only flagged for review. Limit configured in Settings: :limit min.', ['limit' => $limit ?: '∞'])])
+        </h3>
+        <a href="{{ route('reports.index', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-secondary ml-auto"><i class="fas fa-arrow-left"></i> {{ __('Hours report') }}</a>
     </div>
     <div class="card-body">
-        <p class="text-muted"><i class="fas fa-info-circle"></i> {{ __('This is an analysis view only: break time is subtracted from worked hours, but going over the limit never penalizes anyone — it is only flagged for review. Limit configured in Settings: :limit min.', ['limit' => $limit ?: '∞']) }}</p>
+        <form class="form-row align-items-end mb-3">
+            <div class="form-group col-auto mb-2">
+                <label class="mb-1 text-muted small">{{ __('From') }}</label>
+                <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            <div class="form-group col-auto mb-2">
+                <label class="mb-1 text-muted small">{{ __('To') }}</label>
+                <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            @if($sites->count() > 1)
+                <div class="form-group col-auto mb-2">
+                    <label class="mb-1 text-muted small">{{ __('Site') }}</label>
+                    <select name="site_id" class="form-control form-control-sm">
+                        <option value="">{{ __('All sites') }}</option>
+                        @foreach($sites as $site)
+                            <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            <div class="form-group col-auto mb-2">
+                <label class="mb-1 text-muted small">{{ __('Employee') }}</label>
+                <select name="employee_id" class="employee-select" data-url="{{ route('employees.search') }}"
+                        data-placeholder="{{ __('All employees') }}" data-width="220px"
+                        @if($selectedEmployee) data-selected-id="{{ $selectedEmployee->getRouteKey() }}" data-selected-text="{{ $selectedEmployee->full_name }}" @endif></select>
+            </div>
+            <div class="form-group col-auto mb-2">
+                <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
+            </div>
+            <div class="form-group col-auto mb-2 ml-auto">
+                <a href="{{ route('reports.breaksExport', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId, 'employee_id' => $selectedEmployee?->id])) }}" class="btn btn-sm btn-success"><i class="fas fa-file-excel"></i> {{ __('Excel') }}</a>
+            </div>
+        </form>
 
         {{-- Headline KPIs --}}
         <div class="row">

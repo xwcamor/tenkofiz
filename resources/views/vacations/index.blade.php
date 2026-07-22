@@ -14,16 +14,17 @@
     };
 @endphp
 <div class="card card-primary card-outline">
-    <div class="card-header">
-        <form class="form-inline">
-            <select name="status" class="form-control form-control-sm mr-2">
+    <div class="card-header d-flex flex-wrap align-items-center">
+        <h3 class="card-title mb-0"><i class="fas fa-umbrella-beach mr-1"></i> {{ __('Vacation requests') }}</h3>
+        <form class="form-inline ml-auto">
+            <select name="status" class="form-control form-control-sm mr-2 mb-1 mb-sm-0">
                 <option value="">{{ __('All statuses') }}</option>
                 @foreach(['PENDING', 'APPROVED', 'REJECTED'] as $status)
                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ __($status) }}</option>
                 @endforeach
             </select>
             @if($sites->count() > 1)
-                <select name="site_id" class="form-control form-control-sm mr-2">
+                <select name="site_id" class="form-control form-control-sm mr-2 mb-1 mb-sm-0">
                     <option value="">{{ __('All sites') }}</option>
                     @foreach($sites as $site)
                         <option value="{{ $site->id }}" @selected(request('site_id') == $site->id)>{{ $site->name }}</option>
@@ -32,7 +33,7 @@
             @endif
             <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
             @if(request()->hasAny(['status', 'site_id']))
-                <a href="{{ route('vacations.index') }}" class="btn btn-sm btn-outline-secondary ml-1">{{ __('Clear') }}</a>
+                <a href="{{ route('vacations.index') }}" class="btn btn-sm btn-default ml-2">{{ __('Clear') }}</a>
             @endif
         </form>
     </div>
@@ -65,7 +66,7 @@
                         <span class="badge badge-{{ $statusBadge($vacation->status) }}">{{ __($vacation->status) }}</span>
                         @if($vacation->approver)<div class="text-muted small">{{ __('by') }} {{ $vacation->approver->name }}</div>@endif
                     </td>
-                    <td>
+                    <td class="text-nowrap">
                         <a href="{{ route('vacations.print', $vacation) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="{{ __('Printable formal sheet') }}"><i class="fas fa-file-pdf"></i></a>
                         @if($canApprove && $vacation->status === 'PENDING')
                             <form method="POST" action="{{ route('vacations.status', $vacation) }}" class="d-inline">
@@ -88,7 +89,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="{{ $sites->count() > 1 ? 8 : 7 }}" class="text-center text-muted py-4">{{ __('No requests') }}</td></tr>
+                <tr><td colspan="{{ $sites->count() > 1 ? 8 : 7 }}" class="text-center text-muted py-4"><i class="fas fa-umbrella-beach d-block mb-2" style="font-size:1.6rem;opacity:.4"></i>{{ __('No requests') }}</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -120,15 +121,15 @@
                         </select>
                     @endif
                     @error('employee_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                    <small class="text-muted" id="vacationBalanceHint"></small>
+                    <small class="form-text text-muted mb-0" id="vacationBalanceHint"></small>
                 </div>
-                <div class="row">
-                    <div class="col form-group">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
                         <label>{{ __('Start date') }}</label>
                         <input type="date" name="start_date" value="{{ old('start_date') }}" class="form-control @error('start_date') is-invalid @enderror" required>
                         @error('start_date')<span class="invalid-feedback">{{ $message }}</span>@enderror
                     </div>
-                    <div class="col form-group">
+                    <div class="form-group col-md-6">
                         <label>{{ __('End date') }}</label>
                         <input type="date" name="end_date" value="{{ old('end_date') }}" class="form-control @error('end_date') is-invalid @enderror" required>
                         @error('end_date')<span class="invalid-feedback">{{ $message }}</span>@enderror

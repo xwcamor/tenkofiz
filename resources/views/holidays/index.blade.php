@@ -1,49 +1,54 @@
 @extends('layouts.app')
 @section('title', __('Holidays'))
 @section('header-button')
-    <button class="btn btn-primary btn-sm" onclick="openHolidayModal()"><i class="fas fa-plus"></i> {{ __('New holiday') }}</button>
+    <button class="btn btn-primary" onclick="openHolidayModal()"><i class="fas fa-plus"></i> {{ __('New holiday') }}</button>
 @endsection
 @section('content')
 <div class="alert alert-info"><i class="fas fa-info-circle"></i> {!! __('On days registered as holidays, the kiosk <strong>will not allow attendance marking</strong>.') !!}</div>
 
 {{-- Generate a year's holidays from the country's recurring templates --}}
-<div class="card card-success card-outline">
-    <div class="card-header"><h3 class="card-title"><i class="fas fa-magic"></i> {{ __('Generate a year from templates') }}</h3></div>
+<div class="card card-primary card-outline">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-magic mr-1"></i> {{ __('Generate a year from templates') }} @include('partials.help', ['text' => __('Uses the recurring templates below for the chosen country. Existing dates are never duplicated. Edit the templates to match your own country.')])</h3>
+    </div>
     <div class="card-body">
         <form method="POST" action="{{ route('holidays.generate') }}" class="form-inline">
             @csrf
-            <label class="mr-2">{{ __('Country') }}</label>
-            <select name="country" class="form-control form-control-sm mr-2">
-                @foreach($countries as $code => $label)
-                    <option value="{{ $code }}" @selected($country === $code)>{{ $label }}</option>
-                @endforeach
-            </select>
-            <label class="mr-2">{{ __('Year') }}</label>
-            <input type="number" name="year" value="{{ now()->addYear()->year }}" min="2020" max="2100" class="form-control form-control-sm mr-2" style="width:100px">
-            <button class="btn btn-success btn-sm"><i class="fas fa-magic"></i> {{ __('Generate year') }}</button>
+            <div class="form-group mr-3 mb-2">
+                <label class="mr-2 mb-0">{{ __('Country') }}</label>
+                <select name="country" class="form-control form-control-sm">
+                    @foreach($countries as $code => $label)
+                        <option value="{{ $code }}" @selected($country === $code)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group mr-3 mb-2">
+                <label class="mr-2 mb-0">{{ __('Year') }}</label>
+                <input type="number" name="year" value="{{ now()->addYear()->year }}" min="2020" max="2100" class="form-control form-control-sm" style="width:100px">
+            </div>
+            <button class="btn btn-primary btn-sm mb-2"><i class="fas fa-magic"></i> {{ __('Generate year') }}</button>
         </form>
-        <small class="text-muted d-block mt-2">{{ __('Uses the recurring templates below for the chosen country. Existing dates are never duplicated. Edit the templates to match your own country.') }}</small>
     </div>
 </div>
 
 {{-- Recurring templates per country (customizable) --}}
-<div class="card card-outline card-secondary">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-        <h3 class="card-title"><i class="fas fa-repeat"></i> {{ __('Recurring holidays (template)') }}</h3>
-        <div class="d-flex align-items-center">
-            <form method="GET" action="{{ route('holidays.index') }}" class="form-inline mr-2">
-                <label class="mr-1 small">{{ __('Country') }}</label>
+<div class="card card-primary card-outline">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:.5rem">
+        <h3 class="card-title"><i class="fas fa-repeat mr-1"></i> {{ __('Recurring holidays (template)') }}</h3>
+        <div class="d-flex align-items-center flex-wrap" style="gap:.5rem">
+            <form method="GET" action="{{ route('holidays.index') }}" class="form-inline mb-0">
+                <label class="mr-2 small mb-0">{{ __('Country') }}</label>
                 <select name="country" class="form-control form-control-sm" onchange="this.form.submit()">
                     @foreach($countries as $code => $label)
                         <option value="{{ $code }}" @selected($country === $code)>{{ $label }}</option>
                     @endforeach
                 </select>
             </form>
-            <button class="btn btn-outline-secondary btn-sm mr-1" onclick="openTemplateModal()"><i class="fas fa-plus"></i> {{ __('Add') }}</button>
-            <form method="POST" action="{{ route('holidays.templates.restore') }}" class="d-inline">
+            <button class="btn btn-primary btn-sm" onclick="openTemplateModal()"><i class="fas fa-plus"></i> {{ __('Add') }}</button>
+            <form method="POST" action="{{ route('holidays.templates.restore') }}" class="d-inline mb-0">
                 @csrf
                 <input type="hidden" name="country" value="{{ $country }}">
-                <button class="btn btn-outline-info btn-sm" title="{{ __('Adds the built-in defaults for this country') }}"><i class="fas fa-undo"></i> {{ __('Restore defaults') }}</button>
+                <button class="btn btn-default btn-sm" title="{{ __('Adds the built-in defaults for this country') }}"><i class="fas fa-undo"></i> {{ __('Restore defaults') }}</button>
             </form>
         </div>
     </div>
@@ -67,10 +72,10 @@
                                 'name' => $template->name,
                             ]);
                         @endphp
-                        <button class="btn btn-sm btn-info" data-tpl="{{ $tpl }}" onclick="openTemplateModal(JSON.parse(this.dataset.tpl))"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn btn-sm btn-info" data-tpl="{{ $tpl }}" onclick="openTemplateModal(JSON.parse(this.dataset.tpl))" title="{{ __('Edit') }}"><i class="fas fa-pencil-alt"></i></button>
                         <form method="POST" action="{{ route('holidays.templates.destroy', $template) }}" class="d-inline delete-form">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -84,7 +89,7 @@
 
 {{-- Concrete holidays already generated --}}
 <div class="card card-primary card-outline">
-    <div class="card-header"><h3 class="card-title"><i class="fas fa-calendar-times"></i> {{ __('Registered holidays') }}</h3></div>
+    <div class="card-header"><h3 class="card-title"><i class="fas fa-calendar-times mr-1"></i> {{ __('Registered holidays') }}</h3></div>
     <div class="card-body">
         <table class="table table-bordered table-hover data-table">
             <thead><tr><th>{{ __('Date') }}</th><th>{{ __('Day') }}</th><th>{{ __('Holiday name') }}</th><th style="width:110px">{{ __('Actions') }}</th></tr></thead>
@@ -102,10 +107,10 @@
                                 'name' => $holiday->name,
                             ]);
                         @endphp
-                        <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openHolidayModal(JSON.parse(this.dataset.payload))"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="btn btn-sm btn-info" data-payload="{{ $payload }}" onclick="openHolidayModal(JSON.parse(this.dataset.payload))" title="{{ __('Edit') }}"><i class="fas fa-pencil-alt"></i></button>
                         <form method="POST" action="{{ route('holidays.destroy', $holiday) }}" class="d-inline delete-form">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-sm btn-danger" title="{{ __('Delete') }}"><i class="fas fa-trash"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -125,7 +130,7 @@
             <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="holidayMethod">
             <input type="hidden" name="_form_action" value="{{ old('_form_action', route('holidays.store')) }}" id="holidayFormAction">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-calendar-times"></i> {{ __('Holiday') }}</h5>
+                <h5 class="modal-title"><i class="fas fa-calendar-times mr-1"></i> {{ __('Holiday') }}</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
@@ -156,7 +161,7 @@
             <input type="hidden" name="_method" value="POST" id="templateMethod">
             <input type="hidden" name="country" id="templateCountry" value="{{ $country }}">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-repeat"></i> {{ __('Recurring holiday') }}</h5>
+                <h5 class="modal-title"><i class="fas fa-repeat mr-1"></i> {{ __('Recurring holiday') }}</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">

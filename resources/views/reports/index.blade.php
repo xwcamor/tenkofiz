@@ -27,36 +27,53 @@
 @endif
 
 <div class="card card-primary card-outline">
-    <div class="card-header">
-        <form class="form-inline">
-            <label class="mr-2">{{ __('From') }}</label>
-            <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm mr-3">
-            <label class="mr-2">{{ __('To') }}</label>
-            <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm mr-3">
-            @if($sites->count() > 1)
-                <select name="site_id" class="form-control form-control-sm mr-3">
-                    <option value="">{{ __('All sites') }}</option>
-                    @foreach($sites as $site)
-                        <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
-                    @endforeach
-                </select>
-            @endif
-            <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
-            <a href="{{ route('reports.export', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-success ml-2"><i class="fas fa-file-excel"></i> {{ __('Summary (Excel)') }}</a>
-            <a href="{{ route('reports.exportDetail', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-success ml-1" title="{{ __('One row per employee per day, with times and worked hours') }}"><i class="fas fa-list"></i> {{ __('Detail (Excel)') }}</a>
-            @if(app_setting()->kiosk_breaks_enabled)
-                <a href="{{ route('reports.breaks', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-info ml-1" title="{{ __('Who took how long on break, and who went over the limit') }}"><i class="fas fa-mug-hot"></i> {{ __('Break analysis') }}</a>
-            @endif
-            @if(app_setting()->cutoff_day)
-                @php [$curStart, $curEnd] = current_period(); @endphp
-                <span class="badge badge-info ml-3" title="{{ __('Cut-off day :day (Settings). Reports default to the last closed period; use From/To for any range.', ['day' => app_setting()->cutoff_day]) }}">
+    <div class="card-header d-flex align-items-center flex-wrap">
+        <h3 class="card-title mb-0">
+            {{ __('Worked hours and days report') }}
+            @include('partials.help', ['text' => __('Expected = the hours due per their schedule on the days worked; Worked = the hours that count, capped at the day\'s quota (working overtime never earns extra — that is handled internally); Owed = how much is still missing. The break is not deducted here (see the break analysis). Use the buttons to export to Excel or print.')])
+        </h3>
+        @if(app_setting()->cutoff_day)
+            @php [$curStart, $curEnd] = current_period(); @endphp
+            <div class="ml-auto d-flex align-items-center">
+                <span class="badge badge-info" title="{{ __('Cut-off day :day (Settings). Reports default to the last closed period; use From/To for any range.', ['day' => app_setting()->cutoff_day]) }}">
                     <i class="fas fa-cut"></i> {{ __('Cut-off :day', ['day' => app_setting()->cutoff_day]) }} · {{ __('showing') }} {{ $from->format('d/m/Y') }} – {{ $to->format('d/m/Y') }}
                 </span>
-                <a class="btn btn-xs btn-outline-secondary ml-1" href="{{ route('reports.index', array_filter(['from' => $curStart->toDateString(), 'to' => $curEnd->min(company_now())->toDateString(), 'site_id' => $siteId])) }}" title="{{ __('Switch to the current, in-progress period') }}">{{ __('Current period') }}</a>
-            @endif
-        </form>
+                <a class="btn btn-xs btn-outline-secondary ml-2" href="{{ route('reports.index', array_filter(['from' => $curStart->toDateString(), 'to' => $curEnd->min(company_now())->toDateString(), 'site_id' => $siteId])) }}" title="{{ __('Switch to the current, in-progress period') }}">{{ __('Current period') }}</a>
+            </div>
+        @endif
     </div>
     <div class="card-body">
+        <form class="form-row align-items-end mb-3">
+            <div class="form-group col-auto mb-2">
+                <label class="mb-1 text-muted small">{{ __('From') }}</label>
+                <input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            <div class="form-group col-auto mb-2">
+                <label class="mb-1 text-muted small">{{ __('To') }}</label>
+                <input type="date" name="to" value="{{ $to->toDateString() }}" class="form-control form-control-sm">
+            </div>
+            @if($sites->count() > 1)
+                <div class="form-group col-auto mb-2">
+                    <label class="mb-1 text-muted small">{{ __('Site') }}</label>
+                    <select name="site_id" class="form-control form-control-sm">
+                        <option value="">{{ __('All sites') }}</option>
+                        @foreach($sites as $site)
+                            <option value="{{ $site->id }}" @selected($siteId == $site->id)>{{ $site->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            <div class="form-group col-auto mb-2">
+                <button class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> {{ __('Generate') }}</button>
+            </div>
+            <div class="form-group col-auto mb-2 ml-auto">
+                <a href="{{ route('reports.export', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-success"><i class="fas fa-file-excel"></i> {{ __('Summary (Excel)') }}</a>
+                <a href="{{ route('reports.exportDetail', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-success ml-1" title="{{ __('One row per employee per day, with times and worked hours') }}"><i class="fas fa-list"></i> {{ __('Detail (Excel)') }}</a>
+                @if(app_setting()->kiosk_breaks_enabled)
+                    <a href="{{ route('reports.breaks', array_filter(['from' => $from->toDateString(), 'to' => $to->toDateString(), 'site_id' => $siteId])) }}" class="btn btn-sm btn-outline-info ml-1" title="{{ __('Who took how long on break, and who went over the limit') }}"><i class="fas fa-mug-hot"></i> {{ __('Break analysis') }}</a>
+                @endif
+            </div>
+        </form>
         <table class="table table-bordered table-hover report-table" data-server-sort>
             <thead>
                 <tr>
@@ -111,7 +128,6 @@
             @endforeach
             </tbody>
         </table>
-        <p class="text-muted mt-2"><i class="fas fa-info-circle"></i> {{ __('Expected = the hours due per their schedule on the days worked; Worked = the hours that count, capped at the day\'s quota (working overtime never earns extra — that is handled internally); Owed = how much is still missing. The break is not deducted here (see the break analysis). Use the buttons to export to Excel or print.') }}</p>
     </div>
 </div>
 @endsection
