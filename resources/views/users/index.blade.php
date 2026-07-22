@@ -89,7 +89,7 @@
                             <img src="{{ asset($user->photo) }}" alt="" class="img-circle elevation-1 mr-1" style="width:28px;height:28px;object-fit:cover">
                         @else
                             <span class="d-inline-flex align-items-center justify-content-center img-circle mr-1"
-                                  style="width:28px;height:28px;background:#e8f1fc;color:#2a78d6;font-size:.7rem;font-weight:700">{{ strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+                                  style="width:28px;height:28px;background:var(--brand-soft);color:var(--brand);font-size:.7rem;font-weight:700">{{ strtoupper(mb_substr($user->name, 0, 1)) }}</span>
                         @endif
                         {{ $user->name }} @if($user->id === auth()->id())<span class="badge badge-secondary">{{ __('you') }}</span>@endif
                     </td>
@@ -150,7 +150,7 @@
 
 {{-- Create / edit modal --}}
 <div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <form method="POST" action="{{ old('_form_action', route('users.store')) }}" enctype="multipart/form-data" class="modal-content" id="userForm">
             @csrf
             <input type="hidden" name="_method" value="{{ old('_method', 'POST') }}" id="userMethod">
@@ -160,52 +160,54 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>{{ __('Full name') }}</label>
-                    <input name="name" id="userName" value="{{ old('name') }}" class="form-control @error('name') is-invalid @enderror" required>
-                    @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                </div>
-                <div class="form-group">
-                    <label>{{ __('Email address') }}</label>
-                    <input type="email" name="email" id="userEmail" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" required>
-                    @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>{{ __('Full name') }}</label>
+                        <input name="name" id="userName" value="{{ old('name') }}" class="form-control @error('name') is-invalid @enderror" required>
+                        @error('name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>{{ __('Email address') }}</label>
+                        <input type="email" name="email" id="userEmail" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" required>
+                        @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>{{ __('Password') }} <small class="text-muted" id="userPasswordHint">({{ __('leave empty to keep the current one') }})</small></label>
                     <input type="password" name="password" id="userPassword" class="form-control @error('password') is-invalid @enderror">
                     @error('password')<span class="invalid-feedback">{{ $message }}</span>@enderror
                 </div>
-                <div class="form-group">
-                    <label>{{ __('Profile') }}</label>
-                    <select name="profile_id" id="userProfile" class="form-control @error('profile_id') is-invalid @enderror" required>
-                        <option value="">— {{ __('Select') }} —</option>
-                        @foreach($profiles as $profile)
-                            <option value="{{ $profile->id }}" @selected(old('profile_id') == $profile->id)>{{ $profile->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('profile_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                    <small class="text-muted">{{ __('The profile defines which modules the user can see (configure it in Profiles).') }}</small>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>{{ __('Profile') }} @include('partials.help', ['text' => __('The profile defines which modules the user can see (configure it in Profiles).')])</label>
+                        <select name="profile_id" id="userProfile" class="form-control @error('profile_id') is-invalid @enderror" required>
+                            <option value="">— {{ __('Select') }} —</option>
+                            @foreach($profiles as $profile)
+                                <option value="{{ $profile->id }}" @selected(old('profile_id') == $profile->id)>{{ $profile->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('profile_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    </div>
+                    @unless(auth()->user()->isSiteBound())
+                    <div class="form-group col-md-6">
+                        <label>{{ __('Site') }} @include('partials.help', ['text' => __('Bind this user to one site so they only see that site\'s employees, marks and reports. Leave as "All sites" for company/system administrators.')])</label>
+                        <select name="site_id" id="userSite" class="form-control @error('site_id') is-invalid @enderror">
+                            <option value="">{{ __('All sites (company-wide admin)') }}</option>
+                            @foreach($sites as $site)
+                                <option value="{{ $site->id }}" @selected(old('site_id') == $site->id)>{{ $site->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                    </div>
+                    @endunless
                 </div>
-                @unless(auth()->user()->isSiteBound())
-                <div class="form-group">
-                    <label>{{ __('Site') }}</label>
-                    <select name="site_id" id="userSite" class="form-control @error('site_id') is-invalid @enderror">
-                        <option value="">{{ __('All sites (company-wide admin)') }}</option>
-                        @foreach($sites as $site)
-                            <option value="{{ $site->id }}" @selected(old('site_id') == $site->id)>{{ $site->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('site_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-                    <small class="text-muted">{{ __('Bind this user to one site so they only see that site\'s employees, marks and reports. Leave as "All sites" for company/system administrators.') }}</small>
-                </div>
-                @endunless
                 <div class="form-group">
                     <label>{{ __('Photo') }} <small class="text-muted">({{ __('optional; PNG/JPG, max. 2MB') }})</small></label>
                     <input type="file" name="photo" class="form-control-file @error('photo') is-invalid @enderror" accept="image/png,image/jpeg,image/webp">
                     @error('photo')<span class="invalid-feedback d-block">{{ $message }}</span>@enderror
-                    <small class="text-muted" id="userPhotoHint" style="display:none">{{ __('Uploading a new photo replaces the current one.') }}</small>
+                    <small class="text-muted d-block mt-1" id="userPhotoHint" style="display:none">{{ __('Uploading a new photo replaces the current one.') }}</small>
                 </div>
-                <div class="custom-control custom-switch" id="userActiveRow">
+                <div class="custom-control custom-switch border-top pt-3 mt-2" id="userActiveRow">
                     <input type="checkbox" name="is_active" value="1" class="custom-control-input" id="userActive" @checked(old('is_active', true))>
                     <label class="custom-control-label" for="userActive">{{ __('Active') }}</label>
                 </div>
