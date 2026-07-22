@@ -264,8 +264,17 @@ class EmployeeController extends Controller
     private function syncScheduleAssignments(Employee $employee, Request $request): void
     {
         $validScheduleIds = Schedule::pluck('id')->all();
+        $input = collect($request->input('schedule_periods', []));
 
-        $rows = collect($request->input('schedule_periods', []))
+        // A period that has a schedule MUST carry a "From" date — that's its whole point.
+        // Without this it used to be dropped silently, which looked like "it won't save".
+        if ($input->contains(fn ($p) => !empty($p['schedule_id']) && empty($p['from']))) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'schedule_periods' => __('Pick a "From" date for each schedule period you add.'),
+            ]);
+        }
+
+        $rows = $input
             ->filter(fn ($p) => !empty($p['schedule_id']) && !empty($p['from'])
                 && in_array((int) $p['schedule_id'], $validScheduleIds, true))
             ->map(fn ($p) => [

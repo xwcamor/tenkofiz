@@ -114,4 +114,28 @@ class ScheduleVigenciaTest extends TestCase
         $this->actingAs($admin)->put("/employees/{$employee->getRouteKey()}", $payload);
         $this->assertCount(2, $employee->scheduleAssignments()->get());
     }
+
+    public function test_a_period_with_a_schedule_but_no_from_date_is_rejected(): void
+    {
+        [$employee, $monToSat, $monToFri] = $this->base();
+        $admin = User::withoutGlobalScopes()->where('email', 'admin@test.com')->firstOrFail();
+        $site = Site::first();
+        $employee->update(['site_id' => $site->id]);
+
+        $payload = [
+            'document_type' => 'DNI', 'document_number' => '11112222',
+            'first_name' => 'J', 'last_name' => 'D',
+            'site_id' => $site->id, 'schedule_id' => $monToSat->id,
+            'vacation_days_per_year' => 30, 'is_active' => 1,
+            'schedule_periods' => [
+                ['schedule_id' => $monToFri->id, 'from' => '', 'to' => ''], // schedule, no "From"
+            ],
+        ];
+
+        $this->actingAs($admin)->put("/employees/{$employee->getRouteKey()}", $payload)
+            ->assertSessionHasErrors('schedule_periods');
+
+        // Nothing was silently saved
+        $this->assertCount(0, $employee->scheduleAssignments()->get());
+    }
 }

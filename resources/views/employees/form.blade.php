@@ -168,6 +168,7 @@
                         <div class="card-body py-2">
                             <p class="text-muted mb-2" style="font-size:.82rem">{{ __('For rotating shifts: assign a schedule for a date range (e.g. Jan–Jul one shift, Aug–Dec another). The system uses the one in force on each date for tardiness, absences and reports. Leave empty to always use the assigned schedule above.') }}</p>
                             <p class="text-muted mb-2" style="font-size:.78rem"><i class="fas fa-info-circle"></i> {{ __('Pick a shared schedule from the catalog, or click the pencil to define a personalized one (its own days/hours) just for this person — it stays out of the catalog.') }}</p>
+                            @error('schedule_periods')<div class="alert alert-danger py-2 px-3 mb-2" style="font-size:.82rem"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>@enderror
                             <div id="schedulePeriods">
                                 @foreach($periodRows as $i => $p)
                                     <div class="form-row align-items-end mb-2 period-row">
@@ -276,7 +277,21 @@ $(function () {
         const btn = e.target.closest('.remove-period');
         if (btn) btn.closest('.period-row').remove();
     });
+    // Once a schedule is chosen in a period row, its "From" date becomes required
+    // (a period with no start date is meaningless and used to be dropped silently).
+    document.getElementById('schedulePeriods')?.addEventListener('change', function (e) {
+        const sel = e.target.closest('.period-schedule');
+        if (sel) syncPeriodRequired(sel);
+    });
+    document.querySelectorAll('#schedulePeriods .period-schedule').forEach(syncPeriodRequired);
 });
+
+// Toggle the "From" date's required state to match whether a schedule is picked.
+function syncPeriodRequired(select) {
+    const row = select.closest('.period-row');
+    const from = row?.querySelector('input[name$="[from]"]');
+    if (from) from.required = !!select.value;
+}
 </script>
 <script>
 /**
@@ -487,6 +502,7 @@ async function createSchedule(url, opts = {}) {
         const opt = new Option(label, data.id, true, true);
         grp.appendChild(opt);
         opts.targetSelect.value = data.id;
+        syncPeriodRequired(opts.targetSelect); // picking a schedule makes "From" required
     } else {
         // Shared: add to the base select (selected) and to every period-row select
         const base = document.getElementById('scheduleSelect');
