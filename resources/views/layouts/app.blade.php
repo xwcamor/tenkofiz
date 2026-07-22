@@ -38,6 +38,14 @@
         }
         #file-preview-pop img { max-width: 300px; max-height: 300px; display: block; border-radius: 6px; }
         #file-preview-pop embed { width: 330px; height: 400px; border: 0; display: block; }
+        /* Select2 inside a Bootstrap input-group: keep the +/append button on the SAME line
+           (by default the Select2 container grabs 100% width and pushes the button below). */
+        .input-group > .select2-container { flex: 1 1 auto; width: 1% !important; }
+        /* Button is always appended (right side): square only the right corners so it
+           joins the +/append button seamlessly. Left corners stay rounded. */
+        .input-group > .select2-container:not(:last-child) .select2-selection {
+            border-top-right-radius: 0; border-bottom-right-radius: 0;
+        }
     </style>
     @stack('styles')
 </head>
