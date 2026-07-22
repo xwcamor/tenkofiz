@@ -46,6 +46,13 @@ class SiteController extends Controller
 
     public function destroy(Site $site)
     {
+        // A site is required on every employee, so deleting one with staff would
+        // orphan them (broken kiosk scoping, blank site in reports). Block it and
+        // ask to move them first — same rule as schedules.
+        if ($site->employees()->exists()) {
+            return back()->with('error', __('Cannot delete: there are employees in this site. Move them to another site first.'));
+        }
+
         AuditLog::record('DELETE', 'Sites',
             __('Site :name was deleted', ['name' => $site->name]),
             $site->toArray());
