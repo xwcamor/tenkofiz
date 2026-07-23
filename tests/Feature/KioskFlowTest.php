@@ -131,11 +131,13 @@ class KioskFlowTest extends TestCase
         $this->actingAs($super)->put(route('admin.companies.recognition', $company), [
             'kiosk_face_threshold' => 0.45,
             'kiosk_verify_seconds' => 20,
+            'kiosk_match_seconds' => 25,
         ])->assertSessionHas('ok');
 
         $setting = \App\Models\Setting::withoutGlobalScopes()->where('company_id', $company->id)->first();
         $this->assertSame(0.45, $setting->kiosk_face_threshold);
         $this->assertSame(20, $setting->kiosk_verify_seconds);
+        $this->assertSame(25, $setting->kiosk_match_seconds);
     }
 
     public function test_company_admin_cannot_touch_recognition_calibration(): void

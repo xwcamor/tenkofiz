@@ -87,6 +87,7 @@
     window.KIOSK_THRESHOLD = @json((float) (app_setting()->kiosk_face_threshold ?: 0.5));
     window.KIOSK_LIVENESS = @json((bool) app_setting()->kiosk_liveness);
     window.KIOSK_VERIFY_SECONDS = @json((int) (app_setting()->kiosk_verify_seconds ?: 15));
+    window.KIOSK_MATCH_SECONDS = @json((int) (app_setting()->kiosk_match_seconds ?: 20));
     window.KIOSK_NEXT_ACTION = @json($nextAction);
     window.KIOSK_EARLY_EXIT_WARN = @json($earlyExitWarn);
     window.KIOSK_GEO = @json((bool) app_setting()->kiosk_geolocation);

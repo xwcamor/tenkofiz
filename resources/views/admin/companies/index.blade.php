@@ -60,7 +60,7 @@
                             @php
                                 $payload = json_encode(['action' => route('admin.companies.update', $company), 'name' => $company->name, 'tax_id' => $company->tax_id, 'is_active' => $company->is_active]);
                                 $planPayload = json_encode(['action' => route('admin.companies.plan', $company), 'name' => $company->name, 'modules' => $company->modules, 'max_employees' => $company->max_employees, 'max_sites' => $company->max_sites]);
-                                $recognitionPayload = json_encode(['action' => route('admin.companies.recognition', $company), 'name' => $company->name, 'threshold' => $company->recognition['threshold'], 'seconds' => $company->recognition['seconds']]);
+                                $recognitionPayload = json_encode(['action' => route('admin.companies.recognition', $company), 'name' => $company->name, 'threshold' => $company->recognition['threshold'], 'seconds' => $company->recognition['seconds'], 'match_seconds' => $company->recognition['match_seconds']]);
                             @endphp
                             <div class="btn-group btn-group-sm" role="group">
                                 <form method="POST" action="{{ route('admin.companies.enter', $company) }}" class="d-inline">
@@ -252,14 +252,18 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="form-group">
+                    <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
+                    <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" id="recognitionThreshold" class="form-control" required style="max-width:200px">
+                </div>
                 <div class="row">
                     <div class="col-md-6 form-group mb-0">
-                        <label>{{ __('Match strictness') }} <small class="text-muted">({{ __('lower = stricter; 0.50 recommended') }})</small></label>
-                        <input type="number" step="0.01" min="0.35" max="0.65" name="kiosk_face_threshold" id="recognitionThreshold" class="form-control" required>
+                        <label>{{ __('Inactivity wait') }} <small class="text-muted">({{ __('sec.') }})</small>@include('partials.help', ['text' => __('How long the camera waits with NO face before returning to the keypad (frees the kiosk for the next person). 10 recommended.')])</label>
+                        <input type="number" min="5" max="60" name="kiosk_verify_seconds" id="recognitionSeconds" class="form-control" required>
                     </div>
                     <div class="col-md-6 form-group mb-0">
-                        <label>{{ __('Verification time') }} <small class="text-muted">({{ __('seconds the camera tries; 10 recommended') }})</small></label>
-                        <input type="number" min="5" max="60" name="kiosk_verify_seconds" id="recognitionSeconds" class="form-control" required>
+                        <label>{{ __('Max time to recognize') }} <small class="text-muted">({{ __('sec.') }})</small>@include('partials.help', ['text' => __('How long a face that IS present may keep trying without matching before falling back to document + evidence photo. While a face is present the person is never timed out. 20 recommended.')])</label>
+                        <input type="number" min="5" max="120" name="kiosk_match_seconds" id="recognitionMatchSeconds" class="form-control" required>
                     </div>
                 </div>
             </div>
@@ -307,6 +311,7 @@ function openRecognitionModal(data) {
     document.getElementById('recognitionCompanyName').textContent = data.name;
     document.getElementById('recognitionThreshold').value = data.threshold;
     document.getElementById('recognitionSeconds').value = data.seconds;
+    document.getElementById('recognitionMatchSeconds').value = data.match_seconds;
     $('#recognitionModal').modal('show');
 }
 function openCompanyModal(data = null) {

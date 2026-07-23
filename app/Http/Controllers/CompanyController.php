@@ -34,6 +34,7 @@ class CompanyController extends Controller
             $company->recognition = [
                 'threshold' => (float) ($setting->kiosk_face_threshold ?? 0.50),
                 'seconds' => (int) ($setting->kiosk_verify_seconds ?? 15),
+                'match_seconds' => (int) ($setting->kiosk_match_seconds ?? 20),
             ];
 
             return $company;
@@ -204,6 +205,7 @@ class CompanyController extends Controller
         $data = $request->validate([
             'kiosk_face_threshold' => ['required', 'numeric', 'min:0.35', 'max:0.65'],
             'kiosk_verify_seconds' => ['required', 'integer', 'min:5', 'max:60'],
+            'kiosk_match_seconds' => ['required', 'integer', 'min:5', 'max:120'],
         ]);
 
         Setting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->id])->update($data);

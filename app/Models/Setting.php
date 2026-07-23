@@ -13,7 +13,7 @@ class Setting extends Model
         'kiosk_breaks_enabled', 'async_hours_enabled', 'break_required', 'break_limit_minutes', 'kiosk_geolocation', 'kiosk_geolocation_required',
         'allow_holiday_marking',
         'kiosk_pair_code', 'kiosk_pair_expires_at',
-        'kiosk_fast_mode', 'kiosk_liveness', 'kiosk_face_threshold', 'kiosk_verify_seconds',
+        'kiosk_fast_mode', 'kiosk_liveness', 'kiosk_face_threshold', 'kiosk_verify_seconds', 'kiosk_match_seconds',
     ];
 
     protected $casts = [
@@ -31,6 +31,7 @@ class Setting extends Model
         'kiosk_liveness' => 'boolean',
         'kiosk_face_threshold' => 'float',
         'kiosk_verify_seconds' => 'integer',
+        'kiosk_match_seconds' => 'integer',
     ];
 
     public function company()

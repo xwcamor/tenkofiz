@@ -11,7 +11,8 @@
 const MODELS_URL = '/models';
 const THRESHOLD = Number(window.KIOSK_THRESHOLD) || 0.5;
 const LIVENESS = !!window.KIOSK_LIVENESS;
-const VERIFY_WINDOW_MS = (Number(window.KIOSK_VERIFY_SECONDS) || 10) * 1000;
+const VERIFY_WINDOW_MS = (Number(window.KIOSK_VERIFY_SECONDS) || 10) * 1000; // inactivity: no face → keypad
+const MATCH_WINDOW_MS = (Number(window.KIOSK_MATCH_SECONDS) || 20) * 1000;    // attempt: face present but no match → document
 const RESULT_PAUSE_MS = 4000;
 const CHALLENGE_MS = 3500;   // time to complete a gesture before a new one is rolled
 const YAW_TURN = 1.75;       // yaw ratio beyond which a head turn counts (1 = frontal)
@@ -446,13 +447,18 @@ async function runVerify() {
         // clean and the gesture is a response to the prompt, not residue).
         let challenge = null, challengeAt = 0, frontalStreak = 0, pitchBaseline = null;
         const pitchSamples = [];
-        const startAt = Date.now();
-        const deadline = startAt + VERIFY_WINDOW_MS;
+        // Two independent clocks instead of one hard window:
+        //  A) Inactivity (VERIFY_WINDOW_MS) — runs ONLY while no face is on camera.
+        //     Nobody there that long → stop (evidencePhase sees no face → keypad).
+        //     Reset the instant a face appears, so a present person is never timed out.
+        //  B) Attempt (MATCH_WINDOW_MS) — runs ONLY while a face IS present. A present
+        //     face that never matches in that window → document + evidence photo.
+        //     Reset when the face leaves. While a face is present the countdown is
+        //     hidden, so the person feels no clock ticking against them.
+        let noFaceSince = Date.now();
+        let faceSince = null;
 
-        while (Date.now() < deadline) {
-            setProgress(Math.min(100, Math.round((Date.now() - startAt) * 100 / VERIFY_WINDOW_MS)));
-            setCountdown(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-
+        while (true) {
             let det;
             try {
                 det = identityOk
@@ -463,15 +469,28 @@ async function runVerify() {
             clearOverlay();
             setFaceChip(!!det);
             if (!det) {
-                // No face and "too far" share ONE message/stage, so a face blinking
-                // in and out of detection does not swap the text back and forth.
+                // No one on camera: the inactivity clock runs (and is shown).
+                faceSince = null;
+                const idle = Date.now() - noFaceSince;
+                setProgress(Math.min(100, Math.round(idle * 100 / VERIFY_WINDOW_MS)));
+                setCountdown(Math.max(0, Math.ceil((VERIFY_WINDOW_MS - idle) / 1000)));
                 setRing('idle');
                 coach('far', 'warning', '<i class="fas fa-magnifying-glass-plus"></i> ' + I18N.comeCloser2);
                 debugUpdate(null, lastDistance, identityOk, challenge, pitchBaseline);
+                if (idle >= VERIFY_WINDOW_MS) break; // nobody there → stop trying
                 await wait(200);
                 continue;
             }
+            // A face is present: freeze inactivity, hide the clock (no time pressure),
+            // and give it up to the attempt window to recognise before the fallback.
             sawFace = true;
+            noFaceSince = Date.now();
+            if (faceSince === null) faceSince = Date.now();
+            setProgress(0);
+            setCountdown(null);
+            // A present face that never completes (identity OR the liveness gesture)
+            // within the attempt window falls back to document + evidence photo.
+            if ((Date.now() - faceSince) >= MATCH_WINDOW_MS) break;
 
             // The circle must actually matter: until the face FILLS it and is
             // centred, we neither confirm identity nor run the gesture. This sets a
