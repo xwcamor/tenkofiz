@@ -20,6 +20,17 @@ class KioskFlowTest extends TestCase
         // Neutralize the default early-check-in window (15) so timing-agnostic flow
         // tests are not affected; the window tests set it explicitly per company.
         \App\Models\Setting::query()->update(['early_check_in_minutes' => 0]);
+        // Pin the clock to a known working weekday (Thursday, inside the General
+        // 08:00–17:00 shift, not a holiday). Without this the flow tests run on the
+        // real date and break whenever "today" lands on a holiday or non-working day
+        // (e.g. a mark returns 422 "Hoy es feriado"). Timing tests override this.
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00');
+    }
+
+    protected function tearDown(): void
+    {
+        \Carbon\Carbon::setTestNow();
+        parent::tearDown();
     }
 
     private function makeEmployee(array $extra = []): Employee

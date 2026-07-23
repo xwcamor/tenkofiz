@@ -15,6 +15,21 @@ class KioskTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Pin the clock to a known working weekday (Thursday, inside the General
+        // 08:00–17:00 shift, not a holiday). Without this the mark tests run on the
+        // real date and break whenever "today" is a holiday or non-working day.
+        \Carbon\Carbon::setTestNow('2026-07-16 14:30:00');
+    }
+
+    protected function tearDown(): void
+    {
+        \Carbon\Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     private function seedBase(): Employee
     {
         $this->seed(DatabaseSeeder::class);
