@@ -1,4 +1,4 @@
-# Roadmap: turnos rotativos + reconocimiento facial (para decidir con Carlos)
+# Roadmap: turnos rotativos + reconocimiento facial
 
 Estos dos temas tocan el **core de asistencia**. No se construyen a ciegas: aquí
 está el plan y mi recomendación para ejecutar juntos y rápido.

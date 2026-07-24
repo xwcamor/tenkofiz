@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Hash;
  * (e.g. `php artisan migrate --seed` after an update). Existing rows are
  * left untouched; only missing base records are created.
  *
- * A fresh install ships with a SINGLE workspace: SENATI. Carlos's academic
- * institute lives in its OWN command (`php artisan demo:academic`) so it never
+ * A fresh install ships with a SINGLE demo workspace. The academic-institute
+ * scenario lives in its OWN command (`php artisan demo:academic`) so it never
  * clutters the default install — run it only when you want that demo.
  */
 class DatabaseSeeder extends Seeder
@@ -36,58 +36,50 @@ class DatabaseSeeder extends Seeder
             'company_id' => null,
         ]);
 
-        // ---- The one and only default workspace: SENATI ----
+        // ---- The one and only default demo workspace ----
         // The companies migration created a default company; reuse the first one
-        // (whatever it was called) and normalize it to SENATI. Never duplicates.
-        $senati = Company::where('tax_id', '20131376503')
-            ->orWhereIn('name', ['Empresa 1', 'Empresa Demo', 'SENATI'])
+        // (whatever it was called before) and normalize it. Never duplicates.
+        $company = Company::where('tax_id', '20123456789')
+            ->orWhereIn('name', ['Empresa 1', 'Empresa Demo', 'Mi Empresa S.A.C.'])
             ->orderBy('id')
             ->first()
             ?? Company::orderBy('id')->first()
-            ?? Company::create(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
-        $senati->update(['name' => 'SENATI', 'tax_id' => '20131376503', 'is_active' => true]);
+            ?? Company::create(['name' => 'Mi Empresa S.A.C.', 'tax_id' => '20123456789', 'is_active' => true]);
+        $company->update(['name' => 'Mi Empresa S.A.C.', 'tax_id' => '20123456789', 'is_active' => true]);
 
-        CompanyScope::actingAs($senati->id, function () use ($senati) {
+        CompanyScope::actingAs($company->id, function () use ($company) {
             [$admin, $supervisor, $employeeProfile] = $this->seedBaseProfiles();
 
-            // Test users — all inside SENATI so every login works out of the box
+            // Test users — all inside the workspace so every login works out of the box
             User::firstOrCreate(['email' => 'admin@test.com'], ['name' => 'Administrador', 'password' => Hash::make('123456'), 'profile_id' => $admin->id]);
-            User::firstOrCreate(['email' => 'senati@test.com'], ['name' => 'Admin SENATI', 'password' => Hash::make('123456'), 'profile_id' => $admin->id]);
             User::firstOrCreate(['email' => 'aprobador@test.com'], ['name' => 'Aprobador', 'password' => Hash::make('123456'), 'profile_id' => $supervisor->id]);
             User::firstOrCreate(['email' => 'empleado@test.com'], ['name' => 'Empleado', 'password' => Hash::make('123456'), 'profile_id' => $employeeProfile->id]);
 
             $this->seedStarterSchedule();
 
-            // Main SENATI zonales (adjust exact addresses in the Sites screen).
-            $sedes = [
-                ['Sede Central - Independencia', 'Av. Alfredo Mendiola 3520, Independencia, Lima'],
-                ['Zonal Lima-Callao', 'Av. Argentina, Cercado de Lima'],
-                ['Zonal Arequipa', 'Arequipa'],
-                ['Zonal La Libertad', 'Trujillo'],
-                ['Zonal Áncash', 'Chimbote'],
-                ['Zonal Junín', 'Huancayo'],
-                ['Zonal Lambayeque', 'Chiclayo'],
-                ['Zonal Piura', 'Piura'],
-                ['Zonal Cusco', 'Cusco'],
-                ['Zonal Ica', 'Ica'],
-            ];
-            foreach ($sedes as [$name, $address]) {
-                Site::firstOrCreate(['name' => $name], ['address' => $address]);
+            // Give the auto-created default site ("General") a friendly name/address.
+            // The demo workforce (below) reuses it and adds one branch, so a fresh
+            // install has clean, non-duplicated sites. Rename or edit in the Sites screen.
+            $defaultSite = Site::orderBy('id')->first();
+            if ($defaultSite && $defaultSite->name === 'General') {
+                $defaultSite->update(['name' => 'Sede Central', 'address' => 'Av. Principal 100, Lima']);
+            } else {
+                Site::firstOrCreate(['name' => 'Sede Central'], ['address' => 'Av. Principal 100, Lima']);
             }
 
             foreach (['Administración', 'Tecnología de la Información', 'Recursos Humanos', 'Contabilidad', 'Operaciones'] as $area) {
                 Area::firstOrCreate(['name' => $area]);
             }
-            foreach (['Instructor', 'Asistente Administrativo', 'Analista', 'Coordinador', 'Técnico de Soporte'] as $position) {
+            foreach (['Asistente Administrativo', 'Analista', 'Coordinador', 'Técnico de Soporte', 'Operario'] as $position) {
                 Position::firstOrCreate(['name' => $position]);
             }
 
-            $this->seedHolidays($senati->id);
+            $this->seedHolidays($company->id);
 
-            Setting::firstOrCreate(['company_id' => $senati->id], [
-                'company_name' => 'SENATI',
-                'tax_id' => '20131376503',
-                'address' => 'Av. Alfredo Mendiola 3520, Independencia, Lima',
+            Setting::firstOrCreate(['company_id' => $company->id], [
+                'company_name' => 'Mi Empresa S.A.C.',
+                'tax_id' => '20123456789',
+                'address' => 'Av. Principal 100, Lima',
                 'timezone' => 'America/Lima',
                 'country' => 'PE',
             ]);

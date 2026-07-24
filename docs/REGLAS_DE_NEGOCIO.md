@@ -98,11 +98,11 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
 - JS: `public/js/kiosk-home.js`, `kiosk-verify.js` (incluye el enrolamiento guiado).
 
 ### 1.2 Regla: el marcado por documento es SOLO para rostros ya enrolados
-Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" existe
+Decisión de negocio: el respaldo "documento + foto de evidencia" existe
 únicamente para quien **ya tiene rostro enrolado** y el reconocimiento falló.
 - **Sin rostro enrolado → no hay marcado por documento** (el botón ni aparece y el
   servidor lo rechaza con 422 en `KioskController::markByDni`).
-- **Auto-enrolamiento guiado (sin PIN, regla de Carlos)**: al poner el DNI, si la
+- **Auto-enrolamiento guiado (sin PIN, regla de negocio)**: al poner el DNI, si la
   persona **no tiene rostro**, sale el consentimiento y, al aceptarlo, la **cámara
   guía** el registro (mismo anillo verde). El PIN se retiró (era redundante: el
   documento ya identifica a la persona). Dos guardas en `enroll/descriptor`: (1) solo
@@ -115,7 +115,7 @@ Decisión de negocio (Carlos): el respaldo "documento + foto de evidencia" exist
   registra la marca manualmente en Asistencias.
 
 ### 1.2b Regla FIJA: sin rostro no hay marca ni foto (sin interruptor)
-Decisión de negocio (Carlos): el propósito del kiosco es registrar asistencia
+Decisión de negocio: el propósito del kiosco es registrar asistencia
 **con evidencia**; una marca cuya "evidencia" es una foto del techo es peor que no
 marcar. Por eso la antigua opción `kiosk_require_face` **fue eliminada** — el
 comportamiento es fijo:
@@ -219,7 +219,7 @@ Se evalúan en este orden:
      tienen hora fija de inicio). Configurable en Ajustes.
 5. **Segunda marca = SALIDA**, una sola regla:
    - **Confirmación de salida prematura** (`KioskController::isEarlyCheckout`, regla
-     de Carlos): **no hay un "mínimo de minutos" que ignore en silencio, ni una
+     de negocio): **no hay un "mínimo de minutos" que ignore en silencio, ni una
      "nota de salida anticipada" aparte**. Si la salida es prematura, el kiosco
      **pregunta y confirma** en vez de registrar o ignorar calladamente — así una
      segunda marca por accidente/"jugando" no cierra el día, y a la persona se le
@@ -264,7 +264,7 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   cierra (salida); las intermedias quedan en el log de marcas (§1.4e). `esperadas = 0`,
   así que **no genera deuda**. No aparece en el marcado de ausencias (un horario libre
   no tiene días laborables definidos). `Schedule::isFree()`.
-  - **Presentación en el reporte** (pendiente de pulido acordado con Carlos): hoy un día
+  - **Presentación en el reporte** (pendiente de pulido acordado): hoy un día
     libre se guarda con estado interno `ON_TIME` y `esperadas = 0`, por lo que el reporte
     muestra "0:00 / 0:00" y badge verde; lo mismo un día no laborable en horario fijo
     (domingo suelto, §1.4d). La mejora acordada es mostrar "—" en esas columnas y un
@@ -280,7 +280,7 @@ entrada + 1 salida). Encendido:
   salida?" en la 2ª marca) → si break: SALIDA-BREAK, RETORNO, SALIDA. Máximo 4
   marcas (1 break). Nada de N marcas.
 - `break_required`: la 2ª marca es siempre el break (sin preguntar).
-- **El break NO se descuenta de las horas trabajadas** (regla de Carlos): es un
+- **El break NO se descuenta de las horas trabajadas** (regla de negocio): es un
   detalle **interno** (a qué hora fue), visible en el análisis de breaks (§1.4h), pero
   `Attendance::workedMinutes` **no** lo resta.
 - `break_limit_minutes`: si el break supera el límite, el reporte/lista solo marca
@@ -325,7 +325,7 @@ Reglas:
 
 ### 1.4d Reporte de cumplimiento: Esperadas vs Trabajadas vs Debe (¿cumplió?)
 El reporte de horas (`ReportController::buildRows` y la ficha `sheet`) responde, por
-empleado en el periodo, **¿cumplió sus horas y cuánto debe?** (regla de Carlos):
+empleado en el periodo, **¿cumplió sus horas y cuánto debe?** (regla de negocio):
 - **Horas esperadas** (`Schedule::expectedMinutesFor(weekday)`): la "jornada" que
   debía — largo del turno en horario **fijo**, o la **meta diaria** en **flexible**.
   Se suma **solo en los días con entrada y salida**, para que un día corto salga como

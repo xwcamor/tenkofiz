@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Hash;
  * Reproduces a real academic "distribución de carga horaria": one instructor,
  * TWO periods with DIFFERENT courses/dates (schedule vigencias), each with
  * presencial hours (marked) + asynchronous credited hours (not marked). Lets you
- * see how the system handles the SENATI-style case end to end.
+ * see how the system handles an academic-institute case end to end.
  */
 class DemoAcademic extends Command
 {
@@ -56,11 +56,8 @@ class DemoAcademic extends Command
             $ia202 = $this->makeSchedule('IA 202 (2026-10)');
             $sw205 = $this->makeSchedule('SOFTWARE 205 (2025-20)');
 
-            // Clean up the old placeholder instructor so re-running doesn't leave a duplicate.
-            Employee::where('document_number', '001548436')->forceDelete();
-
-            $emp = Employee::firstOrCreate(['document_number' => '47019236'], [
-                'first_name' => 'CARLOS', 'last_name' => 'MORALES',
+            $emp = Employee::firstOrCreate(['document_number' => '44881122'], [
+                'first_name' => 'LUIS ALBERTO', 'last_name' => 'RAMÍREZ SOTO',
                 'site_id' => $site->id, 'schedule_id' => $base->id,
                 'contract_type' => 'part_time', 'hire_date' => '2025-08-11',
                 'face_descriptor' => json_encode([array_fill(0, 128, 0.1)]),
@@ -78,7 +75,7 @@ class DemoAcademic extends Command
             $this->seedMarks($emp, Carbon::parse('2026-02-16'), Carbon::parse('2026-03-13'));
 
             $this->info("Instituto Demo listo. Login: instituto@test.com / 123456");
-            $this->info("Instructor CARLOS MORALES (DNI 47019236) · ficha 2026-10: /reports/sheet/{$emp->getRouteKey()}?from=2026-02-16&to=2026-06-07");
+            $this->info("Instructor LUIS ALBERTO RAMÍREZ SOTO (DNI 44881122) · ficha 2026-10: /reports/sheet/{$emp->getRouteKey()}?from=2026-02-16&to=2026-06-07");
         });
 
         return self::SUCCESS;

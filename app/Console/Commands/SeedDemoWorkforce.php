@@ -52,8 +52,11 @@ class SeedDemoWorkforce extends Command
             // Breaks must be on for the break data (and the analysis report) to exist
             Setting::forCompany($company->id)->update(['kiosk_breaks_enabled' => true, 'break_limit_minutes' => 60]);
 
-            $siteA = Site::firstOrCreate(['company_id' => $company->id, 'name' => 'Sede Central (Lima)'], ['address' => 'Av. Javier Prado 123, San Isidro', 'is_active' => true]);
-            $siteB = Site::firstOrCreate(['company_id' => $company->id, 'name' => 'Sucursal Sur (Arequipa)'], ['address' => 'Calle Mercaderes 456, Cercado', 'is_active' => true]);
+            // Reuse the workspace's default site (renamed to "Sede Central" by the
+            // seeder) so the demo does not create duplicate sites; add one branch.
+            $siteA = Site::where('company_id', $company->id)->orderBy('id')->first()
+                ?? Site::firstOrCreate(['company_id' => $company->id, 'name' => 'Sede Central'], ['address' => 'Av. Principal 100, Lima', 'is_active' => true]);
+            $siteB = Site::firstOrCreate(['company_id' => $company->id, 'name' => 'Sucursal Sur'], ['address' => 'Av. El Sol 300, Arequipa', 'is_active' => true]);
 
             $area = Area::firstOrCreate(['company_id' => $company->id, 'name' => 'Operaciones'], ['is_active' => true]);
             $posOperator = Position::firstOrCreate(['company_id' => $company->id, 'name' => 'Operario'], ['is_active' => true]);

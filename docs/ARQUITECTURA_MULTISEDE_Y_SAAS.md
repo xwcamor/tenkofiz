@@ -3,8 +3,8 @@
 > **Estado (Fase 1 IMPLEMENTADA).** Ya existe multi-empresa real: tabla `companies`,
 > `company_id` en todas las tablas de negocio, aislamiento por `CompanyScope`,
 > super-admin (`users.is_super_admin`) que crea y administra workspaces, y settings
-> por empresa. Se sembró **Empresa 1 (SENATI)** con sus zonales y **Empresa Demo**
-> con los datos previos. Ver §4 al final para el detalle de lo implementado. Lo que
+> por empresa. Se siembra una **única empresa de demostración (Mi Empresa S.A.C.)**
+> con sus sedes, catálogos y feriados. Ver §4 al final para el detalle de lo implementado. Lo que
 > sigue (facturación, registro self-service, subdominios) es Fase 3+.
 >
 > **Fase 2 IMPLEMENTADA:** controles comerciales del super-admin — **suspender** un
@@ -206,12 +206,11 @@ Super-admin y workspaces:
 - Settings **por empresa**: `app_setting()` resuelve la fila de la empresa actual
   (reportes/branding/kiosco por workspace).
 
-Datos sembrados:
-- **Empresa Demo**: los usuarios de prueba (`admin/aprobador/empleado@test.com`),
-  su sede, catálogos y feriados.
-- **Empresa 1 (SENATI)**: settings propios + 10 zonales (Central Independencia,
-  Lima-Callao, Arequipa, La Libertad, Áncash, Junín, Lambayeque, Piura, Cusco, Ica).
-  Direcciones aproximadas — ajústalas en la pantalla Sedes.
+Datos sembrados (una sola empresa de demostración):
+- **Mi Empresa S.A.C.**: los usuarios de prueba (`admin/aprobador/empleado@test.com`),
+  3 sedes genéricas (Sede Central, Sede Norte, Sede Sur), catálogos, feriados y una
+  fuerza laboral de demostración (4 empleados ficticios con su asistencia).
+  Nombres, RUC y direcciones son de ejemplo — cámbialos en Ajustes y en la pantalla Sedes.
 
 Pruebas: `CompanyIsolationTest` (empresa A no ve a empresa B, mismo documento en dos
 empresas, entrar/salir del super-admin, creación de workspace) + `SiteScopingTest`.
@@ -225,7 +224,7 @@ límites por plan, registro self-service y resolución por subdominio.
 
 ## 5. DECIDIDO E IMPLEMENTADO — Enrolamiento y marcado por documento
 
-**Decisión de Carlos (IMPLEMENTADA):** el marcado por documento es SOLO el plan B de quien ya tiene rostro enrolado. Detalle original del dilema:
+**Decisión de negocio (IMPLEMENTADA):** el marcado por documento es SOLO el plan B de quien ya tiene rostro enrolado. Detalle original del dilema:
 
 > El respaldo "marcar por documento + foto de evidencia" quizá debería existir SOLO
 > para quien **ya tiene rostro enrolado** (como plan B cuando el reconocimiento
@@ -256,7 +255,7 @@ Análisis para decidir:
 
 ## 6. EL MODELO DE OPERACIÓN SaaS (definición formal — implementada)
 
-La analogía del edificio de Carlos es exactamente el modelo:
+La analogía del edificio es exactamente el modelo:
 
 | Nivel | Analogía | Quién | Qué hace | Dónde |
 |---|---|---|---|---|

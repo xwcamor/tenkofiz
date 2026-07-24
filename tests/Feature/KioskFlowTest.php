@@ -282,7 +282,7 @@ class KioskFlowTest extends TestCase
 
     public function test_worked_hours_ignore_break_and_never_credit_overtime(): void
     {
-        // Carlos's rule. Fixed shift 08:00–17:00 (9h due).
+        // Business rule. Fixed shift 08:00–17:00 (9h due).
         $shift = new \App\Models\ScheduleDay(['start_time' => '08:00:00', 'end_time' => '17:00:00']);
 
         // Day A: 08:00→20:00 with a 1h break. Present clamps to 9h; the break is NOT
@@ -459,7 +459,7 @@ class KioskFlowTest extends TestCase
             ->assertJsonPath('ok', true);
     }
 
-    // ---------- Rule (Carlos): document marking only for enrolled faces ----------
+    // ---------- Rule: document marking only for enrolled faces ----------
 
     public function test_document_marking_is_rejected_for_employees_without_an_enrolled_face(): void
     {

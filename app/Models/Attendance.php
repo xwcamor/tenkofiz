@@ -41,7 +41,7 @@ class Attendance extends Model
      * is the raw check-out − check-in. Overnight shifts and marks (end before
      * start) roll the end to the next day.
      *
-     * The break is NOT subtracted here (business rule, Carlos): the break is an
+     * The break is NOT subtracted here (business rule): the break is an
      * internal detail — you can see when it happened in the break-analysis report —
      * but it does not reduce the worked/complied hours.
      */

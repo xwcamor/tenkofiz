@@ -359,7 +359,7 @@ class KioskController extends Controller
             return response()->json(['ok' => false, 'message' => __('No active employee found with that document number.')], 422);
         }
 
-        // Business rule (Carlos): document marking is ONLY the fallback for people
+        // Business rule: document marking is ONLY the fallback for people
         // who already enrolled their face and recognition failed. Someone without
         // an enrolled face must enroll first — they cannot mark by document.
         if (!$employee->hasFace()) {
