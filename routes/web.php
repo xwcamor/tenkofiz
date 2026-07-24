@@ -91,6 +91,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('module:schedules')->group(function () {
         Route::resource('schedules', ScheduleController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('schedules-quick', [ScheduleController::class, 'quickStore'])->name('schedules.quickStore');
+        // Plain numeric id (the employee-form <option> values); resolved tenant-safely
+        // in the controller (the hashid route key does not fit these numeric values).
+        Route::put('schedules-quick/{id}', [ScheduleController::class, 'quickUpdate'])->name('schedules.quickUpdate');
     });
 
     Route::middleware('module:holidays')->group(function () {

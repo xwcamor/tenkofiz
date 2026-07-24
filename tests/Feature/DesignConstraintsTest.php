@@ -43,7 +43,8 @@ class DesignConstraintsTest extends TestCase
 
         // Add a second shared schedule, then the first becomes deletable.
         $this->actingAs($admin)->postJson('/schedules-quick', [
-            'name' => 'Turno Tarde', 'weekdays' => [1, 2, 3, 4, 5], 'start' => '14:00', 'end' => '22:00', 'is_shared' => 1,
+            'name' => 'Turno Tarde', 'is_shared' => 1,
+            'days' => collect([1, 2, 3, 4, 5])->map(fn ($w) => ['weekday' => $w, 'start' => '14:00', 'end' => '22:00'])->all(),
         ])->assertOk();
         $this->assertSame(2, Schedule::shared()->count());
 

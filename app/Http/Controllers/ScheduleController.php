@@ -38,57 +38,106 @@ class ScheduleController extends Controller
 
     /**
      * Quick-create a fixed schedule from the employee form (the "+ New schedule"
-     * shortcut), applying the same start/end to every chosen weekday. Returns JSON
-     * {id, name} so the caller can add it to the select. It lands in the shared
-     * catalog like any other schedule, so it stays reusable and reportable.
+     * shortcut and the per-period "personalize" pencil), with its OWN hours per
+     * weekday. Returns JSON so the caller can add it to the select.
      */
     public function quickStore(Request $request)
     {
-        $shared = $request->boolean('is_shared', true);
+        return $this->quickSave($request, null);
+    }
+
+    /**
+     * Edit a PERSONALIZED (per-employee, non-catalog) schedule from the employee
+     * form. Shared catalog schedules are managed on the Schedules page instead, so
+     * editing one here (which would affect everyone) is refused.
+     */
+    public function quickUpdate(Request $request, $id)
+    {
+        // findOrFail runs through the tenant scope, so another company's id 404s.
+        $schedule = Schedule::findOrFail($id);
+        abort_unless(!$schedule->is_shared && $schedule->company_id === current_company_id(), 403);
+
+        return $this->quickSave($request, $schedule);
+    }
+
+    /**
+     * Shared create/update for the employee-form schedule editor. Accepts a per-day
+     * payload (days[] each with its own weekday/start/end) so a schedule can have
+     * different hours per day; an end before the start is a valid overnight shift.
+     */
+    private function quickSave(Request $request, ?Schedule $schedule)
+    {
+        $shared = $schedule ? (bool) $schedule->is_shared : $request->boolean('is_shared', true);
+
         // Personalized (per-employee) schedules may repeat a name; only the shared
         // catalog enforces uniqueness.
         $nameRule = ['required', 'string', 'max:100'];
         if ($shared) {
-            $nameRule[] = Rule::unique('schedules')->where('company_id', current_company_id())->where('is_shared', true);
+            $nameRule[] = Rule::unique('schedules')->ignore($schedule)->where('company_id', current_company_id())->where('is_shared', true);
         }
+
         $data = $request->validate([
             'name' => $nameRule,
-            'weekdays' => ['required', 'array', 'min:1'],
-            'weekdays.*' => ['integer', 'between:0,6'],
-            'start' => ['required', 'date_format:H:i'],
-            'end' => ['required', 'date_format:H:i', 'different:start'],
+            'days' => ['required', 'array', 'min:1'],
+            'days.*.weekday' => ['required', 'integer', 'between:0,6'],
+            'days.*.start' => ['required', 'date_format:H:i'],
+            'days.*.end' => ['required', 'date_format:H:i'],
             'tolerance_minutes' => ['nullable', 'integer', 'min:0', 'max:60'],
             'async_minutes_per_day' => ['nullable', 'integer', 'min:0', 'max:600'],
         ], [
             'name.unique' => __('A schedule with that name already exists.'),
         ]);
 
-        $schedule = DB::transaction(function () use ($data, $shared) {
-            $schedule = Schedule::create([
-                'name' => $data['name'],
-                'is_shared' => $shared,
-                'type' => Schedule::TYPE_FIXED,
-                'tolerance_minutes' => $data['tolerance_minutes'] ?? 5,
-                'async_minutes_per_day' => (int) ($data['async_minutes_per_day'] ?? 0),
-                'is_active' => true,
-            ]);
-            $schedule->days()->createMany(
-                collect($data['weekdays'])->unique()->map(fn ($w) => [
-                    'weekday' => (int) $w, 'start_time' => $data['start'], 'end_time' => $data['end'],
-                ])->all()
-            );
+        // One row per weekday (dedup), each with its own hours. An end EQUAL to the
+        // start is invalid; an end before the start is an overnight shift (allowed).
+        $days = collect($data['days'])->unique('weekday')->map(function ($d) {
+            if ($d['start'] === $d['end']) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'days' => __('Each working day needs a start and an end time (an end before the start means the shift crosses midnight).'),
+                ]);
+            }
+
+            return ['weekday' => (int) $d['weekday'], 'start_time' => $d['start'], 'end_time' => $d['end']];
+        })->values()->all();
+
+        $attributes = [
+            'name' => $data['name'],
+            'is_shared' => $shared,
+            'type' => Schedule::TYPE_FIXED,
+            'tolerance_minutes' => $data['tolerance_minutes'] ?? 5,
+            'async_minutes_per_day' => (int) ($data['async_minutes_per_day'] ?? 0),
+            'is_active' => true,
+        ];
+
+        $schedule = DB::transaction(function () use ($schedule, $attributes, $days) {
+            if ($schedule) {
+                $schedule->update($attributes);
+                $schedule->days()->delete();
+            } else {
+                $schedule = Schedule::create($attributes);
+            }
+            $schedule->days()->createMany($days);
 
             return $schedule;
         });
 
-        AuditLog::record('CREATE', 'Schedules', __('Quick schedule ":name" created from the employee form', ['name' => $schedule->name]));
+        AuditLog::record($schedule->wasRecentlyCreated ? 'CREATE' : 'UPDATE', 'Schedules',
+            __('Quick schedule ":name" saved from the employee form', ['name' => $schedule->name]));
+
+        $schedule->load('days');
 
         return response()->json([
             'id' => $schedule->id,
             'name' => $schedule->name,
-            'summary' => $schedule->load('days')->daysSummary(),
+            'summary' => $schedule->daysSummary(),
             'rules' => $schedule->rulesSummary(),
+            'shared' => (bool) $schedule->is_shared,
+            'tolerance_minutes' => (int) $schedule->tolerance_minutes,
             'async_minutes_per_day' => (int) $schedule->async_minutes_per_day,
+            'days' => $schedule->days->mapWithKeys(fn ($d) => [$d->weekday => [
+                'start' => substr($d->start_time, 0, 5),
+                'end' => substr($d->end_time, 0, 5),
+            ]]),
         ]);
     }
 

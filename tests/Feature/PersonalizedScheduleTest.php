@@ -29,7 +29,12 @@ class PersonalizedScheduleTest extends TestCase
 
         // Personalized: is_shared = 0
         $this->actingAs($admin)->postJson('/schedules-quick', [
-            'name' => 'IA 202 (2026-10)', 'weekdays' => [1, 2, 3], 'start' => '09:00', 'end' => '13:00',
+            'name' => 'IA 202 (2026-10)',
+            'days' => [
+                ['weekday' => 1, 'start' => '09:00', 'end' => '13:00'],
+                ['weekday' => 2, 'start' => '09:00', 'end' => '13:00'],
+                ['weekday' => 3, 'start' => '09:00', 'end' => '13:00'],
+            ],
             'is_shared' => 0, 'async_minutes_per_day' => 60,
         ])->assertOk();
 
@@ -43,7 +48,8 @@ class PersonalizedScheduleTest extends TestCase
 
         // A shared one from the same shortcut DOES appear
         $this->actingAs($admin)->postJson('/schedules-quick', [
-            'name' => 'Turno Mañana', 'weekdays' => [1, 2, 3, 4, 5], 'start' => '08:00', 'end' => '17:00', 'is_shared' => 1,
+            'name' => 'Turno Mañana', 'is_shared' => 1,
+            'days' => collect([1, 2, 3, 4, 5])->map(fn ($w) => ['weekday' => $w, 'start' => '08:00', 'end' => '17:00'])->all(),
         ])->assertOk();
         $names2 = $this->actingAs($admin)->get('/schedules')->viewData('schedules')->pluck('name');
         $this->assertTrue($names2->contains('Turno Mañana'));
@@ -56,7 +62,8 @@ class PersonalizedScheduleTest extends TestCase
 
         foreach (['A', 'B'] as $who) {
             $this->actingAs($admin)->postJson('/schedules-quick', [
-                'name' => 'Curso X', 'weekdays' => [1], 'start' => '09:00', 'end' => '13:00', 'is_shared' => 0,
+                'name' => 'Curso X', 'is_shared' => 0,
+                'days' => [['weekday' => 1, 'start' => '09:00', 'end' => '13:00']],
             ])->assertOk();
         }
         // Personalized names are not forced unique (each person's is separate)

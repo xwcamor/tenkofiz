@@ -200,7 +200,7 @@
                                                     @include('partials.schedule-options', ['selected' => $p['schedule_id'] ?? null])
                                                 </select>
                                                 <div class="input-group-append">
-                                                    <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
+                                                    <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create or edit a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
                                                 </div>
                                             </div>
                                         </div>
@@ -230,7 +230,7 @@
                                         @include('partials.schedule-options', ['selected' => null])
                                     </select>
                                     <div class="input-group-append">
-                                        <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
+                                        <button type="button" class="btn btn-outline-primary personalize-period" title="{{ __('Create or edit a personalized schedule for this period') }}"><i class="fas fa-sliders-h"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -289,6 +289,13 @@
         padding: .35rem .6rem;
         display: inline-block;
     }
+    /* Per-day hours grid inside the quick schedule editor (SweetAlert) */
+    .sc-daygrid { display: flex; flex-direction: column; gap: .3rem; max-width: 340px; margin: 0 auto; }
+    .sc-drow { display: flex; align-items: center; gap: .4rem; }
+    .sc-day-check { display: flex; align-items: center; gap: .35rem; width: 92px; margin: 0; font-size: .82rem; cursor: pointer; }
+    .sc-drow input[type="time"] { width: 94px; }
+    .sc-sep { color: #98a2b3; }
+    .sc-drow input:disabled { opacity: .4; }
 </style>
 @endpush
 
@@ -502,6 +509,7 @@ async function addCatalogItem(url, selectId, label) {
 const WEEKDAYS = @json($weekdayOptions);
 const ASYNC_ENABLED = @json((bool) app_setting()->async_hours_enabled);
 const SCHEDULE_QUICK_URL = @json(route('schedules.quickStore'));
+const SCHEDULE_QUICK_UPDATE_URL = @json(route('schedules.quickUpdate', ['id' => '__ID__']));
 
 /**
  * Schedule editor modal. opts.personal = true creates a PERSONALIZED schedule
@@ -510,46 +518,74 @@ const SCHEDULE_QUICK_URL = @json(route('schedules.quickStore'));
  */
 async function createSchedule(url, opts = {}) {
     const personal = !!opts.personal;
-    const dayBtns = WEEKDAYS.map(d =>
-        `<label class="sc-day ${d.v >= 1 && d.v <= 5 ? 'active' : ''}">
-            <input type="checkbox" value="${d.v}" ${d.v >= 1 && d.v <= 5 ? 'checked' : ''}>${d.l}
-        </label>`).join('');
+    const editOpt = opts.editOption || null; // an <option> to edit (prefill from its data-*)
+
+    // Prefill: from the schedule being edited, otherwise a Mon–Fri 09:00–18:00 default.
+    let prefillDays = {}, prefillName = '', prefillTol = 5, prefillAsync = 0;
+    if (editOpt) {
+        try { prefillDays = JSON.parse(editOpt.dataset.days || '{}'); } catch (e) { prefillDays = {}; }
+        prefillName = (editOpt.textContent || '').split(' — ')[0].trim();
+        prefillTol = parseInt(editOpt.dataset.tolerance || '5', 10);
+        prefillAsync = parseInt(editOpt.dataset.async || '0', 10);
+    } else {
+        WEEKDAYS.forEach(d => { if (d.v >= 1 && d.v <= 5) prefillDays[d.v] = { start: '09:00', end: '18:00' }; });
+    }
+
+    // One row per weekday: a checkbox + its OWN start/end (each day can differ).
+    const dayRows = WEEKDAYS.map(d => {
+        const on = Object.prototype.hasOwnProperty.call(prefillDays, d.v);
+        const s = on ? prefillDays[d.v].start : '09:00';
+        const e = on ? prefillDays[d.v].end : '18:00';
+        return `<div class="sc-drow" data-wd="${d.v}">
+            <label class="sc-day-check"><input type="checkbox" class="sc-on" ${on ? 'checked' : ''}> <span>${d.l}</span></label>
+            <input type="time" class="sc-s form-control form-control-sm" value="${s}" ${on ? '' : 'disabled'}>
+            <span class="sc-sep">–</span>
+            <input type="time" class="sc-e form-control form-control-sm" value="${e}" ${on ? '' : 'disabled'}>
+        </div>`;
+    }).join('');
+
     const asyncField = ASYNC_ENABLED
-        ? `<div><div style="font-size:.75rem;color:#667085">${@json(__('Async min/day'))}</div><input id="scAsync" type="number" value="0" min="0" max="600" class="form-control form-control-sm" style="width:90px"></div>`
+        ? `<div><div style="font-size:.75rem;color:#667085">${@json(__('Async min/day'))}</div><input id="scAsync" type="number" value="${prefillAsync}" min="0" max="600" class="form-control form-control-sm" style="width:90px"></div>`
         : '';
 
     const { value: form } = await Swal.fire({
-        title: personal ? @json(__('Personalized schedule')) : @json(__('New schedule')),
+        title: editOpt ? @json(__('Edit personalized schedule')) : (personal ? @json(__('Personalized schedule')) : @json(__('New schedule'))),
+        width: 520,
         html: `
-            <input id="scName" class="swal2-input" autocomplete="off" placeholder="${@json(__('Schedule name'))}" style="width:85%">
-            <div style="margin:.5rem 0 .25rem;font-size:.8rem;color:#667085">${@json(__('Working days'))}</div>
-            <div id="scDays" style="display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem">${dayBtns}</div>
-            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.6rem;flex-wrap:wrap">
-                <div><div style="font-size:.75rem;color:#667085">${@json(__('Start'))}</div><input id="scStart" type="time" value="09:00" class="form-control form-control-sm"></div>
-                <div><div style="font-size:.75rem;color:#667085">${@json(__('End'))}</div><input id="scEnd" type="time" value="18:00" class="form-control form-control-sm"></div>
-                <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="5" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
+            <input id="scName" class="swal2-input" autocomplete="off" placeholder="${@json(__('Schedule name'))}" value="${prefillName.replace(/"/g, '&quot;')}" style="width:90%">
+            <div style="margin:.5rem 0 .25rem;font-size:.8rem;color:#667085;text-align:left;padding-left:.4rem">${@json(__('Working days and hours'))}</div>
+            <div id="scDays" class="sc-daygrid">${dayRows}</div>
+            <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.7rem;flex-wrap:wrap">
+                <div><div style="font-size:.75rem;color:#667085">${@json(__('Tolerance (min)'))}</div><input id="scTol" type="number" value="${prefillTol}" min="0" max="60" class="form-control form-control-sm" style="width:80px"></div>
                 ${asyncField}
             </div>
-            <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${personal ? @json(__('Only for this person — it will not appear in the shared catalog.')) : @json(__('Same hours on every chosen day. For different hours per day or overnight shifts, use the Schedules page.'))}</p>
+            <p class="text-muted" style="font-size:.72rem;margin:.5rem 0 0">${@json(__('Each day can have its own hours. An end before the start means the shift crosses midnight.'))}${personal ? ' ' + @json(__('Only for this person — it will not appear in the shared catalog.')) : ''}</p>
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: @json(__('Save')),
         cancelButtonText: @json(__('Cancel')),
         didOpen: () => {
-            document.querySelectorAll('#scDays label').forEach(lbl => {
-                lbl.addEventListener('click', () => setTimeout(() => lbl.classList.toggle('active', lbl.querySelector('input').checked), 0));
+            document.querySelectorAll('#scDays .sc-drow').forEach(row => {
+                const chk = row.querySelector('.sc-on');
+                chk.addEventListener('change', () => row.querySelectorAll('input[type=time]').forEach(t => t.disabled = !chk.checked));
             });
         },
         preConfirm: () => {
             const name = document.getElementById('scName').value.trim();
-            const weekdays = [...document.querySelectorAll('#scDays input:checked')].map(i => parseInt(i.value, 10));
-            const start = document.getElementById('scStart').value, end = document.getElementById('scEnd').value;
             if (!name) { Swal.showValidationMessage(@json(__('Enter a name'))); return false; }
-            if (!weekdays.length) { Swal.showValidationMessage(@json(__('Select at least one working day.'))); return false; }
-            if (!start || !end || start === end) { Swal.showValidationMessage(@json(__('Enter a valid start and end time.'))); return false; }
+            const days = [];
+            let bad = false;
+            document.querySelectorAll('#scDays .sc-drow').forEach(row => {
+                if (!row.querySelector('.sc-on').checked) return;
+                const start = row.querySelector('.sc-s').value, end = row.querySelector('.sc-e').value;
+                if (!start || !end || start === end) { bad = true; return; }
+                days.push({ weekday: parseInt(row.dataset.wd, 10), start, end });
+            });
+            if (!days.length) { Swal.showValidationMessage(@json(__('Select at least one working day.'))); return false; }
+            if (bad) { Swal.showValidationMessage(@json(__('Each working day needs a valid start and end time.'))); return false; }
             return {
-                name, weekdays, start, end,
+                name, days,
                 tolerance_minutes: parseInt(document.getElementById('scTol').value || '5', 10),
                 async_minutes_per_day: ASYNC_ENABLED ? parseInt(document.getElementById('scAsync').value || '0', 10) : 0,
                 is_shared: personal ? 0 : 1,
@@ -559,7 +595,7 @@ async function createSchedule(url, opts = {}) {
     if (!form) return;
 
     const res = await fetch(url, {
-        method: 'POST',
+        method: editOpt ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
         body: JSON.stringify(form)
     });
@@ -570,21 +606,40 @@ async function createSchedule(url, opts = {}) {
         return;
     }
     const data = await res.json();
-    // Show "name — days · hours · tol. X min" in the option, like the seeded options do
     let label = data.summary ? (data.name + ' — ' + data.summary) : data.name;
     if (data.rules) label += ' · ' + data.rules;
+    const daysJson = JSON.stringify(data.days || {});
 
-    if (personal && opts.targetSelect) {
-        // Inject into THIS row only, under a "Personalized" optgroup, and select it
+    // Stamp an <option> with the data-* the editor reads back to prefill.
+    const decorate = (opt, shared) => {
+        opt.dataset.shared = (shared ?? data.shared) ? '1' : '0';
+        opt.dataset.tolerance = (data.tolerance_minutes ?? '');
+        opt.dataset.async = (data.async_minutes_per_day ?? 0);
+        opt.dataset.days = daysJson;
+    };
+
+    if (editOpt) {
+        // In-place update: refresh the edited option (and any twin in other selects).
+        document.querySelectorAll('#scheduleSelect, #schedulePeriods select').forEach(sel => {
+            [...sel.options].forEach(o => {
+                if (o.value != data.id) return;
+                o.textContent = (sel.id === 'scheduleSelect') ? data.name : label;
+                decorate(o);
+            });
+        });
+        if (document.getElementById('scheduleSelect').value == data.id) updateScheduleDetail();
+        if (opts.targetSelect) $(opts.targetSelect).trigger('change');
+    } else if (personal && opts.targetSelect) {
+        // New personalized schedule: inject into THIS row only, select it.
         let grp = opts.targetSelect.querySelector('optgroup.js-personal-group');
         if (!grp) { grp = document.createElement('optgroup'); grp.className = 'js-personal-group'; grp.label = @json(__('Personalized')); opts.targetSelect.appendChild(grp); }
         const opt = new Option(label, data.id, true, true);
+        decorate(opt, false);
         grp.appendChild(opt);
         opts.targetSelect.value = data.id;
         syncPeriodRequired(opts.targetSelect); // picking a schedule makes "From" required
     } else {
-        // Shared: add to the base select (name only + details in data-*), selected;
-        // and to every period-row select (which show "name — summary" inline).
+        // New shared schedule: add to the base select and to every period-row select.
         const base = document.getElementById('scheduleSelect');
         const baseOpt = new Option(data.name, data.id, true, true);
         baseOpt.dataset.summary = data.summary || '';
@@ -592,18 +647,24 @@ async function createSchedule(url, opts = {}) {
         base.add(baseOpt);
         $(base).trigger('change'); // refreshes Select2 and the detail panel
         document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
-            if (![...sel.options].some(o => o.value == data.id)) sel.add(new Option(label, data.id));
+            if (![...sel.options].some(o => o.value == data.id)) { const o = new Option(label, data.id); decorate(o, true); sel.add(o); }
         });
     }
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(__('Added')), showConfirmButton: false, timer: 2500 });
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: editOpt ? @json(__('Saved')) : @json(__('Added')), showConfirmButton: false, timer: 2500 });
 }
 
-// "Personalize" pencil on each period row → create a personalized schedule for that row
+// "Personalize" pencil on each period row → create a NEW personalized schedule, or
+// EDIT the one already selected in that row (days/hours can change afterwards).
 document.getElementById('schedulePeriods')?.addEventListener('click', function (e) {
     const btn = e.target.closest('.personalize-period');
     if (!btn) return;
     const select = btn.closest('.period-row').querySelector('select.period-schedule');
-    createSchedule(SCHEDULE_QUICK_URL, { personal: true, targetSelect: select });
+    const opt = select.selectedOptions[0];
+    if (opt && opt.value && opt.dataset.shared === '0') {
+        createSchedule(SCHEDULE_QUICK_UPDATE_URL.replace('__ID__', opt.value), { personal: true, targetSelect: select, editOption: opt });
+    } else {
+        createSchedule(SCHEDULE_QUICK_URL, { personal: true, targetSelect: select });
+    }
 });
 </script>
 @endpush
