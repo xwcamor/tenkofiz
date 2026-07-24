@@ -80,6 +80,13 @@ class FreeScheduleTest extends TestCase
         // Three captures logged, but a single day container (no "already marked out")
         $this->assertSame(3, AttendanceMark::where('employee_id', $employee->id)->count());
         $this->assertSame(1, Attendance::where('employee_id', $employee->id)->count());
+
+        // The day is stored as FREE (not a green "on time"), with no schedule quota,
+        // so the report shows "LIBRE" and omits expected/worked hours.
+        $day = Attendance::where('employee_id', $employee->id)->first();
+        $this->assertSame(Attendance::STATUS_FREE, $day->status);
+        $this->assertSame(0, (int) $day->expected_minutes);
+        $this->assertTrue($day->isFreeMark());
     }
 
     public function test_free_days_never_become_absences(): void

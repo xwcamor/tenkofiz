@@ -34,6 +34,10 @@
         if (!$attendance->check_in || !$attendance->check_out) {
             return '—';
         }
+        // Free-mode days are presence-only: no schedule quota, so no hours figure.
+        if ($attendance->isFreeMark()) {
+            return '—';
+        }
         $schedule = $attendance->employee->schedule;
         $shift = $clampWorked ? $attendance->clampShift($schedule) : null;
         $expected = $attendance->expected_minutes ?? ($schedule?->expectedMinutesFor($attendance->date->dayOfWeek) ?? 0);

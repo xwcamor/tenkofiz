@@ -9,6 +9,7 @@
         'ON_TIME' => 'success',
         'LATE' => 'warning',
         'EXCUSED' => 'info',
+        'FREE' => 'info',
         default => 'secondary',
     };
     $statusColors = ['ON_TIME' => '#0ca30c', 'LATE' => '#fab219', 'ABSENT' => '#d03b3b', 'EXCUSED' => '#2a78d6'];

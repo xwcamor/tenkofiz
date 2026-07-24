@@ -164,8 +164,10 @@ class ReportController extends Controller
                     $attendance->date->format('d/m/Y'),
                     $attendance->check_in ? substr($attendance->check_in, 0, 5) : '—',
                     $attendance->check_out ? substr($attendance->check_out, 0, 5) : '—',
-                    $full ? $hm($complied) : '—',
-                    $full ? $hm($expDay) : '—',
+                    // A day with no schedule quota (free mode, or a mark on a
+                    // non-working day) shows "—" instead of a misleading 0:00.
+                    ($full && $expDay > 0) ? $hm($complied) : '—',
+                    ($full && $expDay > 0) ? $hm($expDay) : '—',
                     $owed > 0 ? $hm($owed) : '—',
                     __($attendance->status),
                 ], null, 'A'.$rowIndex++);
@@ -410,7 +412,7 @@ class ReportController extends Controller
                 'position' => $employee->position?->name ?? '—',
                 'site' => $employee->site?->name ?? '—',
                 'site_address' => $employee->site?->address ?? '',
-                'worked_days' => $attendances->whereNotNull('check_in')->whereIn('status', ['ON_TIME', 'LATE'])->count(),
+                'worked_days' => $attendances->whereNotNull('check_in')->whereIn('status', \App\Models\Attendance::PRESENT_STATUSES)->count(),
                 'on_time' => $attendances->where('status', 'ON_TIME')->count(),
                 'late' => $attendances->where('status', 'LATE')->count(),
                 'late_minutes' => $lateMinutes,
@@ -506,7 +508,7 @@ class ReportController extends Controller
         }
 
         $summary = [
-            'days' => $attendances->whereIn('status', ['ON_TIME', 'LATE'])->count(),
+            'days' => $attendances->whereIn('status', \App\Models\Attendance::PRESENT_STATUSES)->count(),
             'on_time' => $attendances->where('status', 'ON_TIME')->count(),
             'late' => $attendances->where('status', 'LATE')->count(),
             'late_minutes' => $lateMinutes,

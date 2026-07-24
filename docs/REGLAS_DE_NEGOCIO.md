@@ -264,11 +264,12 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   cierra (salida); las intermedias quedan en el log de marcas (§1.4e). `esperadas = 0`,
   así que **no genera deuda**. No aparece en el marcado de ausencias (un horario libre
   no tiene días laborables definidos). `Schedule::isFree()`.
-  - **Presentación en el reporte** (pendiente de pulido acordado): hoy un día
-    libre se guarda con estado interno `ON_TIME` y `esperadas = 0`, por lo que el reporte
-    muestra "0:00 / 0:00" y badge verde; lo mismo un día no laborable en horario fijo
-    (domingo suelto, §1.4d). La mejora acordada es mostrar "—" en esas columnas y un
-    badge neutro "LIBRE" en vez de verde.
+  - **Presentación en el reporte**: un día libre se guarda con estado propio
+    `FREE` (`Attendance::STATUS_FREE`) y `esperadas = 0`. En listados y reportes sale
+    con badge neutro **"LIBRE"** (no verde "puntual") y con **"—"** en esperadas/
+    trabajadas/debe (misma regla para un día sin jornada, p.ej. domingo suelto en horario
+    fijo: si `esperadas = 0` se muestra "—"). Cuenta como día presente
+    (`Attendance::PRESENT_STATUSES` incluye FREE) pero nunca como tardanza ni deuda.
 - **Breaks tipo ZKTeco**: ya implementados como **marcas múltiples** por día
   (§1.4f, `kiosk_breaks_enabled`). Pendiente/futuro: bloques separados el mismo día
   (profesor con un curso y otro 3 h después).

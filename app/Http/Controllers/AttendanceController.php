@@ -184,7 +184,7 @@ class AttendanceController extends Controller
             }
 
             $summary = [
-                'days' => $attendances->whereIn('status', ['ON_TIME', 'LATE'])->count(),
+                'days' => $attendances->whereIn('status', \App\Models\Attendance::PRESENT_STATUSES)->count(),
                 'late' => $attendances->where('status', 'LATE')->count(),
                 'absent' => $attendances->where('status', 'ABSENT')->count(),
                 'hours' => sprintf('%d:%02d', intdiv($minutes, 60), $minutes % 60),

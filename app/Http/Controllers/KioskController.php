@@ -507,7 +507,10 @@ class KioskController extends Controller
         if (!$attendance->exists) {
             $attendance->fill([
                 'check_in' => $currentTime,
-                'status' => 'ON_TIME', // free mode never judges punctuality; neutral status
+                // Free mode never judges punctuality: a neutral FREE status (not
+                // ON_TIME) so the report shows "LIBRE" and omits expected/worked hours
+                // instead of a misleading green "on time" with 0:00.
+                'status' => Attendance::STATUS_FREE,
                 'method' => $method,
                 'expected_minutes' => 0,
             ] + array_filter($extra) + $device);

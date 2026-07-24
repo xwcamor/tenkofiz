@@ -13,6 +13,20 @@ class Attendance extends Model
 
     public const STATUSES = ['ON_TIME', 'LATE', 'ABSENT', 'EXCUSED'];
 
+    // System-only status for free-mode marks (never a manual-entry option). It is
+    // "present but not judged": counts as a worked day, but the report shows it as
+    // LIBRE with no expected/worked/owed hours.
+    public const STATUS_FREE = 'FREE';
+
+    /** Statuses that count as the person being present that day */
+    public const PRESENT_STATUSES = ['ON_TIME', 'LATE', 'FREE'];
+
+    /** A free-mode mark: logged presence with no schedule judgement */
+    public function isFreeMark(): bool
+    {
+        return $this->status === self::STATUS_FREE;
+    }
+
     protected $fillable = [
         'employee_id', 'date', 'check_in', 'check_out', 'break_out', 'break_in',
         'status', 'expected_minutes', 'shift_start', 'shift_end', 'method', 'similarity', 'note', 'ip', 'user_agent', 'evidence_photo', 'delete_reason',

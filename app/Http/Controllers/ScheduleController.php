@@ -165,7 +165,7 @@ class ScheduleController extends Controller
         // Blocked while in use — as someone's base schedule OR inside a dated period
         // (vigencia). Without the second check the DB foreign key would 500.
         if ($schedule->employees()->exists() || \App\Models\EmployeeSchedule::where('schedule_id', $schedule->id)->exists()) {
-            return back()->with('error', __('Cannot delete: there are employees assigned (as their schedule or in a scheduled period).'));
+            return back()->with('error', __('Cannot delete: there are employees assigned (as their schedule or in a scheduled period). Deactivate it instead — it stops appearing for selection while keeping every past record intact.'));
         }
         AuditLog::record('DELETE', 'Schedules',
             __('Schedule :name was deleted', ['name' => $schedule->name]), $schedule->toArray());
