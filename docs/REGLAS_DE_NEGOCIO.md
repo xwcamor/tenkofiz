@@ -47,11 +47,20 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
    sede**. Documento inválido → mensaje, sin cámara. Válido → la persona queda en
    sesión 3 minutos (`kiosk_verify_doc`) y pasa a la página de cámara.
 2. **`/kiosk/verify` (cámara)**: muestra el nombre de la persona y abre la cámara.
-   - **Con rostro enrolado**: verificación 1:1 durante `kiosk_verify_seconds`
-     segundos (5–60, por defecto **10**) con conteo grande sobre el video y chip
-     de "rostro detectado". Identidad confirmada (+ reto de vida si está activo,
-     §1.2c) → marca facial y vuelve al teclado en 4 s.
-   - **Se agotó el tiempo → fase de evidencia AUTOMÁTICA** (8 s): la cámara busca
+   - **Con rostro enrolado — DOS RELOJES independientes** (nunca corren a la vez),
+     para no castigar a quien sí está intentando marcar:
+     - **Reloj A — Inactividad** (`kiosk_verify_seconds`, 5–60, por defecto **10**):
+       corre **solo mientras NO hay rostro** frente a la cámara; se reinicia apenas
+       aparece un rostro; al agotarse vuelve al teclado (no había nadie). Su conteo
+       regresivo SÍ se muestra.
+     - **Reloj B — Intento** (`kiosk_match_seconds`, 5–120, por defecto **20**): corre
+       **solo mientras SÍ hay un rostro** presente (posicionándose o comparando); si en
+       esa ventana no logra identidad + reto de vida, cae a documento + foto de
+       evidencia; se reinicia si el rostro se va. Mientras hay rostro, el conteo se
+       **oculta** (sin presión de tiempo) y el reloj de inactividad se congela.
+     - Identidad confirmada (+ reto de vida si está activo, §1.2c) en cualquier momento
+       → marca facial y vuelve al teclado en 4 s.
+   - **Se agotó un reloj → fase de evidencia AUTOMÁTICA** (8 s): la cámara busca
      **cualquier** rostro; al primero que aparece marca por documento con foto de
      evidencia (aunque sea la foto de un tramposo: la evidencia lo delata). Si en
      8 s no aparece ningún rostro, **no se registra nada** y vuelve al teclado.
@@ -74,9 +83,10 @@ El kiosco funciona en **páginas separadas** (nada de modales encima de la cáma
    de admin (`/employees/{id}/enroll`).
 
 - **Calibración core (solo super-admin, §14)**: el umbral de similitud
-  (`kiosk_face_threshold`, 0.35–0.65; 0.50 recomendado; menor = más estricto) y la
-  ventana de verificación (`kiosk_verify_seconds`) se editan ÚNICAMENTE desde la
-  consola de Workspaces (botón "Calibración del reconocimiento"). El administrador
+  (`kiosk_face_threshold`, 0.35–0.65; 0.50 recomendado; menor = más estricto) y los
+  **dos relojes** (`kiosk_verify_seconds` = inactividad, `kiosk_match_seconds` = intento)
+  se editan ÚNICAMENTE desde la consola de Workspaces (botón "Calibración del
+  reconocimiento"), cada uno con su ayuda en pantalla. El administrador
   de la empresa **no ve estos campos**: un umbral mal puesto deja pasar a
   cualquiera como cualquiera.
 - **Reto de vida (`kiosk_liveness`)**: si está activo, tras confirmar la identidad
@@ -246,9 +256,22 @@ ambos (p.ej. colegio: admins fijos + profesores flexibles).
   de turno). Los `ScheduleDay` se guardan solo para saber QUÉ días trabaja (marcado
   de ausencias); sus horas 00:00 son marcador de posición. Cubre profesores,
   consultores y medio tiempo. `Schedule::isFlexible()/isFixed()`.
-- **Pendiente/futuro**: bloques separados el mismo día (profesor con un curso y otro
-  3 h después) y breaks tipo ZKTeco (entrada / salida a break / retorno / salida)
-  requieren el modelo de **marcas múltiples** por día — otra fase.
+- **Libre** (`free`): **sin reglas de horario**. Cada marca se registra tal cual con su
+  evidencia (rostro/GPS/foto); el sistema **no** juzga tardanza, falta ni horas, y
+  permite **cualquier número de marcas por día**. Cubre salud, campo y jornadas
+  irregulares. En `performMark`, si el horario vigente `isFree()`, se desvía a
+  `recordFreeMark`: la 1.ª marca del día abre la asistencia (entrada) y la última la
+  cierra (salida); las intermedias quedan en el log de marcas (§1.4e). `esperadas = 0`,
+  así que **no genera deuda**. No aparece en el marcado de ausencias (un horario libre
+  no tiene días laborables definidos). `Schedule::isFree()`.
+  - **Presentación en el reporte** (pendiente de pulido acordado con Carlos): hoy un día
+    libre se guarda con estado interno `ON_TIME` y `esperadas = 0`, por lo que el reporte
+    muestra "0:00 / 0:00" y badge verde; lo mismo un día no laborable en horario fijo
+    (domingo suelto, §1.4d). La mejora acordada es mostrar "—" en esas columnas y un
+    badge neutro "LIBRE" en vez de verde.
+- **Breaks tipo ZKTeco**: ya implementados como **marcas múltiples** por día
+  (§1.4f, `kiosk_breaks_enabled`). Pendiente/futuro: bloques separados el mismo día
+  (profesor con un curso y otro 3 h después).
 
 ### 1.4f Control de breaks (marcas múltiples, `settings.kiosk_breaks_enabled`)
 Por workspace (Ajustes). **Apagado por defecto** → el flujo sigue idéntico (1

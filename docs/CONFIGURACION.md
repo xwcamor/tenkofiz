@@ -47,6 +47,10 @@ verificación SSL en el código como "solución".
   - *Vinculación de dispositivo (recomendado)*: genera un código de un solo uso y actívalo en la tablet. Desde ese momento **solo esa tablet** (que guarda una cookie) abre el kiosco de esa sede; una URL copiada en otro equipo se rechaza. Puedes vincular **varias tablets por sede** (una por área) y revocar cada una por separado.
 - [ ] **Enrolamiento facial guiado (sin PIN)** — ya no hay PIN. Al digitar el DNI, si la persona no tiene rostro, acepta el consentimiento y la cámara la guía (círculo verde, acércate/aléjate) y captura sola en unos segundos; enseguida marca su asistencia.
 - [ ] **Geolocalización (opcional)** — en *Ajustes → Kiosco* puedes registrar dónde se hizo cada marca. Con **"Exigir ubicación para marcar"** activado, la cámara no se abre sin ubicación y una marca sin coordenadas se rechaza (para empresas cuyos trabajadores marcan desde cualquier lugar con el enlace compartido).
+- [ ] **Calibración del reconocimiento (solo super-admin)** — desde la consola de *Workspaces*, botón "Calibración del reconocimiento" de cada empresa. NO la ve el admin de la empresa. Tres valores:
+  - *Exigencia de coincidencia* (`kiosk_face_threshold`, 0.35–0.65; **0.50** recomendado; menor = más estricto).
+  - *Espera sin nadie* (`kiosk_verify_seconds`, reloj de **inactividad**: cuánto espera la cámara SIN ninguna cara antes de volver al teclado; **10** recomendado).
+  - *Máximo intentando reconocer* (`kiosk_match_seconds`, reloj de **intento**: cuánto puede seguir intentando una cara presente sin coincidir, antes de caer a documento + foto; **20** recomendado). Mientras hay una cara, a la persona nunca se le acaba el tiempo.
 
 ## 3. Perfiles y usuarios
 
