@@ -92,6 +92,29 @@ class Schedule extends Model
         return (int) $start->diffInMinutes($end);
     }
 
+    /**
+     * Compact rules line for selectors and chips: the tardiness tolerance (fixed
+     * only) plus any async/credited hours. Empty for free schedules and when there
+     * is nothing to add. daysSummary already carries the flexible target, so this
+     * only appends what that line does not — kept short to fit inside a <option>.
+     */
+    public function rulesSummary(): string
+    {
+        if ($this->isFree()) {
+            return '';
+        }
+
+        $parts = [];
+        if ($this->isFixed()) {
+            $parts[] = __('tol. :m min', ['m' => (int) $this->tolerance_minutes]);
+        }
+        if (app_setting()->async_hours_enabled && $this->async_minutes_per_day > 0) {
+            $parts[] = __('+:h h credited', ['h' => round($this->async_minutes_per_day / 60, 1)]);
+        }
+
+        return implode(' · ', $parts);
+    }
+
     /** Short summary such as "Mon–Sat 08:00–17:00" or "Custom" when days differ */
     public function daysSummary(): string
     {

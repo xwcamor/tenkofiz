@@ -48,6 +48,8 @@
     "On the site's tablet, open the pairing page (the link shown below when you generate the code).": "En la tablet de la sede, abre la página de emparejamiento (el enlace aparece abajo al generar el código).",
     "Type the code there before it expires (15 min). That tablet stays bound to this site.": "Escribe ahí el código antes de que expire (15 min). Esa tablet queda vinculada a esta sede.",
     "Credited (async):": "Acreditado (async):",
+    "tol. :m min": "tol. :m min",
+    "+:h h credited": "+:h h acred.",
     "day": "día",
     "Pick a \"From\" date for each schedule period you add.": "Elige una fecha «Desde» para cada periodo de horario que agregues.",
     "selected": "seleccionados",

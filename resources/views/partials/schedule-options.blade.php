@@ -4,14 +4,14 @@
 @if($schedules->isNotEmpty())
     <optgroup label="{{ __('From the catalog') }}">
         @foreach($schedules as $schedule)
-            <option value="{{ $schedule->id }}" @selected(($selected ?? null) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
+            <option value="{{ $schedule->id }}" @selected(($selected ?? null) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}@if($schedule->rulesSummary()) · {{ $schedule->rulesSummary() }}@endif</option>
         @endforeach
     </optgroup>
 @endif
 @if(($personalSchedules ?? collect())->isNotEmpty())
     <optgroup label="{{ __('Personalized') }}" class="js-personal-group">
         @foreach($personalSchedules as $schedule)
-            <option value="{{ $schedule->id }}" @selected(($selected ?? null) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}</option>
+            <option value="{{ $schedule->id }}" @selected(($selected ?? null) == $schedule->id)>{{ $schedule->name }} — {{ $schedule->daysSummary() }}@if($schedule->rulesSummary()) · {{ $schedule->rulesSummary() }}@endif</option>
         @endforeach
     </optgroup>
 @endif

@@ -87,6 +87,7 @@ class ScheduleController extends Controller
             'id' => $schedule->id,
             'name' => $schedule->name,
             'summary' => $schedule->load('days')->daysSummary(),
+            'rules' => $schedule->rulesSummary(),
             'async_minutes_per_day' => (int) $schedule->async_minutes_per_day,
         ]);
     }

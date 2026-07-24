@@ -152,7 +152,7 @@
                                 <option value="">— {{ __('Select a schedule') }} —</option>
                                 @foreach($schedules as $schedule)
                                     <option value="{{ $schedule->id }}" @selected(old('schedule_id', $employee->schedule_id) == $schedule->id)
-                                        data-summary="{{ $schedule->daysSummary() }}" data-async="{{ (int) $schedule->async_minutes_per_day }}">{{ $schedule->name }}</option>
+                                        data-summary="{{ $schedule->daysSummary() }}" data-rules="{{ $schedule->rulesSummary() }}">{{ $schedule->name }}</option>
                                 @endforeach
                             </select>
                             @if(auth()->user()->hasModule('schedules'))
@@ -363,12 +363,10 @@ function updateScheduleDetail() {
     const opt = document.getElementById('scheduleSelect').selectedOptions[0];
     if (!opt || !opt.value) { el.innerHTML = ''; return; }
     const summary = opt.dataset.summary || '';
-    const asyncMin = parseInt(opt.dataset.async || '0', 10);
+    const rules = opt.dataset.rules || ''; // tolerance (fixed) + credited hours, already gated server-side
     let html = summary ? ('<i class="fas fa-calendar-alt mr-1"></i>' + summary) : '';
-    if (SC_ASYNC_ENABLED && asyncMin > 0) {
-        const h = Math.round(asyncMin / 60 * 10) / 10;
-        html += ' &nbsp;·&nbsp; <span class="text-primary"><i class="fas fa-wifi mr-1"></i>'
-             + @json(__('Credited (async):')) + ' ' + h + ' h/' + @json(__('day')) + '</span>';
+    if (rules) {
+        html += ' &nbsp;·&nbsp; <span class="text-primary"><i class="fas fa-sliders-h mr-1"></i>' + rules + '</span>';
     }
     el.innerHTML = html;
 }
@@ -572,8 +570,9 @@ async function createSchedule(url, opts = {}) {
         return;
     }
     const data = await res.json();
-    // Show "name — days · hours" in the option, like the seeded options do
-    const label = data.summary ? (data.name + ' — ' + data.summary) : data.name;
+    // Show "name — days · hours · tol. X min" in the option, like the seeded options do
+    let label = data.summary ? (data.name + ' — ' + data.summary) : data.name;
+    if (data.rules) label += ' · ' + data.rules;
 
     if (personal && opts.targetSelect) {
         // Inject into THIS row only, under a "Personalized" optgroup, and select it
@@ -589,7 +588,7 @@ async function createSchedule(url, opts = {}) {
         const base = document.getElementById('scheduleSelect');
         const baseOpt = new Option(data.name, data.id, true, true);
         baseOpt.dataset.summary = data.summary || '';
-        baseOpt.dataset.async = data.async_minutes_per_day || 0;
+        baseOpt.dataset.rules = data.rules || '';
         base.add(baseOpt);
         $(base).trigger('change'); // refreshes Select2 and the detail panel
         document.querySelectorAll('#schedulePeriods select, #periodRowTpl select').forEach(sel => {
